@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 // Almacenamiento en memoria para Salas Multiplayer de Ludo Astral
 const roomsStore = new Map();
 
