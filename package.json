@@ -6,7 +6,7 @@
     "dev": "next dev",
     "pages:dev": "wrangler pages dev --proxy 3000 --d1 DB=zodia_db",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static --project-name zodia",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
