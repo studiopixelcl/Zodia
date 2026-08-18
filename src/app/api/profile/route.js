@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getToken }     from 'next-auth/jwt';
+import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateAstralProfile } from '../../../lib/astrology';
 
 export const runtime = 'edge';
@@ -14,13 +14,9 @@ async function getDB() {
   }
 }
 
-function resolveUserId(token) {
-  return token?.id ?? token?.sub ?? token?.email ?? null;
-}
-
 // ─── GET /api/profile ─────────────────────────────────────────────────────────
 export async function GET(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
@@ -82,7 +78,7 @@ export async function GET(request) {
 
 // ─── POST /api/profile ────────────────────────────────────────────────────────
 export async function POST(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }

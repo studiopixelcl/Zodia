@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getToken }     from 'next-auth/jwt';
+import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateMoonPhase, getDailyTarotCard, calculateAstralProfile } from '../../../lib/astrology';
 
 export const runtime = 'edge';
@@ -13,16 +13,12 @@ async function getDB() {
   }
 }
 
-function resolveUserId(token) {
-  return token?.id ?? token?.sub ?? token?.email ?? null;
-}
-
 /**
  * Endpoint: GET /api/oraculo
  * Propósito: Devuelve la transmisión personalizada del Oráculo Lunar y la Carta del Día para el usuario.
  */
 export async function GET(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

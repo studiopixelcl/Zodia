@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getToken }     from 'next-auth/jwt';
+import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 
 export const runtime = 'edge';
 
@@ -10,10 +10,6 @@ async function getDB() {
   } catch {
     return null;
   }
-}
-
-function resolveUserId(token) {
-  return token?.id ?? token?.sub ?? token?.email ?? null;
 }
 
 // Respuestas místicas contextuales de los Sintonizadores Guía y ZODIA Bot
@@ -48,7 +44,7 @@ function generateGuideReply(receiverId, userContent) {
 }
 
 export async function GET(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -85,7 +81,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getToken }     from 'next-auth/jwt';
+import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
 
 export const runtime = 'edge';
@@ -11,10 +11,6 @@ async function getDB() {
   } catch {
     return null;
   }
-}
-
-function resolveUserId(token) {
-  return token?.id ?? token?.sub ?? token?.email ?? null;
 }
 
 const GUIDE_TUNERS = [
@@ -73,7 +69,7 @@ const GUIDE_TUNERS = [
 ];
 
 export async function GET(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

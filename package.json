@@ -13,11 +13,18 @@
   },
   "dependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "http-browserify": "^1.7.0",
+    "https-browserify": "^1.0.0",
     "lucide-react": "^0.378.0",
     "next": "14.2.3",
     "next-auth": "^4.24.7",
+    "querystring-es3": "^0.2.1",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "stream-browserify": "^3.0.0",
+    "url": "^0.11.4"
   },
   "devDependencies": {
     "autoprefixer": "10.4.19",
