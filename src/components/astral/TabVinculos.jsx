@@ -355,38 +355,39 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
     return (
       <div className="space-y-3 animate-fadeIn px-2 sm:px-4 flex flex-col h-[76vh]">
         {/* Cabecera del Chat */}
-        <div className="glass-panel p-3.5 flex items-center justify-between shadow-lg border border-cyan-500/30">
-          <div className="flex items-center gap-3">
+        <div className="glass-panel p-3 flex items-center justify-between shadow-lg border border-cyan-500/30 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={handleBack}
-              className="p-1.5 text-gray-400 hover:text-cyan-400 transition rounded-full hover:bg-white/5"
+              className="p-1.5 text-gray-400 hover:text-cyan-400 transition rounded-full hover:bg-white/5 shrink-0"
+              title="Volver a la lista"
             >
-              <ArrowLeft size={19} />
+              <ArrowLeft size={18} />
             </button>
-            <div className="relative">
-              <div className="w-11 h-11 rounded-full bg-black border-2 border-cyan-400/50 overflow-hidden flex items-center justify-center shadow-inner">
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black border-2 border-cyan-400/50 overflow-hidden flex items-center justify-center shadow-inner">
                 {activeUser.image && activeUser.image !== '/assets/default-avatar.png' ? (
                   <img src={activeUser.image} alt={activeUser.name} className="w-full h-full object-cover" />
                 ) : (
-                  <Bot className="text-cyan-400" size={22} />
+                  <Bot className="text-cyan-400" size={20} />
                 )}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] text-white font-bold shadow-md">
                 {zodiacSymbol}
               </div>
             </div>
-            <div>
-              <h4 className="text-white font-bold text-sm flex items-center gap-1.5">
+            <div className="min-w-0">
+              <h4 className="text-white font-bold text-xs sm:text-sm truncate">
                 {activeUser.name}
               </h4>
-              <p className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {activeUser.sign} • Elemento {activeUser.element}
+              <p className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span>{activeUser.sign} • Elemento {activeUser.element}</span>
               </p>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 px-2.5 py-1 rounded-full text-cyan-300 font-extrabold text-[11px] flex items-center gap-1">
+          <div className="bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 px-2.5 py-1 rounded-full text-cyan-300 font-extrabold text-[11px] flex items-center gap-1 shrink-0">
             <Sparkles size={12} className="text-amber-400" /> {activeUser.affinity || '95%'}
           </div>
         </div>
