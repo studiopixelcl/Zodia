@@ -30,6 +30,7 @@ export async function POST(request) {
     }
 
     const trimmedName = (body.name || '').trim();
+    const rawEmail = (body.email || '').trim();
     const dob = body.dob || '1998-07-15';
 
     if (!trimmedName) {
@@ -39,8 +40,9 @@ export async function POST(request) {
       });
     }
 
-    const userId = 'tuner_' + trimmedName.toLowerCase().replace(/\s+/g, '');
-    const userEmail = `${userId}@zodia.eter`;
+    const cleanIdentifier = rawEmail ? rawEmail.replace(/[@.]/g, '_').toLowerCase() : trimmedName.toLowerCase().replace(/\s+/g, '');
+    const userId = 'tuner_' + cleanIdentifier;
+    const userEmail = rawEmail.includes('@') ? rawEmail : `${userId}@zodia.eter`;
     const userImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(trimmedName)}&background=06b6d4&color=fff&bold=true`;
 
     // Intentar registrar o actualizar en D1 si la base de datos está disponible

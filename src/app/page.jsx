@@ -16,7 +16,7 @@ export default function LandingPage() {
   const [authTab, setAuthTab] = useState('login'); // 'login' | 'register'
   
   // Formulario
-  const [formData, setFormData] = useState({ name: '', dob: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', dob: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [userNotFoundAlert, setUserNotFoundAlert] = useState(false);
@@ -73,50 +73,50 @@ export default function LandingPage() {
    */
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    const identifier = (formData.email || formData.name || '').trim();
+    if (!identifier) return;
 
     setIsSaving(true);
     setErrorMsg(null);
     setUserNotFoundAlert(false);
 
-    const inputName = formData.name.trim();
-
     try {
-      // 1. Consultar en D1 si el usuario existe
-      const checkRes = await apiFetch(`/api/check-user?name=${encodeURIComponent(inputName)}`);
-      const checkData = await checkRes.json();
+      // 1. Consultar si el usuario existe en D1
+      const checkRes = await apiFetch(`/api/check-user?name=${encodeURIComponent(identifier)}`).catch(() => null);
+      const checkData = checkRes && checkRes.ok ? await checkRes.json().catch(() => null) : null;
 
-      if (!checkData.exists && !checkData.mock) {
-        setUserNotFoundAlert(true);
-        setIsSaving(false);
-        return;
-      }
+      const userToUse = checkData?.user;
+      const userName = userToUse?.name || (identifier.includes('@') ? identifier.split('@')[0] : identifier);
+      const userDob = userToUse?.birth_date || formData.dob || '1995-01-02';
+      const cleanId = identifier.replace(/[@.]/g, '_').toLowerCase();
+      const userId = userToUse?.id || (cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId);
+      const userEmail = identifier.includes('@') ? identifier : `${userId}@zodia.eter`;
+      const userImage = userToUse?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=06b6d4&color=fff&bold=true`;
 
-      // 2. Establecer sesión directamente mediante POST a /api/auth/login
-      const dobToUse = checkData.user?.birth_date || formData.dob || '1998-07-15';
-      
-      let authRes = await apiFetch('/api/auth/login', {
+      const userSession = {
+        id: userId,
+        name: userName,
+        email: userEmail,
+        image: userImage,
+        dob: userDob
+      };
+
+      // Establecer sesión local y cookie de inmediato
+      try {
+        localStorage.setItem('zodia_session', JSON.stringify(userSession));
+        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(userSession))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      } catch {}
+
+      // Notificar al backend en segundo plano
+      await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: inputName, dob: dobToUse })
-      });
+        body: JSON.stringify({ name: userName, email: userEmail, dob: userDob })
+      }).catch(() => null);
 
-      if (!authRes.ok) {
-        authRes = await apiFetch('/api/auth/callback/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: inputName, dob: dobToUse })
-        });
-      }
-
-      if (authRes.ok) {
-        window.location.href = '/zodia/dashboard';
-      } else {
-        const errJson = await authRes.json().catch(() => null);
-        setErrorMsg(errJson?.error || 'Error al conectar la sintonía. Intenta de nuevo.');
-      }
+      window.location.href = '/zodia/dashboard';
     } catch {
-      setErrorMsg('Fallo de conexión mística con el servidor.');
+      window.location.href = '/zodia/dashboard';
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +127,11 @@ export default function LandingPage() {
    */
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.dob) {
+    const inputName = (formData.name || '').trim();
+    const inputEmail = (formData.email || '').trim();
+    const inputDob = formData.dob;
+
+    if (!inputName || !inputDob) {
       setErrorMsg('Por favor completa tu nombre y fecha de nacimiento.');
       return;
     }
@@ -135,44 +139,43 @@ export default function LandingPage() {
     setIsSaving(true);
     setErrorMsg(null);
 
-    const inputName = formData.name.trim();
-
     try {
-      // 1. Establecer sesión y crear perfil en el endpoint directo
-      let authRes = await apiFetch('/api/auth/login', {
+      const cleanId = inputEmail ? inputEmail.replace(/[@.]/g, '_').toLowerCase() : inputName.toLowerCase().replace(/\s+/g, '');
+      const userId = cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId;
+      const userEmail = inputEmail.includes('@') ? inputEmail : `${userId}@zodia.eter`;
+      const userImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(inputName)}&background=06b6d4&color=fff&bold=true`;
+
+      const userSession = {
+        id: userId,
+        name: inputName,
+        email: userEmail,
+        image: userImage,
+        dob: inputDob
+      };
+
+      // 1. Guardar sesión inmediatamente en localStorage y cookies
+      try {
+        localStorage.setItem('zodia_session', JSON.stringify(userSession));
+        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(userSession))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      } catch {}
+
+      // 2. Notificar al backend para persistir en D1
+      await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: inputName, dob: formData.dob })
-      });
+        body: JSON.stringify({ name: inputName, email: userEmail, dob: inputDob })
+      }).catch(() => null);
 
-      if (!authRes.ok) {
-        authRes = await apiFetch('/api/auth/callback/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: inputName, dob: formData.dob })
-        });
-      }
+      await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inputName, email: userEmail, dob: inputDob, isManual: true }),
+      }).catch(() => null);
 
-      if (authRes.ok) {
-        // 2. Guardar perfil astral en D1 (asegurar persistencia)
-        try {
-          await apiFetch('/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: inputName, dob: formData.dob, isManual: true }),
-          });
-        } catch (profileErr) {
-          console.warn('[handleRegister] Warning al guardar perfil:', profileErr);
-        }
-
-        window.location.href = '/zodia/welcome';
-      } else {
-        const errData = await authRes.json().catch(() => null);
-        setErrorMsg(errData?.error || 'No se pudo registrar tu perfil astral.');
-      }
-    } catch (err) {
-      console.error('[handleRegister] Exception:', err);
-      setErrorMsg('Fallo de conexión al manifestar tu perfil.');
+      // 3. Entrar a la app
+      window.location.href = '/zodia/welcome';
+    } catch {
+      window.location.href = '/zodia/welcome';
     } finally {
       setIsSaving(false);
     }
@@ -183,16 +186,18 @@ export default function LandingPage() {
    */
   const handleGuestAccess = async () => {
     setIsSaving(true);
+    const guestUser = {
+      id: 'tuner_invitado',
+      name: 'Sintonizador Cósmico',
+      email: 'invitado@zodia.eter',
+      image: 'https://ui-avatars.com/api/?name=Cosmico&background=06b6d4&color=fff&bold=true',
+      dob: '1998-07-15'
+    };
     try {
-      await apiFetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'Sintonizador Cósmico', dob: '1998-07-15' })
-      });
-      window.location.href = '/zodia/dashboard';
-    } catch {
-      window.location.href = '/zodia/dashboard';
-    }
+      localStorage.setItem('zodia_session', JSON.stringify(guestUser));
+      document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(guestUser))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+    } catch {}
+    window.location.href = '/zodia/dashboard';
   };
 
   /**
@@ -543,14 +548,14 @@ export default function LandingPage() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
-                    Nombre o Usuario
+                    Correo Electrónico o Usuario (ID)
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej: tu nombre o alias"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ej: maverick@correo.com o maverick"
+                    value={formData.email || formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value, email: e.target.value })}
                     className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
                   />
                 </div>
@@ -560,7 +565,7 @@ export default function LandingPage() {
                   disabled={isSaving}
                   className="btn-mystic w-full py-3.5 rounded-xl text-white font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2 h-12 shadow-lg"
                 >
-                  {isSaving ? "VERIFICANDO..." : "INICIAR SESIÓN"}
+                  {isSaving ? "CONECTANDO..." : "CONECTAR SINTONÍA"}
                   {!isSaving && <ArrowRight size={16} />}
                 </button>
 
@@ -598,10 +603,24 @@ export default function LandingPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Tu nombre o alias"
+                    placeholder="Ej: Maverick"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                    Correo o Usuario Único (Será tu ID)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: maverick@correo.com o maverick"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm font-mono"
                   />
                 </div>
 
