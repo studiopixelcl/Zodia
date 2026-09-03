@@ -102,14 +102,18 @@ export async function POST(request) {
 
           // Insertar o actualizar usuario
           await db.prepare(`
-            INSERT INTO users (id, email, name, image, status, password_hash)
-            VALUES (?, ?, ?, ?, 'active', ?)
+            INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
             ON CONFLICT(id) DO UPDATE SET
               name = excluded.name,
+              nombre_completo = excluded.nombre_completo,
+              nombre_actual = excluded.nombre_actual,
+              fecha_nacimiento = excluded.fecha_nacimiento,
               email = excluded.email,
               password_hash = COALESCE(excluded.password_hash, users.password_hash),
-              image = COALESCE(users.image, excluded.image)
-          `).bind(userId, userEmail, trimmedName, userImage, passwordHash).run();
+              image = COALESCE(users.image, excluded.image),
+              avatar_url = COALESCE(users.avatar_url, excluded.avatar_url)
+          `).bind(userId, userEmail, trimmedName, trimmedName, trimmedName, dob, userImage, userImage, passwordHash).run();
 
           // Perfil astral
           const astral = calculateAstralProfile(dob);
