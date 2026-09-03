@@ -9,7 +9,7 @@ NEXTAUTH_URL = "https://zodia.studiopixel.cl/zodia"
 NODE_VERSION = "20"
 
 [[d1_databases]]
-database_id = "fdaf64fb-34e5-4ee3-8bd2-8331452a8d43"
+database_id = "fdafd4fb-34e5-4ee3-86d2-8331452e8d43"
 binding = "DB"
 database_name = "zodia_db"
 
@@ -18,6 +18,6 @@ compatibility_date = "2024-11-11"
 compatibility_flags = [ "nodejs_compat" ]
 
 [[env.production.d1_databases]]
-database_id = "fdaf64fb-34e5-4ee3-8bd2-8331452a8d43"
+database_id = "fdafd4fb-34e5-4ee3-86d2-8331452e8d43"
 binding = "DB"
 database_name = "zodia_db"
