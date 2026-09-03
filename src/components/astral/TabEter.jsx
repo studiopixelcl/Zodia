@@ -66,7 +66,8 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       const data = await res.json();
       setCandidates(Array.isArray(data) ? data : []);
       setCurrentIndex(0);
-      setPhotoIndex(0);
+      setMediaIndex(0);
+      setMediaProgress(0);
     } catch (err) {
       setError(err.message || 'No se pudo alcanzar la red astral.');
     } finally {
@@ -116,7 +117,8 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
     setTimeout(() => {
       setSwipeDirection(null);
       setDragOffset({ x: 0, y: 0 });
-      setPhotoIndex(0);
+      setMediaIndex(0);
+      setMediaProgress(0);
       if (!candidateOverride) {
         setCurrentIndex(prev => prev + 1);
       }
@@ -278,7 +280,8 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                 <button
                   onClick={() => {
                     setCurrentIndex(0);
-                    setPhotoIndex(0);
+                    setMediaIndex(0);
+                    setMediaProgress(0);
                   }}
                   className="btn-mystic px-5 py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg"
                 >
