@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
+import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
 import { DATING_CANDIDATES } from '../../../lib/dating';
+import { ensureDatabaseSchema } from '../../../lib/db-init';
 
 export const runtime = 'edge';
 
@@ -28,7 +29,8 @@ export async function GET(request) {
   const minScore = parseInt(searchParams.get('minScore') || '0', 10);
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const rawMyId = resolveUserId(token);
+  const myEmail = token.email ? token.email.toLowerCase().trim() : '';
 
   const defaultMyProfile = {
     sign: "Capricornio",
@@ -42,47 +44,115 @@ export async function GET(request) {
 
   if (db) {
     try {
-      const fetched = await db.prepare(
-        "SELECT * FROM astral_profiles WHERE user_id = ?"
-      ).bind(myId).first();
-      if (fetched) myProfile = fetched;
+      await ensureDatabaseSchema(db);
+      const myCanonicalId = await resolveCanonicalUserId(db, token);
+      const activeMyId = myCanonicalId || rawMyId;
 
+      // 1. Obtener mi perfil astral
+      const fetched = await db.prepare(`
+        SELECT p.* FROM astral_profiles p
+        WHERE p.user_id = ? 
+           OR p.user_id = ?
+           OR (p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?)))
+      `).bind(activeMyId, rawMyId, myEmail).first();
+
+      if (fetched) {
+        myProfile = fetched;
+      }
+
+      // 2. Obtener todos los demás sintonizadores reales desde la tabla users
       const dbOthers = await db.prepare(`
         SELECT 
-          p.*, 
-          u.name, 
-          u.image 
-        FROM astral_profiles p 
-        JOIN users u ON p.user_id = u.id 
-        WHERE p.user_id != ? 
-        LIMIT 30
-      `).bind(myId).all();
+          u.id as user_id, 
+          COALESCE(NULLIF(u.nombre_actual, ''), NULLIF(u.nombre_completo, ''), NULLIF(u.name, ''), u.email, 'Sintonizador') as name, 
+          COALESCE(u.avatar_url, u.image) as image,
+          COALESCE(NULLIF(u.fecha_nacimiento, ''), p.birth_date, '1998-07-15') as birth_date,
+          COALESCE(p.sign, 'Cosmos') as sign,
+          COALESCE(p.element, 'Éter') as element,
+          COALESCE(p.life_path_number, 9) as life_path_number,
+          COALESCE(p.archetype, 'El Explorador') as archetype,
+          COALESCE(p.bio, '') as bio,
+          COALESCE(p.intent, 'Citas y Pareja') as intent,
+          COALESCE(p.location, 'Santiago, Chile') as location,
+          COALESCE(p.photos, '[]') as photos,
+          p.video_url,
+          COALESCE(p.interests, '["Astrología", "Música indie"]') as interests
+        FROM users u
+        LEFT JOIN astral_profiles p ON (
+          p.user_id = u.id 
+          OR (u.email IS NOT NULL AND LOWER(p.user_id) = LOWER(u.email))
+          OR (u.email IS NOT NULL AND p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(u.email)))
+        )
+        WHERE u.id NOT IN (?, ?)
+          AND (u.email IS NULL OR LOWER(u.email) != LOWER(?))
+          AND u.id NOT LIKE 'candidate_%'
+          AND u.id NOT LIKE 'guide_%'
+          AND u.id != 'zodia_bot'
+          AND (u.email IS NULL OR u.email NOT LIKE '%@zodia.eter')
+          AND u.id NOT IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+          AND COALESCE(u.status, 'active') = 'active'
+        ORDER BY COALESCE(u.created_at, u.rowid) DESC
+        LIMIT 60
+      `).bind(activeMyId, rawMyId, myEmail).all();
 
-      othersList = (dbOthers.results || []).map(o => ({
-        id: o.user_id,
-        name: o.name,
-        age: 27,
-        image: o.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(o.name || 'Z')}&background=06b6d4&color=fff`,
-        sign: o.sign,
-        element: o.element,
-        path: o.life_path_number,
-        archetype: o.archetype,
-        bio: o.bio ?? '',
-        intent: o.intent ?? 'Citas y Pareja',
-        location: o.location ?? 'Santiago, Chile',
-        photos: o.photos ? (typeof o.photos === 'string' ? JSON.parse(o.photos) : o.photos) : [],
-        video_url: o.video_url || null,
-        interests: o.interests ? (typeof o.interests === 'string' ? JSON.parse(o.interests) : o.interests) : ['Música indie', 'Café de especialidad', 'Astrología']
-      }));
+      othersList = (dbOthers.results || []).map(o => {
+        let photoList = [];
+        try {
+          photoList = typeof o.photos === 'string' ? JSON.parse(o.photos) : (o.photos || []);
+        } catch {}
+        if (!Array.isArray(photoList)) photoList = [];
+        if (photoList.length === 0 && o.image) {
+          photoList = [o.image];
+        }
+
+        let interestsList = ['Astrología', 'Música indie'];
+        try {
+          interestsList = typeof o.interests === 'string' ? JSON.parse(o.interests) : (o.interests || interestsList);
+        } catch {}
+        if (!Array.isArray(interestsList)) interestsList = ['Astrología', 'Música indie'];
+
+        let age = 26;
+        if (o.birth_date && o.birth_date.length >= 4) {
+          const birthYear = parseInt(o.birth_date.slice(0, 4), 10);
+          if (!isNaN(birthYear) && birthYear > 1920 && birthYear < 2015) {
+            age = Math.max(18, new Date().getFullYear() - birthYear);
+          }
+        }
+
+        return {
+          id: o.user_id,
+          name: o.name,
+          age,
+          image: o.image || (photoList.length > 0 ? photoList[0] : `https://ui-avatars.com/api/?name=${encodeURIComponent(o.name || 'Z')}&background=06b6d4&color=fff`),
+          sign: o.sign,
+          element: o.element,
+          path: o.life_path_number,
+          archetype: o.archetype,
+          bio: o.bio ?? '',
+          intent: o.intent ?? 'Citas y Pareja',
+          location: o.location ?? 'Santiago, Chile',
+          photos: photoList,
+          video_url: o.video_url || null,
+          interests: interestsList,
+          isRealUser: true
+        };
+      });
     } catch (err) {
       console.error("Error consultando D1 en /api/resonances:", err);
     }
   }
 
-  // Integrar catálogo de perfiles de citas de alta calidad
+  // Integrar catálogo simulado únicamente si no hay colisión con sintonizadores reales
   const existingIds = new Set(othersList.map(o => o.id));
+  const realNames = othersList.map(o => (o.name || '').toLowerCase());
+
   for (const candidate of DATING_CANDIDATES) {
-    if (!existingIds.has(candidate.id) && candidate.id !== myId) {
+    if (!existingIds.has(candidate.id) && candidate.id !== rawMyId) {
+      // Si existe un sintonizador real con el mismo nombre (ej: Camila), suprimir candidato simulado para no eclipsar al usuario auténtico
+      const candidateFirst = (candidate.name || '').toLowerCase().split(' ')[0];
+      const hasRealConflict = realNames.some(rn => rn.includes(candidateFirst));
+      if (hasRealConflict) continue;
+
       othersList.push({
         id: candidate.id,
         name: candidate.name,
@@ -98,7 +168,8 @@ export async function GET(request) {
         photos: candidate.photos || [candidate.image],
         video_url: candidate.video_url || null,
         interests: candidate.interests || ['Astrología', 'Música indie'],
-        likesYou: candidate.likesYou ?? false
+        likesYou: candidate.likesYou ?? false,
+        isRealUser: false
       });
     }
   }
@@ -165,8 +236,12 @@ export async function GET(request) {
     resonances = resonances.filter(r => r.affinityScore >= minScore);
   }
 
-  // Ordenar por afinidad astral de mayor a menor
-  resonances.sort((a, b) => b.affinityScore - a.affinityScore);
+  // PRIORIDAD MÁXIMA: Los sintonizadores reales auténticos van siempre primero en la fila de Citas
+  resonances.sort((a, b) => {
+    if (a.isRealUser && !b.isRealUser) return -1;
+    if (!a.isRealUser && b.isRealUser) return 1;
+    return b.affinityScore - a.affinityScore;
+  });
 
   return NextResponse.json(resonances);
 }
@@ -178,7 +253,7 @@ export async function POST(request) {
   }
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const rawId = resolveUserId(token);
 
   let body;
   try {
@@ -197,6 +272,9 @@ export async function POST(request) {
   }
 
   try {
+    await ensureDatabaseSchema(db);
+    const myId = (await resolveCanonicalUserId(db, token)) || rawId;
+
     const existing = await db.prepare(`
       SELECT id FROM resonances
       WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)

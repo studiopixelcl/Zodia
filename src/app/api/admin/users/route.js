@@ -62,24 +62,8 @@ export async function GET(request) {
   }
 
   try {
-    // Asegurar existencia de columnas opcionales en D1
-    try { await db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run(); } catch {}
-    try { await db.prepare("ALTER TABLE users ADD COLUMN ban_reason TEXT").run(); } catch {}
-    try { await db.prepare("ALTER TABLE users ADD COLUMN nombre_actual TEXT").run(); } catch {}
-    try { await db.prepare("ALTER TABLE users ADD COLUMN nombre_completo TEXT").run(); } catch {}
-    try { await db.prepare("ALTER TABLE users ADD COLUMN avatar_url TEXT").run(); } catch {}
-    try { await db.prepare("ALTER TABLE users ADD COLUMN fecha_nacimiento TEXT").run(); } catch {}
-
-    // Purgar de forma proactiva cuentas de demostración o bots si existen en la tabla
-    try {
-      await db.prepare(`
-        DELETE FROM users 
-        WHERE id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
-           OR id LIKE 'candidate_%'
-           OR id LIKE 'guide_%'
-           OR email LIKE '%@zodia.eter'
-      `).run();
-    } catch {}
+    const { ensureDatabaseSchema } = await import('../../../../lib/db-init');
+    await ensureDatabaseSchema(db);
 
     let query = `
       SELECT 
@@ -90,7 +74,7 @@ export async function GET(request) {
         COALESCE(u.status, 'active') AS status, 
         u.ban_reason, 
         u.created_at,
-        COALESCE(NULLIF(u.fecha_nacimiento, ''), p.birth_date) AS birth_date,
+        COALESCE(NULLIF(u.fecha_nacimiento, ''), p.birth_date, 'Sin registrar') AS birth_date,
         COALESCE(p.sign, 'Sin calcular') AS sign, 
         COALESCE(p.element, 'Éter') AS element, 
         p.life_path_number, 
@@ -99,7 +83,8 @@ export async function GET(request) {
         p.intent, 
         p.location, 
         p.interests,
-        p.photos
+        p.photos,
+        p.video_url
       FROM users u
       LEFT JOIN astral_profiles p ON (
         p.user_id = u.id 

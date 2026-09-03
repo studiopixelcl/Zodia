@@ -220,6 +220,9 @@ export async function GET(request) {
 
     if (db) {
       try {
+        const { ensureDatabaseSchema } = await import('../../../../../lib/db-init');
+        await ensureDatabaseSchema(db);
+
         // Buscar si ya existe una cuenta registrada con este correo (o ID previo)
         const cleanId = email.replace(/[@.]/g, '_');
         const candidateId = 'tuner_' + cleanId;
@@ -238,9 +241,14 @@ export async function GET(request) {
           // Actualizar imagen o nombre si faltaban
           await db.prepare(`
             UPDATE users 
-            SET image = COALESCE(image, ?), avatar_url = COALESCE(avatar_url, ?), status = 'active'
+            SET name = COALESCE(name, ?),
+                nombre_actual = COALESCE(nombre_actual, ?),
+                nombre_completo = COALESCE(nombre_completo, ?),
+                image = COALESCE(image, ?), 
+                avatar_url = COALESCE(avatar_url, ?), 
+                status = 'active'
             WHERE id = ?
-          `).bind(image, image, existing.id).run();
+          `).bind(name, name, name, image, image, existing.id).run();
         } else {
           // Usuario nuevo: registrarlo en D1
           finalUserId = candidateId;
@@ -249,8 +257,21 @@ export async function GET(request) {
             VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active')
           `).bind(finalUserId, email, name, name, name, image, image).run();
         }
+
+        // Si no tiene fecha de nacimiento en users, revisar si ya existía en astral_profiles
+        if (!finalDob) {
+          try {
+            const astral = await db.prepare(
+              "SELECT birth_date FROM astral_profiles WHERE user_id = ? OR user_id = ?"
+            ).bind(finalUserId, email).first();
+            if (astral?.birth_date) {
+              finalDob = astral.birth_date;
+              await db.prepare("UPDATE users SET fecha_nacimiento = ? WHERE id = ?").bind(finalDob, finalUserId).run();
+            }
+          } catch {}
+        }
       } catch (dbErr) {
-        console.warn('[Google OAuth Callback] D1 Error:', dbErr.message);
+        console.error('[Google OAuth Callback] D1 Error:', dbErr);
         if (!finalUserId) finalUserId = 'tuner_' + email.replace(/[@.]/g, '_');
       }
     } else {

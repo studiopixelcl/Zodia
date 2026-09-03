@@ -436,6 +436,43 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              {/* Multimedia: Galería de Fotos y Video */}
+              {(() => {
+                let photosArr = [];
+                try {
+                  photosArr = typeof selectedUser.photos === 'string' ? JSON.parse(selectedUser.photos) : (selectedUser.photos || []);
+                } catch {}
+                if (!Array.isArray(photosArr)) photosArr = [];
+
+                return (photosArr.length > 0 || selectedUser.video_url) ? (
+                  <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                    <span className="text-slate-500 uppercase text-[10px] font-mono mb-2 block">
+                      Archivos Multimedia ({photosArr.length} fotos {selectedUser.video_url ? '+ 1 mini-video' : ''})
+                    </span>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {photosArr.map((pUrl, idx) => (
+                        <a key={idx} href={pUrl} target="_blank" rel="noreferrer" className="block relative group">
+                          <img 
+                            src={pUrl} 
+                            alt={`Foto ${idx+1}`} 
+                            className="w-16 h-16 object-cover rounded-lg border border-slate-700 hover:border-cyan-400 transition-colors shadow" 
+                          />
+                        </a>
+                      ))}
+                      {selectedUser.video_url && (
+                        <div className="relative">
+                          <video 
+                            src={selectedUser.video_url} 
+                            className="w-16 h-16 object-cover rounded-lg border border-indigo-500 shadow" 
+                            controls 
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
               {selectedUser.status === 'banned' && selectedUser.ban_reason && (
                 <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300">
                   <span className="uppercase text-[10px] font-mono block font-semibold mb-0.5">Motivo del Baneo</span>

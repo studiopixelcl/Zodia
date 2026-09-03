@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
+import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { calculateAstralProfile } from '../../../lib/astrology';
 import { sendWelcomeEmail } from '../../../lib/resend';
+import { ensureDatabaseSchema } from '../../../lib/db-init';
 
 export const runtime = 'edge';
 
@@ -23,51 +24,111 @@ export async function GET(request) {
   }
 
   const db = await getDB();
-  const userId = resolveUserId(token);
+  const rawId = resolveUserId(token);
+  const userEmail = token.email ? token.email.toLowerCase().trim() : '';
 
   if (!db) {
-    const dob = token.dob || '1998-07-15';
-    let astralProfile;
     try {
-      astralProfile = calculateAstralProfile(dob);
-    } catch {
-      astralProfile = calculateAstralProfile('1998-07-15');
-    }
+      const { devStore } = await import('../../../lib/dev-store');
+      const devUser = (devStore.users || []).find(u => u.id === rawId || (userEmail && u.email?.toLowerCase() === userEmail));
+      const dob = devUser?.fecha_nacimiento || token.dob || '1998-07-15';
+      const astralProfile = calculateAstralProfile(dob);
 
-    return NextResponse.json({
-      exists: true,
-      profile: {
-        user_id: userId,
-        birth_date: dob,
-        sign: astralProfile.sign,
-        element: astralProfile.element,
-        life_path_number: astralProfile.lifePath,
-        archetype: astralProfile.archetype,
-        luz: astralProfile.luz,
-        sombra: astralProfile.sombra,
-        bio: 'Amante de la astrología, la música y las conversaciones profundas bajo las estrellas ✨',
-        intent: 'Citas y Pareja',
-        location: 'Santiago, Chile',
-        photos: JSON.stringify([]),
-        interests: JSON.stringify(['Música indie', 'Café de especialidad', 'Astrología']),
-        user_name: token.name || 'Sintonizador',
-        user_image: token.picture || null
-      }
-    });
+      return NextResponse.json({
+        exists: true,
+        profile: {
+          user_id: devUser?.id || rawId,
+          birth_date: dob,
+          sign: astralProfile.sign,
+          element: astralProfile.element,
+          life_path_number: astralProfile.lifePath,
+          archetype: astralProfile.archetype,
+          luz: astralProfile.luz,
+          sombra: astralProfile.sombra,
+          bio: devUser?.bio || 'Amante de la astrología, la música y las conversaciones profundas bajo las estrellas ✨',
+          intent: devUser?.intent || 'Citas y Pareja',
+          location: devUser?.location || 'Santiago, Chile',
+          photos: devUser?.photos || '[]',
+          video_url: devUser?.video_url || null,
+          interests: devUser?.interests || JSON.stringify(['Música indie', 'Café de especialidad', 'Astrología']),
+          user_name: devUser?.name || token.name || 'Sintonizador',
+          user_image: devUser?.image || token.picture || null
+        }
+      });
+    } catch {
+      const dob = token.dob || '1998-07-15';
+      const astralProfile = calculateAstralProfile(dob);
+      return NextResponse.json({
+        exists: true,
+        profile: {
+          user_id: rawId,
+          birth_date: dob,
+          sign: astralProfile.sign,
+          element: astralProfile.element,
+          life_path_number: astralProfile.lifePath,
+          archetype: astralProfile.archetype,
+          user_name: token.name || 'Sintonizador',
+          user_image: token.picture || null
+        }
+      });
+    }
   }
 
   try {
-    const profile = await db.prepare(`
+    await ensureDatabaseSchema(db);
+    const canonicalId = await resolveCanonicalUserId(db, token);
+    const searchId = canonicalId || rawId;
+
+    let profile = await db.prepare(`
       SELECT
         p.*,
-        COALESCE(u.nombre_actual, u.nombre_completo, u.name) AS user_name,
+        COALESCE(NULLIF(u.nombre_actual, ''), NULLIF(u.nombre_completo, ''), NULLIF(u.name, ''), u.email, 'Sintonizador') AS user_name,
         COALESCE(u.avatar_url, u.image) AS user_image
       FROM astral_profiles p
       LEFT JOIN users u ON u.id = p.user_id
       WHERE p.user_id = ? 
          OR (u.email IS NOT NULL AND LOWER(u.email) = LOWER(?))
          OR p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?))
-    `).bind(userId, token.email || '', token.email || '').first();
+    `).bind(searchId, userEmail, userEmail).first();
+
+    // Si el usuario existe en users pero aún no tenía fila en astral_profiles, generarla automáticamente
+    if (!profile) {
+      const u = await db.prepare(
+        "SELECT id, name, nombre_actual, nombre_completo, email, image, avatar_url, fecha_nacimiento FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
+      ).bind(searchId, userEmail).first();
+
+      if (u) {
+        const effectiveDob = u.fecha_nacimiento || token.dob || '1998-07-15';
+        const astral = calculateAstralProfile(effectiveDob);
+        const effectiveId = u.id || searchId;
+
+        try {
+          await db.prepare(`
+            INSERT INTO astral_profiles (
+              user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, intent, location
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Citas y Pareja', 'Santiago, Chile')
+            ON CONFLICT(user_id) DO NOTHING
+          `).bind(
+            effectiveId,
+            effectiveDob,
+            astral.sign,
+            astral.element,
+            astral.lifePath,
+            astral.archetype,
+            astral.luz,
+            astral.sombra
+          ).run();
+
+          profile = await db.prepare("SELECT * FROM astral_profiles WHERE user_id = ?").bind(effectiveId).first();
+          if (profile) {
+            profile.user_name = u.nombre_actual || u.nombre_completo || u.name || token.name || 'Sintonizador';
+            profile.user_image = u.avatar_url || u.image || token.picture || null;
+          }
+        } catch (genErr) {
+          console.warn('[GET /api/profile] Auto-generate astral_profile warning:', genErr.message);
+        }
+      }
+    }
 
     return NextResponse.json({ exists: !!profile, profile: profile ?? null });
 
@@ -96,18 +157,20 @@ export async function POST(request) {
   }
 
   const { dob, name, image, bio, intent, location, photos, video_url, interests } = body;
-  const userId    = resolveUserId(token);
+  const rawId     = resolveUserId(token);
   const userName  = name ?? token.name ?? 'Sintonizador';
-  const userEmail = token.email ? token.email.toLowerCase().trim() : `${userId}@zodia.eter`;
+  const userEmail = token.email ? token.email.toLowerCase().trim() : `${rawId}@zodia.eter`;
 
-  let actualUserId = userId;
+  let actualUserId = rawId;
   let wasWithoutDob = false;
 
   if (db) {
     try {
+      await ensureDatabaseSchema(db);
+
       const existingUser = await db.prepare(
         "SELECT id, name, nombre_actual, fecha_nacimiento FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
-      ).bind(userId, userEmail).first();
+      ).bind(rawId, userEmail).first();
 
       if (existingUser) {
         actualUserId = existingUser.id;
@@ -117,16 +180,17 @@ export async function POST(request) {
       } else {
         wasWithoutDob = true;
         await db.prepare(`
-          INSERT INTO users (id, email, name, nombre_actual, fecha_nacimiento, image, status)
-          VALUES (?, ?, ?, ?, ?, ?, 'active')
-        `).bind(actualUserId, userEmail, userName, userName, dob || null, image || null).run();
+          INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+          ON CONFLICT(id) DO NOTHING
+        `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null).run();
       }
     } catch (e) {
       console.warn('[POST /api/profile] Check user error:', e.message);
     }
   }
 
-  // Si es solo una actualización de avatar
+  // 1. Si es solo una actualización de avatar
   if (image && !dob && name === undefined && bio === undefined && intent === undefined && photos === undefined && video_url === undefined && interests === undefined) {
     if (db) {
       try {
@@ -144,7 +208,7 @@ export async function POST(request) {
     return NextResponse.json({ success: true, mock: true });
   }
 
-  // Si se incluye dob (fecha de nacimiento): recalculamos toda la carta astral y actualizamos users + astral_profiles
+  // 2. Si se incluye dob (fecha de nacimiento): recalculamos toda la carta astral y actualizamos users + astral_profiles
   if (dob) {
     let astralProfile;
     try {
@@ -162,18 +226,16 @@ export async function POST(request) {
               name = COALESCE(?, name),
               nombre_actual = COALESCE(?, nombre_actual),
               nombre_completo = COALESCE(?, nombre_completo),
-              image = COALESCE(?, image)
+              image = COALESCE(?, image),
+              avatar_url = COALESCE(?, avatar_url)
           WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
-        `).bind(dob, name ?? null, name ?? null, name ?? null, image ?? null, actualUserId, userEmail).run();
+        `).bind(dob, name ?? null, name ?? null, name ?? null, image ?? null, image ?? null, actualUserId, userEmail).run();
       } catch (uErr) {
         console.warn('[POST /api/profile] Error actualizando users con dob:', uErr.message);
       }
 
       const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
       const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || ['Música indie', 'Café de especialidad', 'Astrología']);
-
-      try { await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run(); } catch {}
-      try { await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN video_url TEXT`).run(); } catch {}
 
       try {
         await db.prepare(`
@@ -253,45 +315,77 @@ export async function POST(request) {
     });
   }
 
-  // Si es una actualización de detalles sin cambiar dob (bio, intent, location, photos, video_url, interests, name, image)
+  // 3. Si es una actualización de detalles sin cambiar dob (bio, intent, location, photos, video_url, interests, name, image)
   if (name !== undefined || bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || video_url !== undefined || interests !== undefined || image !== undefined) {
     if (db) {
       try {
-        if (name || image) {
-          await db.prepare(`
-            UPDATE users 
-            SET name = COALESCE(?, name),
-                nombre_actual = COALESCE(?, nombre_actual),
-                nombre_completo = COALESCE(?, nombre_completo),
-                image = COALESCE(?, image) 
-            WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
-          `).bind(name ?? null, name ?? null, name ?? null, image ?? null, actualUserId, userEmail).run();
-        }
+        const firstPhoto = Array.isArray(photos) && photos.length > 0 ? photos[0] : (typeof photos === 'string' && photos.startsWith('[') ? JSON.parse(photos)[0] : null);
+        const resolvedImage = image || firstPhoto || null;
+
+        await db.prepare(`
+          UPDATE users 
+          SET name = COALESCE(?, name),
+              nombre_actual = COALESCE(?, nombre_actual),
+              nombre_completo = COALESCE(?, nombre_completo),
+              image = COALESCE(?, image),
+              avatar_url = COALESCE(?, avatar_url)
+          WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
+        `).bind(name ?? null, name ?? null, name ?? null, resolvedImage, resolvedImage, actualUserId, userEmail).run();
 
         const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
         const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || []);
 
-        try { await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run(); } catch {}
-        try { await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN video_url TEXT`).run(); } catch {}
+        // Comprobar si ya existe el registro en astral_profiles
+        const existingAstral = await db.prepare(
+          "SELECT user_id, birth_date FROM astral_profiles WHERE user_id = ? OR user_id = ?"
+        ).bind(actualUserId, userEmail).first();
 
-        await db.prepare(`
-          UPDATE astral_profiles
-          SET bio = COALESCE(?, bio),
-              intent = COALESCE(?, intent),
-              location = COALESCE(?, location),
-              photos = COALESCE(?, photos),
-              video_url = COALESCE(?, video_url),
-              interests = COALESCE(?, interests)
-          WHERE user_id = ?
-        `).bind(
-          bio ?? null,
-          intent ?? null,
-          location ?? null,
-          photos !== undefined ? photosStr : null,
-          video_url !== undefined ? video_url : null,
-          interests !== undefined ? interestsStr : null,
-          actualUserId
-        ).run();
+        if (existingAstral) {
+          await db.prepare(`
+            UPDATE astral_profiles
+            SET bio = COALESCE(?, bio),
+                intent = COALESCE(?, intent),
+                location = COALESCE(?, location),
+                photos = COALESCE(?, photos),
+                video_url = COALESCE(?, video_url),
+                interests = COALESCE(?, interests)
+            WHERE user_id = ?
+          `).bind(
+            bio ?? null,
+            intent ?? null,
+            location ?? null,
+            photos !== undefined ? photosStr : null,
+            video_url !== undefined ? video_url : null,
+            interests !== undefined ? interestsStr : null,
+            existingAstral.user_id
+          ).run();
+        } else {
+          // Si no existía fila en astral_profiles, crearla con valores astrales calculados
+          const uRow = await db.prepare("SELECT fecha_nacimiento FROM users WHERE id = ?").bind(actualUserId).first();
+          const birthDate = uRow?.fecha_nacimiento || '1998-07-15';
+          const astral = calculateAstralProfile(birthDate);
+
+          await db.prepare(`
+            INSERT INTO astral_profiles (
+              user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, video_url, interests
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            actualUserId,
+            birthDate,
+            astral.sign,
+            astral.element,
+            astral.lifePath,
+            astral.archetype,
+            astral.luz,
+            astral.sombra,
+            bio ?? null,
+            intent ?? 'Citas y Pareja',
+            location ?? 'Santiago, Chile',
+            photosStr,
+            video_url ?? null,
+            interestsStr
+          ).run();
+        }
       } catch (err) {
         console.error('[POST /api/profile] Error al actualizar detalles:', err);
         return NextResponse.json({ error: 'Error al actualizar detalles del perfil.' }, { status: 500 });
