@@ -250,12 +250,15 @@ export async function GET(request) {
   }
 
   if (resultVinculos.length === 0) {
-    resultVinculos = DEFAULT_VINCULOS_GUIDES;
+    // Solo mantener a ZODIA Bot como guía asistente cósmica, sin inyectar perfiles ficticios
+    const botGuide = DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot");
+    resultVinculos = botGuide ? [botGuide] : [];
   } else {
     // Si no tiene bot, añadirlo para asistencia cósmica
     const hasBot = resultVinculos.some(v => v.id === "zodia_bot");
     if (!hasBot) {
-      resultVinculos.push(DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot"));
+      const botGuide = DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot");
+      if (botGuide) resultVinculos.push(botGuide);
     }
   }
 

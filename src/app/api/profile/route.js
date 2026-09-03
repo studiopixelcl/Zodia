@@ -211,11 +211,29 @@ export async function POST(request) {
         }
       } else {
         wasWithoutDob = true;
-        await db.prepare(`
-          INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
-          ON CONFLICT(id) DO NOTHING
-        `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null).run();
+        try {
+          await db.prepare(`
+            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            ON CONFLICT(id) DO UPDATE SET
+              name = COALESCE(users.name, excluded.name),
+              nombre_actual = COALESCE(users.nombre_actual, excluded.nombre_actual),
+              nombre_completo = COALESCE(users.nombre_completo, excluded.nombre_completo),
+              image = COALESCE(users.image, excluded.image),
+              avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
+              status = 'active'
+          `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null).run();
+        } catch (insErr) {
+          // Si el conflicto fue por correo duplicado con otro ID, re-vincular a dicho ID
+          const reCheck = await db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").bind(userEmail).first();
+          if (reCheck?.id) {
+            actualUserId = reCheck.id;
+          } else {
+            try {
+              await db.prepare("INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)").bind(actualUserId, userEmail, userName, image || null).run();
+            } catch {}
+          }
+        }
       }
     } catch (e) {
       console.warn('[POST /api/profile] Check user error:', e.message);

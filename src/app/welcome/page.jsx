@@ -162,6 +162,10 @@ export default function WelcomePage() {
             if (avatarSrc) parsed.image = avatarSrc;
             localStorage.setItem('zodia_session', JSON.stringify(parsed));
             document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(parsed))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+
+            // Sync directo e inmediato con D1
+            const syncUrl = `/api/check-user?action=sync&email=${encodeURIComponent(parsed.email || `${parsed.id}@zodia.eter`)}&name=${encodeURIComponent(parsed.name || 'Sintonizador')}&image=${encodeURIComponent(parsed.image || '')}&dob=${encodeURIComponent(dob)}&id=${encodeURIComponent(parsed.id || '')}`;
+            await apiFetch(syncUrl).catch(() => {});
           }
         } catch {}
       }

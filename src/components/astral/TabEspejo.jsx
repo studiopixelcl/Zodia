@@ -267,6 +267,10 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
             if (editDob) parsed.dob = editDob;
             localStorage.setItem('zodia_session', JSON.stringify(parsed));
             document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(parsed))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+
+            // Sync directo e incondicional con Cloudflare D1
+            const syncUrl = `/api/check-user?action=sync&email=${encodeURIComponent(parsed.email || `${parsed.id}@zodia.eter`)}&name=${encodeURIComponent(editName || parsed.name || 'Sintonizador')}&image=${encodeURIComponent(parsed.image || '')}&dob=${encodeURIComponent(editDob || parsed.dob || '1998-07-15')}&id=${encodeURIComponent(parsed.id || '')}`;
+            apiFetch(syncUrl).catch(() => {});
           }
         } catch (storageErr) {
           console.warn('Storage sync error:', storageErr);

@@ -1,5 +1,18 @@
 export async function getAuthUser(request) {
   try {
+    // 1. Leer encabezado directo x-zodia-user para clientes móviles / PWAs
+    const xUserHeader = request.headers.get('x-zodia-user');
+    if (xUserHeader) {
+      try {
+        const decoded = decodeURIComponent(xUserHeader);
+        const parsed = JSON.parse(decoded);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      } catch {}
+    }
+
+    // 2. Cookie HTTP next-auth.session-token
     const cookieHeader = request.headers.get('cookie') || '';
     const match = cookieHeader.match(/(?:__Secure-)?next-auth\.session-token=([^;]+)/);
     if (match && match[1]) {

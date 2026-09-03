@@ -128,6 +128,12 @@ export default function Dashboard() {
       } catch {}
     }
 
+    // Sincronización directa e inmediata con Cloudflare D1
+    if (activeUser && (activeUser.email || activeUser.id)) {
+      const syncUrl = `/api/check-user?action=sync&email=${encodeURIComponent(activeUser.email || `${activeUser.id}@zodia.eter`)}&name=${encodeURIComponent(activeUser.name || 'Sintonizador')}&image=${encodeURIComponent(activeUser.image || '')}&dob=${encodeURIComponent(activeUser.dob || '1998-07-15')}&id=${encodeURIComponent(activeUser.id || '')}`;
+      apiFetch(syncUrl).catch(() => {});
+    }
+
     const fetchProfile = async () => {
       try {
         const res  = await apiFetch('/api/profile');
