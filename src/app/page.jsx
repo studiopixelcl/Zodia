@@ -2,7 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, User, ArrowRight, Globe, Moon, Shield, MessageCircle, Flame, CheckCircle, AlertCircle, X, Compass, ChevronRight } from 'lucide-react';
+import { 
+  Sparkles, User, ArrowRight, Globe, Moon, Shield, MessageCircle, 
+  Flame, CheckCircle, AlertCircle, X, Compass, ChevronRight,
+  Eye, EyeOff, Lock, Key, Mail, RefreshCw
+} from 'lucide-react';
 import { calculateAstralProfile, getZodiacSymbol } from '../lib/astrology';
 import { ZodiacBadge } from '../components/astral/ZodiacBadge';
 import { apiFetch } from '../lib/api';
@@ -13,13 +17,21 @@ export default function LandingPage() {
 
   // Estados del modal y autenticación
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authTab, setAuthTab] = useState('login'); // 'login' | 'register'
+  const [authTab, setAuthTab] = useState('login'); // 'login' | 'register' | 'recover' | 'onboarding'
   
-  // Formulario
-  const [formData, setFormData] = useState({ name: '', email: '', dob: '' });
+  // Formulario de login y registro
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', dob: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [userNotFoundAlert, setUserNotFoundAlert] = useState(false);
+
+  // Formulario de recuperación de contraseña
+  const [recoverStep, setRecoverStep] = useState(1); // 1 = solicitar PIN, 2 = verificar y nueva clave
+  const [recoverData, setRecoverData] = useState({ email: '', code: '', newPassword: '' });
+  const [recoverSuccessMsg, setRecoverSuccessMsg] = useState(null);
+  const [generatedPin, setGeneratedPin] = useState(null);
+  const [showRecoverPassword, setShowRecoverPassword] = useState(false);
 
   // Calculadora libre de previsualización en la landing
   const [previewDob, setPreviewDob] = useState('1998-07-15');
@@ -30,33 +42,40 @@ export default function LandingPage() {
   const currentProfile = formData.dob ? calculateAstralProfile(formData.dob) : null;
   const badgeSymbol = currentProfile?.sign ? getZodiacSymbol(currentProfile.sign) : '✦';
 
-  // Redirección si el usuario ya está autenticado
+  // Redirección si el usuario ya está autenticado (de forma resiliente con localStorage)
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    let activeUser = session?.user;
+    if (!activeUser && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('zodia_session');
+        if (stored) activeUser = JSON.parse(stored);
+      } catch {}
+    }
 
-    const isManualUser = session?.user?.email?.endsWith('@zodia.eter');
-    if (isManualUser) {
+    if (activeUser && status !== 'loading') {
       window.location.href = '/zodia/dashboard';
       return;
     }
 
-    // Usuario Google: verificar si ya tiene perfil astral guardado
-    const checkProfile = async () => {
-      try {
-        const res = await apiFetch('/api/profile');
-        const data = await res.json();
-        if (data.exists) {
-          window.location.href = '/zodia/dashboard';
-        } else {
+    // Caso usuario Google OAuth sin perfil
+    if (status === 'authenticated' && session?.user && !activeUser) {
+      const checkProfile = async () => {
+        try {
+          const res = await apiFetch('/api/profile');
+          const data = await res.json();
+          if (data.exists) {
+            window.location.href = '/zodia/dashboard';
+          } else {
+            setAuthTab('onboarding');
+            setIsAuthModalOpen(true);
+          }
+        } catch {
           setAuthTab('onboarding');
           setIsAuthModalOpen(true);
         }
-      } catch {
-        setAuthTab('onboarding');
-        setIsAuthModalOpen(true);
-      }
-    };
-    checkProfile();
+      };
+      checkProfile();
+    }
   }, [status, session]);
 
   // Abrir modal configurado
@@ -64,75 +83,89 @@ export default function LandingPage() {
     setAuthTab(tab);
     setErrorMsg(null);
     setUserNotFoundAlert(false);
+    setRecoverSuccessMsg(null);
     if (defaultDob) setFormData(prev => ({ ...prev, dob: defaultDob }));
     setIsAuthModalOpen(true);
   };
 
   /**
-   * Manejar Iniciar Sesión (Validación de Usuario Existente)
+   * Manejar Iniciar Sesión (con Contraseña Segura)
    */
   const handleLogin = async (e) => {
     e.preventDefault();
     const identifier = (formData.email || formData.name || '').trim();
-    if (!identifier) return;
+    const password = (formData.password || '').trim();
+
+    if (!identifier) {
+      setErrorMsg('Ingresa tu correo o usuario.');
+      return;
+    }
+    if (!password) {
+      setErrorMsg('Por favor ingresa tu contraseña cósmica.');
+      return;
+    }
 
     setIsSaving(true);
     setErrorMsg(null);
     setUserNotFoundAlert(false);
 
     try {
-      // 1. Consultar si el usuario existe en D1
-      const checkRes = await apiFetch(`/api/check-user?name=${encodeURIComponent(identifier)}`).catch(() => null);
-      const checkData = checkRes && checkRes.ok ? await checkRes.json().catch(() => null) : null;
-
-      const userToUse = checkData?.user;
-      const userName = userToUse?.name || (identifier.includes('@') ? identifier.split('@')[0] : identifier);
-      const userDob = userToUse?.birth_date || formData.dob || '1995-01-02';
-      const cleanId = identifier.replace(/[@.]/g, '_').toLowerCase();
-      const userId = userToUse?.id || (cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId);
-      const userEmail = identifier.includes('@') ? identifier : `${userId}@zodia.eter`;
-      const userImage = userToUse?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=06b6d4&color=fff&bold=true`;
-
-      const userSession = {
-        id: userId,
-        name: userName,
-        email: userEmail,
-        image: userImage,
-        dob: userDob
-      };
-
-      // Establecer sesión local y cookie de inmediato
-      try {
-        localStorage.setItem('zodia_session', JSON.stringify(userSession));
-        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(userSession))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-      } catch {}
-
-      // Notificar al backend en segundo plano
-      await apiFetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: userName, email: userEmail, dob: userDob })
-      }).catch(() => null);
+        body: JSON.stringify({ mode: 'login', identifier, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        if (res.status === 404) {
+          setUserNotFoundAlert(true);
+        } else {
+          setErrorMsg(data.error || 'Credenciales cósmicas inválidas.');
+        }
+        return;
+      }
+
+      if (data.user) {
+        try {
+          localStorage.setItem('zodia_session', JSON.stringify(data.user));
+          document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+        } catch {}
+      }
 
       window.location.href = '/zodia/dashboard';
     } catch {
-      window.location.href = '/zodia/dashboard';
+      setErrorMsg('Fallo de conexión al conectar con el éter.');
     } finally {
       setIsSaving(false);
     }
   };
 
   /**
-   * Manejar Registro por Primera Vez (Creación de Cuenta + Perfil)
+   * Manejar Registro por Primera Vez (Creación de Cuenta + Contraseña + Perfil)
    */
   const handleRegister = async (e) => {
     e.preventDefault();
     const inputName = (formData.name || '').trim();
     const inputEmail = (formData.email || '').trim();
+    const inputPassword = (formData.password || '').trim();
     const inputDob = formData.dob;
 
-    if (!inputName || !inputDob) {
-      setErrorMsg('Por favor completa tu nombre y fecha de nacimiento.');
+    if (!inputName) {
+      setErrorMsg('Por favor ingresa tu nombre o alias.');
+      return;
+    }
+    if (!inputEmail) {
+      setErrorMsg('Por favor ingresa tu correo electrónico.');
+      return;
+    }
+    if (!inputPassword || inputPassword.length < 4) {
+      setErrorMsg('La contraseña debe tener al menos 4 caracteres.');
+      return;
+    }
+    if (!inputDob) {
+      setErrorMsg('Por favor ingresa tu fecha de nacimiento.');
       return;
     }
 
@@ -140,42 +173,126 @@ export default function LandingPage() {
     setErrorMsg(null);
 
     try {
-      const cleanId = inputEmail ? inputEmail.replace(/[@.]/g, '_').toLowerCase() : inputName.toLowerCase().replace(/\s+/g, '');
-      const userId = cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId;
-      const userEmail = inputEmail.includes('@') ? inputEmail : `${userId}@zodia.eter`;
-      const userImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(inputName)}&background=06b6d4&color=fff&bold=true`;
-
-      const userSession = {
-        id: userId,
-        name: inputName,
-        email: userEmail,
-        image: userImage,
-        dob: inputDob
-      };
-
-      // 1. Guardar sesión inmediatamente en localStorage y cookies
-      try {
-        localStorage.setItem('zodia_session', JSON.stringify(userSession));
-        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(userSession))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-      } catch {}
-
-      // 2. Notificar al backend para persistir en D1
-      await apiFetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: inputName, email: userEmail, dob: inputDob })
-      }).catch(() => null);
+        body: JSON.stringify({
+          mode: 'register',
+          name: inputName,
+          email: inputEmail,
+          password: inputPassword,
+          dob: inputDob
+        })
+      });
 
-      await apiFetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: inputName, email: userEmail, dob: inputDob, isManual: true }),
-      }).catch(() => null);
+      const data = await res.json();
 
-      // 3. Entrar a la app
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || 'Error al manifestar tu cuenta cósmica.');
+        return;
+      }
+
+      if (data.user) {
+        try {
+          localStorage.setItem('zodia_session', JSON.stringify(data.user));
+          document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+        } catch {}
+      }
+
+      // Redirigir a la bienvenida para completar perfil
       window.location.href = '/zodia/welcome';
     } catch {
-      window.location.href = '/zodia/welcome';
+      setErrorMsg('Fallo de conexión al crear tu perfil.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Recuperación de contraseña: Paso 1 (Solicitar PIN cósmico)
+   */
+  const handleRecoverRequest = async (e) => {
+    e.preventDefault();
+    const email = (recoverData.email || '').trim();
+    if (!email) {
+      setErrorMsg('Ingresa el correo electrónico asociado a tu cuenta.');
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMsg(null);
+    setRecoverSuccessMsg(null);
+
+    try {
+      const res = await apiFetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request', email })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || 'No se pudo generar el código.');
+        return;
+      }
+
+      setRecoverSuccessMsg('¡Código astral generado! Revisa tu correo o usa el PIN en pantalla.');
+      if (data.code) {
+        setGeneratedPin(data.code);
+        setRecoverData(prev => ({ ...prev, code: data.code }));
+      }
+      setRecoverStep(2);
+    } catch {
+      setErrorMsg('Error de conexión al solicitar el código.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /**
+   * Recuperación de contraseña: Paso 2 (Verificar PIN y cambiar clave)
+   */
+  const handleRecoverReset = async (e) => {
+    e.preventDefault();
+    const email = (recoverData.email || '').trim();
+    const code = (recoverData.code || '').trim();
+    const newPassword = (recoverData.newPassword || '').trim();
+
+    if (!code || code.length !== 6) {
+      setErrorMsg('Ingresa el código PIN de 6 dígitos.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 4) {
+      setErrorMsg('La nueva contraseña debe tener al menos 4 caracteres.');
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await apiFetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify_and_reset', email, code, newPassword })
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || 'Código incorrecto o expirado.');
+        return;
+      }
+
+      setRecoverSuccessMsg('¡Contraseña actualizada con éxito! Ingresa ahora con tu nueva clave.');
+      setFormData(prev => ({ ...prev, email: email, name: email, password: newPassword }));
+      setRecoverStep(1);
+      setGeneratedPin(null);
+      setTimeout(() => {
+        setAuthTab('login');
+        setRecoverSuccessMsg(null);
+      }, 1800);
+    } catch {
+      setErrorMsg('Error de conexión al restablecer contraseña.');
     } finally {
       setIsSaving(false);
     }
@@ -490,9 +607,9 @@ export default function LandingPage() {
               <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold mt-1">Acceso a la Red Zodia</p>
             </div>
 
-            {/* Pestañas: Iniciar Sesión vs Registrarse (salvo en Onboarding Google) */}
-            {authTab !== 'onboarding' && (
-              <div className="flex rounded-xl bg-black/60 p-1 border border-white/10 mb-6">
+            {/* Pestañas: Iniciar Sesión vs Registrarse vs Recuperar */}
+            {authTab !== 'onboarding' && authTab !== 'recover' && (
+              <div className="flex rounded-xl bg-black/60 p-1 border border-white/10 mb-5">
                 <button
                   type="button"
                   onClick={() => { setAuthTab('login'); setErrorMsg(null); setUserNotFoundAlert(false); }}
@@ -514,6 +631,29 @@ export default function LandingPage() {
               </div>
             )}
 
+            {/* Encabezado alternativo para Recuperación */}
+            {authTab === 'recover' && (
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-white/10">
+                <button
+                  type="button"
+                  onClick={() => { setAuthTab('login'); setErrorMsg(null); setRecoverSuccessMsg(null); }}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-mono transition"
+                >
+                  ← Volver al Inicio
+                </button>
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-1">
+                  <Key size={14} className="text-amber-400" /> Restablecer Clave
+                </span>
+              </div>
+            )}
+
+            {/* Mensajes de éxito */}
+            {recoverSuccessMsg && (
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs text-center flex items-center justify-center gap-2 animate-fadeIn">
+                <CheckCircle size={16} className="shrink-0" /> {recoverSuccessMsg}
+              </div>
+            )}
+
             {/* Mensajes de error general */}
             {errorMsg && (
               <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center flex items-center justify-center gap-2">
@@ -529,7 +669,7 @@ export default function LandingPage() {
                   <div>
                     <p className="font-bold">Sintonizador No Encontrado</p>
                     <p className="text-gray-300 text-[11px] mt-1">
-                      El alias <strong>"{formData.name}"</strong> no está manifestado en la base de datos de Zodia.
+                      No hallamos cuenta vinculada a este usuario en Zodia.
                     </p>
                   </div>
                 </div>
@@ -548,16 +688,51 @@ export default function LandingPage() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
-                    Correo Electrónico o Usuario (ID)
+                    Correo Electrónico o Usuario
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: maverick@correo.com o maverick"
-                    value={formData.email || formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value, email: e.target.value })}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: maverick@correo.com o maverick"
+                      value={formData.email || formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value, email: e.target.value })}
+                      className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2 pl-1">
+                    <label className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
+                      Contraseña Cósmica
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthTab('recover'); setRecoverStep(1); setErrorMsg(null); setRecoverSuccessMsg(null); setRecoverData(prev => ({ ...prev, email: formData.email || formData.name })); }}
+                      className="text-[10px] text-cyan-400/80 hover:text-cyan-300 transition hover:underline"
+                    >
+                      ¿Olvidaste tu clave?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Tu contraseña secreta"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 pr-11 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -569,7 +744,7 @@ export default function LandingPage() {
                   {!isSaving && <ArrowRight size={16} />}
                 </button>
 
-                <div className="relative py-3 flex items-center justify-center">
+                <div className="relative py-2 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
                   <span className="relative bg-black px-3 text-[10px] text-gray-500 uppercase tracking-widest">o accede con</span>
                 </div>
@@ -577,7 +752,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={handleGuestAccess}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-3 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-2.5 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
                 >
                   <Sparkles size={14} className="text-amber-400" /> Entrar en 1 Clic (Modo Demo)
                 </button>
@@ -585,7 +760,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => signIn('google')}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black py-3 rounded-xl font-bold text-xs hover:bg-gray-100 transition shadow-md"
+                  className="w-full flex items-center justify-center gap-3 bg-white text-black py-2.5 rounded-xl font-bold text-xs hover:bg-gray-100 transition shadow-md"
                 >
                   <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
                   Acceder con Google
@@ -595,9 +770,9 @@ export default function LandingPage() {
 
             {/* ── 2. FORMULARIO: REGISTRARSE POR PRIMERA VEZ ── */}
             {authTab === 'register' && (
-              <form onSubmit={handleRegister} className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-3.5">
                 <div>
-                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-1.5 pl-1 tracking-widest">
                     Tu Nombre o Alias
                   </label>
                   <input
@@ -606,26 +781,50 @@ export default function LandingPage() {
                     placeholder="Ej: Maverick"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
-                    Correo o Usuario Único (Será tu ID)
+                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-1.5 pl-1 tracking-widest">
+                    Correo Electrónico (Será tu ID de acceso)
                   </label>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="Ej: maverick@correo.com o maverick"
+                    placeholder="Ej: maverick@correo.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm font-mono"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-1.5 pl-1 tracking-widest">
+                    Crea tu Contraseña Cósmica
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Mínimo 4 caracteres"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 pr-11 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-1.5 pl-1 tracking-widest">
                     Fecha de Nacimiento
                   </label>
                   <input
@@ -633,13 +832,13 @@ export default function LandingPage() {
                     required
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner color-scheme-dark text-sm"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 outline-none transition shadow-inner color-scheme-dark text-sm"
                   />
                 </div>
 
                 {/* Vista previa del perfil calculado en vivo */}
                 {currentProfile && (
-                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-3 text-center flex items-center justify-between text-xs animate-[fadeIn_0.3s_ease-out]">
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-2.5 text-center flex items-center justify-between text-xs animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex items-center gap-2">
                       <span className="text-xl text-cyan-400">{badgeSymbol}</span>
                       <span className="text-white font-bold">{currentProfile.sign}</span>
@@ -653,11 +852,11 @@ export default function LandingPage() {
                   disabled={isSaving}
                   className="btn-mystic w-full py-3.5 rounded-xl text-white font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2 h-12 shadow-lg"
                 >
-                  {isSaving ? "CREANDO PERFIL..." : "CREAR MI PERFIL"}
+                  {isSaving ? "MANIFESTANDO PERFIL..." : "CREAR MI PERFIL ASTRAL"}
                   {!isSaving && <ArrowRight size={16} />}
                 </button>
 
-                <div className="relative py-3 flex items-center justify-center">
+                <div className="relative py-2 flex items-center justify-center">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
                   <span className="relative bg-black px-3 text-[10px] text-gray-500 uppercase tracking-widest">o accede con</span>
                 </div>
@@ -665,7 +864,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={handleGuestAccess}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-3 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-2.5 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
                 >
                   <Sparkles size={14} className="text-amber-400" /> Entrar en 1 Clic (Modo Demo)
                 </button>
@@ -673,7 +872,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={() => signIn('google')}
-                  className="w-full flex items-center justify-center gap-3 bg-white text-black py-3 rounded-xl font-bold text-xs hover:bg-gray-100 transition shadow-md"
+                  className="w-full flex items-center justify-center gap-3 bg-white text-black py-2.5 rounded-xl font-bold text-xs hover:bg-gray-100 transition shadow-md"
                 >
                   <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
                   Registrarse con Google
@@ -681,7 +880,112 @@ export default function LandingPage() {
               </form>
             )}
 
-            {/* ── 3. FORMULARIO: ONBOARDING TRAS GOOGLE AUTH ── */}
+            {/* ── 3. FORMULARIO: RECUPERAR CONTRASEÑA ── */}
+            {authTab === 'recover' && (
+              <div className="space-y-4">
+                {recoverStep === 1 ? (
+                  <form onSubmit={handleRecoverRequest} className="space-y-4">
+                    <p className="text-xs text-gray-300 leading-relaxed font-light">
+                      Ingresa el correo electrónico asociado a tu cuenta cósmica. Te enviaremos un código PIN de 6 dígitos para restaurar tu clave.
+                    </p>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                        Tu Correo Electrónico
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="Ej: maverick@correo.com"
+                        value={recoverData.email}
+                        onChange={(e) => setRecoverData({ ...recoverData, email: e.target.value })}
+                        className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm font-mono"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="btn-mystic w-full py-3.5 rounded-xl text-white font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2 h-12 shadow-lg"
+                    >
+                      {isSaving ? "GENERANDO CÓDIGO..." : "SOLICITAR CÓDIGO ASTRAL"}
+                      {!isSaving && <ArrowRight size={16} />}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleRecoverReset} className="space-y-4">
+                    {/* Alerta amigable con el PIN para pruebas inmediatas */}
+                    {generatedPin && (
+                      <div className="p-3.5 rounded-xl bg-cyan-950/60 border border-cyan-400/50 text-cyan-300 text-xs text-center space-y-1">
+                        <span className="text-[10px] text-gray-400 uppercase tracking-widest block font-bold">Código Cósmico Generado</span>
+                        <div className="text-2xl font-mono font-extrabold tracking-widest text-white py-1">
+                          {generatedPin}
+                        </div>
+                        <p className="text-[11px] text-cyan-200">Ingresa este PIN para activar tu nueva clave.</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                        Código PIN Astral (6 dígitos)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        placeholder="Ej: 123456"
+                        value={recoverData.code}
+                        onChange={(e) => setRecoverData({ ...recoverData, code: e.target.value })}
+                        className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 text-white text-center font-mono text-lg tracking-widest focus:border-cyan-400 outline-none transition shadow-inner"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-2 pl-1 tracking-widest">
+                        Nueva Contraseña Cósmica
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showRecoverPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Mínimo 4 caracteres"
+                          value={recoverData.newPassword}
+                          onChange={(e) => setRecoverData({ ...recoverData, newPassword: e.target.value })}
+                          className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3.5 pr-11 text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-600 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRecoverPassword(!showRecoverPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
+                          tabIndex={-1}
+                        >
+                          {showRecoverPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="btn-mystic w-full py-3.5 rounded-xl text-white font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2 h-12 shadow-lg"
+                    >
+                      {isSaving ? "ACTUALIZANDO..." : "RESTABLECER MI CONTRASEÑA"}
+                      {!isSaving && <CheckCircle size={16} />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setRecoverStep(1)}
+                      className="w-full text-center text-xs text-gray-400 hover:text-white transition py-1"
+                    >
+                      Solicitar otro código
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* ── 4. FORMULARIO: ONBOARDING TRAS GOOGLE AUTH ── */}
             {authTab === 'onboarding' && (
               <form onSubmit={handleOnboardingGoogle} className="space-y-4">
                 <div className="text-center mb-3">

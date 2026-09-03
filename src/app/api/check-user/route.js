@@ -34,15 +34,16 @@ export async function GET(request) {
     }
 
     try {
-      const userId = "tuner_" + nameQuery.toLowerCase().replace(/\s+/g, '');
-      const userEmail = `${userId}@zodia.eter`;
+      const cleanId = nameQuery.replace(/[@.]/g, '_').toLowerCase().replace(/\s+/g, '');
+      const userId = cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId;
+      const userEmail = nameQuery.includes('@') ? nameQuery.toLowerCase() : `${userId}@zodia.eter`;
 
       const user = await db.prepare(`
         SELECT u.id, u.name, u.image, p.sign, p.element, p.birth_date
         FROM users u
         LEFT JOIN astral_profiles p ON p.user_id = u.id
-        WHERE LOWER(u.name) = LOWER(?) OR u.id = ? OR u.email = ?
-      `).bind(nameQuery, userId, userEmail).first();
+        WHERE LOWER(u.name) = LOWER(?) OR u.id = ? OR LOWER(u.email) = LOWER(?) OR u.id = ?
+      `).bind(nameQuery, userId, userEmail, nameQuery).first();
 
       if (user) {
         return new Response(JSON.stringify({

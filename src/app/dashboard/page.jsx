@@ -37,16 +37,49 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') { window.location.href = '/zodia'; return; }
-    if (status !== 'authenticated')   return;
+    let activeUser = session?.user;
+    if (!activeUser && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('zodia_session');
+        if (stored) activeUser = JSON.parse(stored);
+      } catch {}
+    }
+
+    if (status === 'unauthenticated' && !activeUser) {
+      window.location.href = '/zodia';
+      return;
+    }
+
+    if (!activeUser && status !== 'authenticated') return;
+
+    if (activeUser && typeof document !== 'undefined') {
+      try {
+        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(activeUser))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      } catch {}
+    }
 
     const fetchProfile = async () => {
       try {
         const res  = await apiFetch('/api/profile');
         const data = await res.json();
-        if (!data.exists || !data.profile) { window.location.href = '/zodia'; return; }
-        setProfile(data.profile);
-        setAvatarSrc(data.profile.user_image ?? session?.user?.image ?? null);
+        if (data.exists && data.profile) {
+          setProfile(data.profile);
+          setAvatarSrc(data.profile.user_image ?? activeUser?.image ?? null);
+        } else if (activeUser) {
+          setProfile({
+            user_id: activeUser.id,
+            birth_date: activeUser.dob || '1998-07-15',
+            sign: 'Capricornio',
+            element: 'Tierra',
+            life_path_number: 9,
+            archetype: 'El Ermitaño',
+            user_name: activeUser.name,
+            user_image: activeUser.image
+          });
+          setAvatarSrc(activeUser.image);
+        } else {
+          window.location.href = '/zodia';
+        }
       } catch {
         setProfileError('No se pudo cargar tu perfil astral.');
       }
@@ -82,11 +115,21 @@ export default function Dashboard() {
     setActiveTab('vinculos');
   };
 
+  const handleSignOut = () => {
+    try {
+      localStorage.removeItem('zodia_session');
+      document.cookie = 'next-auth.session-token=; path=/; max-age=0; SameSite=Lax';
+    } catch {}
+    signOut({ callbackUrl: '/zodia' });
+  };
+
+  const currentUser = session?.user || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('zodia_session') || 'null'));
+
   // ── Guardas de renderizado ─────────────────────────────────────────────────
   if (
-    status === 'loading' ||
-    status === 'unauthenticated' ||
-    (status === 'authenticated' && !profile && !profileError)
+    (!currentUser && status === 'loading') ||
+    (!currentUser && status === 'unauthenticated') ||
+    (!profile && !profileError)
   ) return <Sincronizando />;
 
   if (profileError) {
@@ -103,7 +146,7 @@ export default function Dashboard() {
     );
   }
 
-  if (!session?.user) return <Sincronizando />;
+  if (!currentUser) return <Sincronizando />;
 
   // ── Render principal ───────────────────────────────────────────────────────
   return (
@@ -121,7 +164,7 @@ export default function Dashboard() {
           </p>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/zodia' })}
+          onClick={handleSignOut}
           className="text-gray-400 hover:text-cyan-400 transition flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-widest px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
         >
           <LogOut size={13} /> Desconectar
@@ -133,8 +176,8 @@ export default function Dashboard() {
         {activeTab === 'espejo' && (
           <TabEspejo
             profile={profile}
-            user={session.user}
-            avatarSrc={avatarSrc ?? session.user.image}
+            user={currentUser}
+            avatarSrc={avatarSrc ?? currentUser?.image}
             onAvatarChange={handleAvatarChange}
             onNavigateTab={setActiveTab}
           />
@@ -143,7 +186,7 @@ export default function Dashboard() {
           <TabEter
             profile={profile}
             onSyncUser={handleSyncUserFromEter}
-            userAvatar={avatarSrc ?? session.user.image}
+            userAvatar={avatarSrc ?? currentUser?.image}
           />
         )}
         {activeTab === 'oraculo'  && <TabOraculo profile={profile} />}

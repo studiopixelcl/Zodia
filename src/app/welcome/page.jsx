@@ -30,11 +30,26 @@ export default function WelcomePage() {
 
   // Cargar perfil al iniciar
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    let activeUser = session?.user;
+    if (!activeUser && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('zodia_session');
+        if (stored) activeUser = JSON.parse(stored);
+      } catch {}
+    }
+
+    if (status === 'unauthenticated' && !activeUser) {
       window.location.href = '/zodia';
       return;
     }
-    if (status !== 'authenticated') return;
+
+    if (!activeUser && status !== 'authenticated') return;
+
+    if (activeUser && typeof document !== 'undefined') {
+      try {
+        document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(activeUser))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+      } catch {}
+    }
 
     const loadProfile = async () => {
       try {
@@ -42,12 +57,12 @@ export default function WelcomePage() {
         const data = await res.json();
         if (data.exists && data.profile) {
           setProfile(data.profile);
-          setName(data.profile.user_name || session?.user?.name || '');
+          setName(data.profile.user_name || activeUser?.name || '');
           if (data.profile.location) setLocation(data.profile.location);
           if (data.profile.intent) setIntent(data.profile.intent);
           if (data.profile.bio) setBio(data.profile.bio);
-          if (data.profile.user_image || session?.user?.image) {
-            setAvatarSrc(data.profile.user_image || session?.user?.image);
+          if (data.profile.user_image || activeUser?.image) {
+            setAvatarSrc(data.profile.user_image || activeUser?.image);
           }
           if (data.profile.interests) {
             try {
@@ -55,9 +70,16 @@ export default function WelcomePage() {
               if (Array.isArray(parsed) && parsed.length > 0) setSelectedInterests(parsed);
             } catch {}
           }
+        } else if (activeUser) {
+          setName(activeUser.name || '');
+          if (activeUser.image) setAvatarSrc(activeUser.image);
         }
       } catch (err) {
         console.error('Error cargando perfil:', err);
+        if (activeUser) {
+          setName(activeUser.name || '');
+          if (activeUser.image) setAvatarSrc(activeUser.image);
+        }
       } finally {
         setLoading(false);
       }
@@ -114,6 +136,19 @@ export default function WelcomePage() {
           interests: selectedInterests
         })
       });
+
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('zodia_session');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            parsed.name = name.trim() || parsed.name;
+            if (avatarSrc) parsed.image = avatarSrc;
+            localStorage.setItem('zodia_session', JSON.stringify(parsed));
+            document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(parsed))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          }
+        } catch {}
+      }
 
       // Redirigir directamente al dashboard (pestaña citas)
       window.location.href = '/zodia/dashboard';

@@ -1,7 +1,7 @@
 export async function getAuthUser(request) {
   try {
     const cookieHeader = request.headers.get('cookie') || '';
-    const match = cookieHeader.match(/next-auth\.session-token=([^;]+)/);
+    const match = cookieHeader.match(/(?:__Secure-)?next-auth\.session-token=([^;]+)/);
     if (match && match[1]) {
       let decoded = match[1];
       try {
@@ -32,3 +32,27 @@ export function resolveUserId(token) {
   if (!token) return null;
   return token.id ?? token.sub ?? token.email ?? null;
 }
+
+const PASSWORD_SALT = 'zodia_astral_matrix_2026_salt';
+
+/**
+ * Hashea una contraseña usando SHA-256 nativo de Web Crypto (compatible Edge / Cloudflare / Node)
+ */
+export async function hashPassword(password) {
+  if (!password) return '';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + PASSWORD_SALT);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Verifica si una contraseña coincide con el hash almacenado
+ */
+export async function verifyPassword(password, storedHash) {
+  if (!password || !storedHash) return false;
+  const computed = await hashPassword(password);
+  return computed === storedHash;
+}
+
