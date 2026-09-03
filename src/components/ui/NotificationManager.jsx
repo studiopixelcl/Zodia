@@ -156,7 +156,10 @@ export const NotificationManager = ({ onNavigateToChat }) => {
     <>
       {/* ── TOAST FLOTANTE CÓSMICO (MENSAJE / MATCH EN TIEMPO REAL) ── */}
       {activeToast && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[999999] w-[92%] max-w-sm animate-bounce">
+        <div 
+          className="fixed top-3 z-[999999] w-[92%] max-w-sm animate-bounce"
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
           <div
             onClick={handleToastClick}
             className="p-3 rounded-2xl bg-black/90 backdrop-blur-xl border border-cyan-400/60 shadow-[0_0_35px_rgba(6,182,212,0.4)] flex items-center gap-3 cursor-pointer hover:bg-black transition-all group"
@@ -193,7 +196,10 @@ export const NotificationManager = ({ onNavigateToChat }) => {
 
       {/* ── BANNER DISCRETO DE PERMISO PUSH CÓSMICO ── */}
       {showPrompt && permissionState === 'default' && (
-        <div className="fixed bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-[9999] w-[94%] max-w-md animate-fadeIn">
+        <div 
+          className="fixed bottom-20 sm:bottom-24 z-[9999] w-[92%] max-w-md animate-fadeIn"
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
           <div className="p-4 rounded-2xl bg-[#090d1f]/95 backdrop-blur-xl border border-cyan-500/40 shadow-[0_0_40px_rgba(0,0,0,0.9),0_0_20px_rgba(6,182,212,0.25)] flex items-start gap-3">
             <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shrink-0 mt-0.5">
               <BellRing size={20} className="animate-pulse" />
