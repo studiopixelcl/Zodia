@@ -506,3 +506,335 @@ export function getDailyTarotCard(userId = 'guest', dateStr = new Date().toISOSt
   const index = Math.abs(hash) % TAROT_CARDS.length;
   return TAROT_CARDS[index];
 }
+
+// ─── NUMEROLOGÍA CABALÍSTICA & EL ÁRBOL DE LA VIDA (SEFIROT) ────────────────
+export const TREE_OF_LIFE_SEFIROT = {
+  1: {
+    sefira: "Kéter",
+    hebrew: "כתר",
+    title: "La Corona Primordial",
+    pillar: "Pilar del Equilibrio (Columna Central)",
+    archetype: "El Iniciador Supremo",
+    element: "Luz Pura",
+    meaning: "Kéter representa el origen de toda manifestación, la chispa de voluntad pura antes de dividirse. Las personas con este camino son catalizadoras naturales que abren senderos donde otros sólo ven vacío.",
+    soulMission: "Manifestar liderazgo consciente, confiar en la propia visión original y disolver el miedo a caminar en soledad.",
+    love: "En el amor, valoran profundamente la autenticidad y el espacio individual. No toleran la manipulación ni la codependencia; buscan una pareja que admire su empuje y que posea sus propios sueños e independencia.",
+    work: "Pioneros por excelencia: emprendimiento, dirección ejecutiva, innovación y toma de decisiones bajo presión. Prefieren crear sus propias reglas a seguir estructuras preestablecidas.",
+    money: "Capacidad innata para generar riqueza a partir de ideas vanguardistas. Su desafío financiero es mantener la disciplina a largo plazo y no dispersar el capital en múltiples inicios sin consolidar.",
+    tikun: "Aprender a delegar y escuchar activamente; transformar la autosuficiencia rígida en cooperación noble."
+  },
+  2: {
+    sefira: "Jojmá",
+    hebrew: "חכמה",
+    title: "La Sabiduría Intuitiva",
+    pillar: "Pilar de la Misericordia (Columna Derecha)",
+    archetype: "La Consciencia Receptiva",
+    element: "Agua Espiritual",
+    meaning: "Jojmá es la primera emanación de luz que contiene todas las posibilidades. Es la intuición relámpago, la sabiduría que precede al lenguaje y la capacidad de percibir la armonía oculta entre las partes.",
+    soulMission: "Tejer la paz, la diplomacia y el entendimiento mutuo. Su poder reside en la empatía y la sintonía emocional.",
+    love: "Buscadores de la unión sagrada. Para el 2, una relación es un refugio de ternura, diálogo comprensivo y lealtad. Son compañeros extremadamente considerados y atentos al detalle afectivo.",
+    work: "Sobresalen en la mediación, asesoría estratégica, recursos humanos, psicología, diplomacia y alianzas clave. Tienen un sexto sentido para detectar tensiones antes de que estallen.",
+    money: "Enfoque prudente y compartido de la economía. Prosperan a través de sociedades transparentes y proyectos conjuntos donde reine la confianza mutua.",
+    tikun: "Aprender a decir 'no' sin culpa. Dejar de sacrificarse por complacer a otros y validar las propias necesidades emocionales."
+  },
+  3: {
+    sefira: "Biná",
+    hebrew: "בינה",
+    title: "El Entendimiento Creador",
+    pillar: "Pilar del Rigor (Columna Izquierda)",
+    archetype: "La Matriz Expresiva",
+    element: "Fuego Inteligente",
+    meaning: "Biná da forma y estructura tangible a las ideas. En la numerología del 3, esto se traduce en una desbordante fuerza de expresión artística, palabra magnética y optimismo comunicativo.",
+    soulMission: "Inspirar a su entorno mediante la alegría, la comunicación elocuente y la belleza estética.",
+    love: "En el romance son vivaces, apasionados y seductores. Necesitan admiración mutua, ligereza, risas compartidas y libertad creadora para desplegar todo su encanto.",
+    work: "Brillan en el arte, diseño, marketing, oratoria, literatura, entretenimiento y docencia creativa. Su mente rápida encuentra soluciones ingeniosas y frescas a problemas complejos.",
+    money: "El dinero fluye con facilidad a través del carisma y las conexiones públicas. Su gran reto es la administración ordenada para no derrochar por impulsos emocionales.",
+    tikun: "Focalizar la energía. Superar la superficialidad o la dispersión y comprometerse con profundidad en los proyectos y relaciones."
+  },
+  4: {
+    sefira: "Jésed / Gevurá",
+    hebrew: "חסד וגבורה",
+    title: "El Constructor del Orden",
+    pillar: "Intersección de Equilibrio y Forma",
+    archetype: "El Guardián de la Estructura",
+    element: "Tierra Sagrada",
+    meaning: "El 4 encarna la estabilidad y la perseverancia inquebrantable. Representa la capacidad de asentar las leyes universales en la materia tangible mediante trabajo impecable.",
+    soulMission: "Crear cimientos duraderos de seguridad, justicia y prosperidad para su familia y comunidad.",
+    love: "Lealtad y fiabilidad absoluta. Demuestran su amor mediante la presencia incondicional, la protección material y la construcción de un hogar seguro a largo plazo.",
+    work: "Arquitectura, ingeniería, derecho, gestión financiera, operaciones y administración estratégica. Nadie organiza procesos complejos con tanta pulcritud y constancia.",
+    money: "Mentalidad patrimonial sólida. Ahorran e invierten a paso firme en bienes tangibles. Rara vez caen en especulaciones arriesgadas.",
+    tikun: "Abrirse a la flexibilidad. Aprender que el cambio es parte natural de la vida y soltar la necesidad de controlar cada variable."
+  },
+  5: {
+    sefira: "Tiféret",
+    hebrew: "תפארת",
+    title: "La Belleza & la Armonía del Corazón",
+    pillar: "Pilar Central (El Corazón del Árbol)",
+    archetype: "El Explorador Integrador",
+    element: "Aire Vital",
+    meaning: "Tiféret es el centro neurálgico del Árbol de la Vida, donde convergen el cielo y la tierra. En el número 5, se manifiesta como el anhelo de libertad, dinamismo vital, adaptabilidad y belleza integradora.",
+    soulMission: "Expandir la conciencia a través del viaje, la experimentación sensorial y la comprensión de diferentes culturas y visiones.",
+    love: "Aventureros y magnéticos. En pareja necesitan estimulación constante, proyectos compartidos y respeto irrestricto por su autonomía.",
+    work: "Comercio internacional, turismo, medios de comunicación, consultoría de cambio y profesiones que impliquen movilidad y dinamismo constante.",
+    money: "Generan ingresos mediante la adaptabilidad y el aprovechamiento veloz de oportunidades. Su lección es crear un fondo de reserva para etapas de transición.",
+    tikun: "Canalizar la inquietud interna en constancia con propósito, evitando el escape de compromisos necesarios."
+  },
+  6: {
+    sefira: "Netzaj",
+    hebrew: "נצח",
+    title: "La Victoria del Afecto",
+    pillar: "Pilar de la Misericordia (Victoria Emocional)",
+    archetype: "El Protector Nutricio",
+    element: "Fuego del Corazón",
+    meaning: "Netzaj representa la fuerza arrolladora del amor, los sentimientos nobles y la perseverancia que vence los obstáculos por devoción.",
+    soulMission: "Sanar y embellecer su entorno familiar y comunitario a través de la responsabilidad afectiva.",
+    love: "El número más devoto y comprometido con el hogar y la pareja. Su mayor alegría es cuidar, construir armonía doméstica y ser un pilar de calma emocional.",
+    work: "Salud, psicología, docencia, diseño de interiores, gastronomía, mediación social y proyectos orientados al cuidado del ser humano.",
+    money: "Utilizan los recursos para garantizar el bienestar de sus seres queridos. Tienen un ojo impecable para la calidad y la estética del hogar.",
+    tikun: "Evitar el perfeccionismo sobre los demás y no asumir cargas ajenas que impidan el crecimiento de quienes aman."
+  },
+  7: {
+    sefira: "Hod",
+    hebrew: "הוד",
+    title: "El Esplendor de la Verdad",
+    pillar: "Pilar del Rigor (Claridad Intelectual)",
+    archetype: "El Filósofo Sabio",
+    element: "Agua Mental",
+    meaning: "Hod simboliza la mente analítica iluminada, la verdad científica y mística, la introspección y la capacidad de discernir lo ilusorio de lo eterno.",
+    soulMission: "Buscar la sabiduría profunda, investigar las leyes de la existencia y transmitir conocimiento reflexivo.",
+    love: "Selectivos y profundos. Necesitan una conexión mental y espiritual genuina. Valoran los momentos compartidos de silencio fértil y diálogo elevado.",
+    work: "Investigación científica, filosofía, desarrollo tecnológico, análisis estratégico, literatura, teología y docencia universitaria.",
+    money: "El dinero es una herramienta para ganar independencia y tiempo de estudio. Se guían por la ética y la sobriedad en sus gastos.",
+    tikun: "Bajar de la mente al corazón; confiar en las personas y no recluirse en una torre de marfil de aislamiento defensivo."
+  },
+  8: {
+    sefira: "Yesod",
+    hebrew: "יסוד",
+    title: "El Fundamento de la Manifestación",
+    pillar: "Pilar del Equilibrio (El Canal)",
+    archetype: "El Maestro de la Abundancia",
+    element: "Fuerza Vital Conectora",
+    meaning: "Yesod es el embudo cósmico donde todas las energías superiores se condensan para manifestarse en el mundo físico. En el número 8, representa el dominio de la materia, la autoridad y el éxito tangible.",
+    soulMission: "Dirigir grandes proyectos y utilizar el poder económico y organizativo con justicia y beneficio colectivo.",
+    love: "Protectores, generosos y leales. Admiran a parejas con ambición personal, madurez de carácter y visión de grandeza.",
+    work: "Alta dirección ejecutiva, finanzas, banca, bienes raíces, grandes emprendimientos e instituciones de impacto macroeconómico.",
+    money: "Atracción natural de la abundancia. Su comprensión del flujo del capital les permite construir imperios financieros duraderos.",
+    tikun: "Vincular el éxito terrenal con la compasión y el desapego, recordando que el poder es una herramienta de servicio y no de dominación."
+  },
+  9: {
+    sefira: "Maljut",
+    hebrew: "מלכות",
+    title: "El Reino de la Plenitud",
+    pillar: "Pilar del Equilibrio (La Realización)",
+    archetype: "El Sabio Universal",
+    element: "Tierra Receptora",
+    meaning: "Maljut es la culminación de todo el Árbol de la Vida, donde la luz se hace visible. En el número 9, encarna la sabiduría integradora, el altruismo y el cierre victorioso de ciclos.",
+    soulMission: "Servir al bien común, practicar el perdón universal y abrir paso a una conciencia planetaria más empática.",
+    love: "Amor generoso, maduro e incondicional. Buscan una relación profunda que comparta valores éticos y trascendencia vital.",
+    work: "Derechos humanos, diplomacia internacional, artes transformadoras, sanación holística y liderazgo humanitario.",
+    money: "Experimentan que mientras más dan con generosidad desinteresada, más prosperidad reciben de fuentes inesperadas.",
+    tikun: "Aprender a soltar el pasado sin amargura, cerrando capítulos con gratitud para recibir lo nuevo."
+  },
+  11: {
+    sefira: "Da'at",
+    hebrew: "דעת",
+    title: "El Conocimiento Supra-Consciente",
+    pillar: "Pilar Central (El Vórtice Secreto)",
+    archetype: "El Iluminador de Almas",
+    element: "Luz Trascendental",
+    meaning: "Da'at es la Sefirá oculta que une la mente y el corazón divinos. El 11 es un puente entre dimensiones, con una sensibilidad psíquica e inspiradora fuera de lo común.",
+    soulMission: "Ser un faro de iluminación moral y espiritual en tiempos de transición colectiva.",
+    love: "Conexión de almas gemelas. Exigen una sintonía telepática y emocional muy alta; no toleran relaciones superficiales.",
+    work: "Liderazgo espiritual, psicología profunda, creación artística transformadora y docencia visionaria.",
+    money: "La abundancia llega cuando se mantienen fieles a su vocación auténtica y no se comprometen con metas puramente materialistas.",
+    tikun: "Cuidar su sistema nervioso, aprender a enraizarse en la tierra y no dejarse abrumar por el exceso de sensibilidad ambiental."
+  },
+  22: {
+    sefira: "El Gran Arquitecto (Kéter en Maljut)",
+    hebrew: "כתר ומלכות",
+    title: "El Constructor Universal",
+    pillar: "Pilar del Equilibrio Cósmico",
+    archetype: "El Maestro de Obras",
+    element: "Tierra Sagrada Iluminada",
+    meaning: "El 22 toma los ideales más elevados y los convierte en realidades institucionales, científicas o sociales que perduran durante siglos.",
+    soulMission: "Crear obras a escala masiva que eleven la calidad de vida y la conciencia de la humanidad.",
+    love: "Compañerismo de destino. Necesitan una pareja que comprenda la magnitud de su visión y sea un refugio incondicional de paz.",
+    work: "Grandes obras civiles, diseño de sistemas globales, reformas educativas o empresariales a escala internacional.",
+    money: "Manejo de presupuestos y patrimonios de gran envergadura con honestidad y visión futurista.",
+    tikun: "Superar el temor a fracasar en misiones grandes y mantener la humildad en la cumbre del éxito."
+  },
+  33: {
+    sefira: "El Corazón Crístico (Tiféret Supremo)",
+    hebrew: "לב קדוש",
+    title: "El Sanador Universal",
+    pillar: "Pilar de la Compasión Infinita",
+    archetype: "El Maestro del Amor Puro",
+    element: "Amor Incondicional",
+    meaning: "El 33 es la vibración más elevada del servicio desinteresado y la sanación por presencia.",
+    soulMission: "Sanar el dolor ajeno a través del amor compasivo, la caridad noble y la enseñanza del perdón.",
+    love: "Amor devocional sublime. Capacidad inagotable de acogida y comprensión emocional.",
+    work: "Sanación, docencia compasiva, liderazgo humanitario y guía de almas en procesos de renacimiento.",
+    money: "El dinero es visto como energía pura de circulación para bendecir proyectos de auxilio mutuo.",
+    tikun: "Cuidar de sí mismos con el mismo fervor con que cuidan al mundo, evitando el agotamiento del cuerpo físico."
+  }
+};
+
+// ─── ANÁLISIS EXHAUSTIVO DE CADA SIGNO ZODIACAL (ENCICLOPEDIA PROFUNDA) ──────
+export const ZODIAC_COMPREHENSIVE_READINGS = {
+  Aries: {
+    psychology: "Regido por Marte, Aries percibe la vida como una constante invitación a la acción valiente. Su mente es directa, intuitiva y alérgica a los rodeos. Procesan las situaciones tomando la iniciativa antes de que el miedo pueda paralizarlos.",
+    love: "En el amor, Aries es un conquistador apasionado que vive el cortejo con intensidad electrizante. Busca relaciones donde exista admiración mutua, dinamismo y retos compartidos. Se aburre rápidamente de la rutina pasiva. Valora la franqueza absoluta y prefiere una discusión sincera a un silencio resentido.",
+    work: "En el ámbito profesional, son líderes natos, emprendedores incansables y excelentes para desatascar proyectos estancados. Se desempeñan mejor cuando tienen autonomía para decidir y ejecutar. Su punto fuerte es la arrancada y la audacia ejecutiva.",
+    money: "Su relación con el dinero es dinámica: les gusta generar con fuerza y no temen asumir riesgos calculados en inversiones. Su aprendizaje financiero reside en no dejarse llevar por compras impulsivas motivadas por la adrenalina del momento.",
+    shadowWork: "Aprender a cultivar la paciencia y reconocer que el ritmo de los demás no siempre coincide con el suyo. Integrar la diplomacia sin perder su fuego natural."
+  },
+  Tauro: {
+    psychology: "Regido por Venus, Tauro es el maestro de la manifestación tangible y el discernimiento sensorial. Su mente evalúa cada paso buscando solidez, permanencia y bienestar genuino. No se apresura, pues sabe que lo valioso requiere tiempo de maduración.",
+    love: "En los vínculos afectivos, Tauro ofrece un amor fiel, afectuoso y profundamente protector. Para Tauro el romance se expresa a través de los sentidos: caricias, buena cocina, detalles de calidad y un hogar sereno. Valora la estabilidad y la certeza de que su pareja estará allí en los momentos cruciales.",
+    work: "Trabajadores ejemplares, metódicos y sumamente perseverantes. Sobresalen en finanzas, agricultura, diseño, arquitectura, gastronomía y gestión de patrimonio. Son el ancla de cualquier equipo gracias a su sensatez y lealtad.",
+    money: "Poseen un instinto natural para el ahorro, la inversión prudente y la multiplicación de activos. Saben detectar el valor real de las cosas y huyen de las modas financieras efímeras.",
+    shadowWork: "Flexibilizar su apego a lo conocido y no temer a los cambios que la vida propone. Soltar la posesividad y la terquedad defensiva."
+  },
+  Géminis: {
+    psychology: "Regido por Mercurio, Géminis es la mente en constante danza de ideas y conexiones. Su curiosidad insaciable los impulsa a explorar múltiples perspectivas de la realidad, convirtiéndolos en interlocutores fascinantes y polifacéticos.",
+    love: "En las citas, Géminis se enamora a través del intelecto y el sentido del humor. Necesitan una pareja que sea al mismo tiempo su mejor amigo, con quien tener conversaciones nocturnas memorables y compartir nuevos descubrimientos. La monotonía es su mayor enemigo afectivo.",
+    work: "Brillan en el periodismo, comunicación, relaciones públicas, marketing digital, tecnología y pedagogía. Su agilidad mental les permite procesar grandes volúmenes de información y coordinar varias tareas simultáneamente.",
+    money: "Suelen tener múltiples fuentes de ingresos gracias a sus diversos talentos. Su desafío financiero es mantener un seguimiento constante de sus gastos para evitar la dispersión.",
+    shadowWork: "Aprender a profundizar y comprometerse con perseverancia en un proyecto o vínculo, resistiendo la tentación de huir cuando surge la rutina."
+  },
+  Cáncer: {
+    psychology: "Gobernado por la Luna, Cáncer posee una inteligencia emocional y una memoria intuitiva excepcionales. Perciben las corrientes subterráneas de cualquier ambiente y tienen un don natural para crear refugios emocionales donde otros se sienten seguros.",
+    love: "En el amor, Cáncer entrega el corazón por completo. Son protectores, empáticos y profundamente románticos. Buscan una relación con raíces hondas, basada en la lealtad incondicional, el respeto a la intimidad y la construcción de un proyecto de vida compartido.",
+    work: "Sobresalen en la medicina, psicología, educación, recursos humanos, hotelería y cualquier labor que requiera cuidar, nutrir o guiar a personas. Son leales a las instituciones que los respetan.",
+    money: "Excelente instinto para la seguridad financiera y la protección patrimonial. Ahorran pensando en el bienestar futuro de su familia y tienen un olfato agudo para inversiones seguras.",
+    shadowWork: "Soltar el resentimiento del pasado y aprender a comunicarse sin encerrarse en su caparazón cuando se sienten vulnerables."
+  },
+  Leo: {
+    psychology: "Regido por el Sol, Leo encarna el principio de la dignidad personal, la calidez expansiva y la autoexpresión luminosa. Su mente opera desde el corazón y la generosidad; inspiran a otros a creer en su propio valor.",
+    love: "En el romance, Leo es apasionado, caballeroso y sumamente generoso. Le fascina celebrar a su pareja, organizar citas extraordinarias y llenar la relación de entusiasmo. A cambio, necesita reconocimiento sincero, lealtad absoluta y admiración mutua.",
+    work: "Líderes natos, creativos, directores, actores, conferencistas y emprendedores. Su presencia escénica y carisma natural elevan la moral de cualquier equipo de trabajo.",
+    money: "Atraen la prosperidad gracias a su confianza personal. Les gusta disfrutar de la abundancia con estilo y compartirla con sus seres queridos; su aprendizaje es no gastar para impresionar a terceros.",
+    shadowWork: "Trascender la necesidad de validación externa y aprender que la verdadera nobleza reside en la humildad silenciosa."
+  },
+  Virgo: {
+    psychology: "Regido por Mercurio en su faceta analítica y práctica, Virgo posee un ojo clínico para el detalle y la mejora continua. Su mente es metódica, noble y guiada por una genuina vocación de servicio útil.",
+    love: "En el amor, Virgo demuestra su afecto a través de actos prácticos de servicio y cuidado diario: recordar tus gustos, ayudarte a resolver problemas y estar presente. Son compañeros leales, respetuosos y de una madurez invaluable.",
+    work: "Insuperables en análisis de datos, medicina, edición, programación, control de calidad, administración y auditoría. Su disciplina garantiza resultados impecables.",
+    money: "Financieramente sobrios, analíticos y sumamente inteligentes. Comparan, presupuestan e invierten con cautela, garantizando una sólida tranquilidad económica a largo plazo.",
+    shadowWork: "Apaciguar la autocrítica implacable y aceptar que la perfección es un ideal y que la imperfección es humana y bella."
+  },
+  Libra: {
+    psychology: "Regido por Venus, Libra busca incansablemente el equilibrio, la justicia y la armonía estética. Su mente evalúa todos los puntos de vista antes de juzgar, dotándolos de una empatía y un refinamiento social extraordinarios.",
+    love: "Para Libra, el amor es una obra de arte compartida. Buscan un compañero de vida con quien cultivar la cortesía, el romance continuo, la complicidad intelectual y la belleza estética en el hogar.",
+    work: "Diplomacia, leyes, mediación de conflictos, diseño de moda, arquitectura, relaciones corporativas y curaduría artística. Crean consensos donde otros solo ven discordia.",
+    money: "Disfrutan del dinero como medio para rodearse de belleza, cultura y confort. Su desafío es no aplazar decisiones financieras estratégicas por miedo a equivocarse.",
+    shadowWork: "Aprender a tolerar el conflicto necesario y tomar posturas firmes aun cuando esto decepcione temporalmente a otros."
+  },
+  Escorpio: {
+    psychology: "Regido por Plutón y Marte, Escorpio posee una percepción penetrante que traspasa las máscaras superficiales. Su mente es investigadora, estratégica y dotada de una resiliencia capaz de renacer de las cenizas.",
+    love: "En las relaciones, Escorpio busca la fusión de almas, una lealtad a toda prueba y una intimidad emocional y física profunda. Son incondicionales con quienes ganan su confianza, pero implacables ante la traición.",
+    work: "Investigación forense, cirugía, psicología profunda, finanzas de riesgo, gestión de crisis y liderazgo estratégico. No temen adentrarse en los terrenos más complejos.",
+    money: "Gran talento para el manejo de recursos compartidos, herencias, préstamos estratégicos y transformaciones de negocios en crisis en minas de rentabilidad.",
+    shadowWork: "Aprender a perdonar y soltar el control defensivo; abrir el corazón sin el temor paranoide a ser herido."
+  },
+  Sagitario: {
+    psychology: "Regido por Júpiter, Sagitario es el explorador filosófico que busca el sentido superior de la vida. Su mente es optimista, expansiva y orientada a los grandes horizontes éticos y espirituales.",
+    love: "En el romance, Sagitario busca un compañero de aventuras con quien viajar, reír y debatir sobre las grandes preguntas de la existencia. Necesitan respeto sagrado por su libertad personal y una visión entusiasta del porvenir.",
+    work: "Educación superior, leyes internacionales, viajes, filosofía, edición y consultoría estratégica global. Su optimismo contagioso abre puertas donde otros ven barreras.",
+    money: "Tienen una fe inquebrantable en que el universo proveerá, lo que suele atraer golpes de fortuna. Su lección es prever épocas de vacas flacas mediante el ahorro estructurado.",
+    shadowWork: "Cultivar la constancia en el detalle diario y no dogmatizar sus convicciones frente a quienes piensan diferente."
+  },
+  Capricornio: {
+    psychology: "Regido por Saturno, Capricornio posee una visión a largo plazo y una disciplina inquebrantable. Su mente entiende las leyes del tiempo y la madurez; no teme al esfuerzo cuesta arriba si la meta es digna.",
+    love: "En el amor, Capricornio se toma su tiempo para abrir el corazón, pero cuando se compromete es para toda la vida. Demuestra su devoción mediante la estabilidad, la protección y el cumplimiento riguroso de su palabra.",
+    work: "Altas esferas ejecutivas, gobernanza, finanzas corporativas, minería, construcción y gestión de grandes proyectos. Su seriedad y capacidad de trabajo bajo presión imponen respeto.",
+    money: "Maestros del patrimonio. Saben invertir con paciencia, reinvertir utilidades y construir solvencia económica blindada contra crisis externas.",
+    shadowWork: "Permitirse el disfrute y la vulnerabilidad; recordar que su valor como personas no depende exclusivamente de sus logros externos."
+  },
+  Acuario: {
+    psychology: "Regido por Urano y Saturno, Acuario es el visionario del colectivo que piensa diez años por delante de su época. Su mente es original, disruptiva y comprometida con la libertad y la justicia social.",
+    love: "En las citas, Acuario necesita primero una profunda amistad y sintonía mental. Valoran a una pareja que tenga sus propios ideales, que respete la independencia mutua y con quien crear un vínculo fuera de los moldes tradicionales.",
+    work: "Tecnología de vanguardia, inteligencia artificial, activismo social, investigación científica, aviación y desarrollo de comunidades digitales. Son pioneros del futuro.",
+    money: "Suelen obtener ingresos a través de proyectos innovadores y colaborativos. Su relación con el dinero es utilitaria: es una herramienta para la autonomía y el progreso comunitario.",
+    shadowWork: "Bajar de la abstracción teórica a la intimidad emocional cotidiana; permitir que sus sentimientos individuales se expresen sin filtros lógicos."
+  },
+  Piscis: {
+    psychology: "Regido por Neptuno y Júpiter, Piscis posee una sensibilidad oceánica conectada con el inconsciente colectivo. Su mente es artística, profundamente compasiva y capaz de percibir la magia sutil detrás de lo cotidiano.",
+    love: "En el amor, Piscis es el romántico definitivo. Sueña con una unión donde la ternura, el arte y la empatía silenciosa creen un santuario de paz. Se entrega generosamente y sabe escuchar como nadie.",
+    work: "Música, cine, artes plásticas, psicoterapia, sanación, labores humanitarias y profesiones donde la imaginación y la compasión sean indispensables.",
+    money: "El dinero fluye cuando sus actividades se alinean con un propósito noble. Su desafío es establecer fronteras prácticas para que personas abusivas no se aprovechen de su generosidad.",
+    shadowWork: "Aprender a poner límites claros y no escapar de la realidad mediante la fantasía cuando surgen dificultades terrenales."
+  }
+};
+
+// ─── GENERADOR DE PRONÓSTICOS TEMPORALES ESTRUCTURADOS (DIARIO/SEMANAL/MENSUAL/ANUAL) ──
+export function getTemporalForecast(sign = 'Aries', lifePath = 1, period = 'diario') {
+  const zodiac = ZODIAC_COMPREHENSIVE_READINGS[sign] || ZODIAC_COMPREHENSIVE_READINGS.Aries;
+  const sefiraInfo = TREE_OF_LIFE_SEFIROT[lifePath] || TREE_OF_LIFE_SEFIROT[1];
+
+  const periodTitles = {
+    diario: {
+      label: "Pronóstico Diario",
+      subtitle: "Vibración energética para las próximas 24 horas",
+      timeframe: "Hoy"
+    },
+    semanal: {
+      label: "Pronóstico Semanal",
+      subtitle: "Tendencias y oportunidades para los próximos 7 días",
+      timeframe: "Esta Semana"
+    },
+    mensual: {
+      label: "Pronóstico Mensual",
+      subtitle: "Clima cósmico y enfoque estratégico para este mes",
+      timeframe: "Este Mes"
+    },
+    anual: {
+      label: "Pronóstico Anual",
+      subtitle: "Visión del ciclo evolutivo de largo alcance",
+      timeframe: "Ciclo Anual"
+    }
+  };
+
+  const currentPeriod = periodTitles[period] || periodTitles.diario;
+
+  // Generación contextual sobria y psicológica según el período
+  const forecasts = {
+    diario: {
+      love: `Para ${sign} y la frecuencia ${lifePath} (${sefiraInfo.sefira}), la energía de hoy favorece el diálogo franco y la empatía sincera. En las relaciones de pareja o citas, un gesto espontáneo de aprecio disolverá tensiones acumuladas. Momento idóneo para escuchar sin juzgar.`,
+      work: `En el trabajo, la jornada exige priorizar las tareas esenciales sobre las distracciones menores. Tu capacidad natural como ${sign} para enfocar la energía te permitirá avanzar con agilidad en decisiones que venías postergando.`,
+      money: `Día de prudencia operativa. Evita compras superfluas impulsadas por la ansiedad. Buen momento para revisar presupuestos y confirmar que tus recursos estén bien resguardados.`,
+      energy: `Tu vitalidad se potencia si te tomas 15 minutos de desconexión digital durante la tarde. Camina, hidrátate conscientemente y respira profundo.`,
+      guidingNumber: lifePath,
+      keyAdvice: "La claridad interior precede a la victoria externa. Confía en tu discernimiento."
+    },
+    semanal: {
+      love: `Durante esta semana, los vínculos experimentan una fase de clarificación positiva. Si estás en pareja, es un excelente ciclo para planificar una salida fuera de la rutina o conversar sobre metas compartidas. Para quienes están conociendo personas, surgirán conversaciones con profunda afinidad intelectual.`,
+      work: `Semana de concreción estratégica. Se presentan aperturas para negociar acuerdos, presentar propuestas creativas o asumir mayor responsabilidad. La influencia de ${sefiraInfo.title} te brinda la autoridad moral para guiar con el ejemplo.`,
+      money: `El flujo financiero se muestra estable con tendencia al crecimiento. Si tienes en mente una inversión o ahorro programado, esta semana ofrece buen discernimiento para dar el primer paso con bases firmes.`,
+      energy: `Dedica tiempo a restaurar tu ciclo de sueño y equilibrar la actividad física con momentos de lectura o silencio reflexivo.`,
+      guidingNumber: (lifePath % 9) + 1,
+      keyAdvice: "El orden en tu entorno inmediato genera serenidad en tu mente."
+    },
+    mensual: {
+      love: `Este mes marca un ciclo de maduración afectiva para ${sign}. Se consolidan acuerdos de largo plazo y se disuelven malentendidos que venían arrastrándose. Es un período donde la autenticidad y la vulnerabilidad compartida fortalecen los lazos como nunca.`,
+      work: `El mes propicia un salto cualitativo en tu carrera o proyectos personales. Tus talentos serán más visibles y podrías recibir reconocimientos o la oportunidad de liderar un área clave. Mantén la ética y la paciencia como estandartes.`,
+      money: `Ciclo propicio para sanear deudas, diversificar ahorros y evaluar nuevos modelos de ingresos. Tu relación con la abundancia se expande cuando reconoces y valoras tus propias habilidades profesionales.`,
+      energy: `Mes ideal para iniciar una disciplina de bienestar duradera: alimentación consciente, meditación matutina y contacto con la naturaleza.`,
+      guidingNumber: lifePath,
+      keyAdvice: "Lo que se construye con paciencia y verdad permanece inalterable ante cualquier tormenta."
+    },
+    anual: {
+      love: `En el horizonte de este ciclo anual, tu vida vincular atraviesa un proceso de purificación y florecimiento. Atraerás personas alineadas con tu verdadero nivel de conciencia, dejando atrás patrones de dependencia o superficialidad. El amor se convierte en un templo de apoyo mutuo.`,
+      work: `Año trascendental para la consolidación de tu vocación. Bajo el auspicio de ${sefiraInfo.sefira}, tus esfuerzos acumulados en los últimos años comienzan a dar frutos visibles y sólidos. La clave será mantener el rumbo sin claudicar ante distracciones menores.`,
+      money: `Año de estructuración patrimonial y madurez económica. Las semillas financieras que siembres con seriedad durante este ciclo sentarán las bases de la tranquilidad para los próximos cinco años.`,
+      energy: `Tu reto de salud y vitalidad para este año es la armonía psicofísica: aprender a descansar a tiempo, regular el estrés laboral y cuidar tus articulaciones y postura.`,
+      guidingNumber: lifePath,
+      keyAdvice: "Tu misión de vida no es competir con el mundo, sino manifestar la luz única que habita en tu corazón."
+    }
+  };
+
+  return {
+    ...currentPeriod,
+    data: forecasts[period] || forecasts.diario
+  };
+}

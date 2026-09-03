@@ -1,16 +1,16 @@
 "use client";
 import React from 'react';
-import { User, Flame, Moon, Heart, Gamepad2 } from 'lucide-react';
+import { User, Flame, BookOpen, Heart, Gamepad2 } from 'lucide-react';
 
 export const BottomNav = ({ activeTab, setActiveTab }) => (
   <div className="w-full max-w-sm sm:max-w-md mx-auto z-40 pointer-events-auto select-none">
-    <div className="relative p-0.5 sm:p-1 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-500/30 via-purple-500/30 to-amber-500/30 shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
-      <div className="flex justify-around items-center px-1 sm:px-2 py-1 sm:py-1.5 rounded-[16px] sm:rounded-[22px] bg-[#060812]/95 border border-white/10">
+    <div className="relative p-0.5 sm:p-1 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-amber-500/20 shadow-[0_10px_35px_rgba(0,0,0,0.9)] backdrop-blur-2xl">
+      <div className="flex justify-around items-center px-1 sm:px-2 py-1 sm:py-1.5 rounded-[16px] sm:rounded-[22px] bg-[#070913]/95 border border-white/10">
         {[
           { id: 'eter',     icon: <Flame size={17} className="sm:w-[19px] sm:h-[19px]" />,     label: 'Citas'    },
           { id: 'vinculos', icon: <Heart size={17} className="sm:w-[19px] sm:h-[19px]" />,     label: 'Matches'  },
           { id: 'espejo',   icon: <User size={17} className="sm:w-[19px] sm:h-[19px]" />,      label: 'Perfil'   },
-          { id: 'oraculo',  icon: <Moon size={17} className="sm:w-[19px] sm:h-[19px]" />,      label: 'Oráculo'  },
+          { id: 'oraculo',  icon: <BookOpen size={17} className="sm:w-[19px] sm:h-[19px]" />,  label: 'Lecturas' },
           { id: 'juegos',   icon: <Gamepad2 size={17} className="sm:w-[19px] sm:h-[19px]" />,  label: 'Juegos'   },
         ].map(({ id, icon, label }) => {
           const isActive = activeTab === id;
