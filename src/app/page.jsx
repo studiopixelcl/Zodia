@@ -107,18 +107,18 @@ export default function LandingPage() {
   }, []);
 
   const handleInstallClick = async () => {
+    setIsInstallModalOpen(true);
     if (installPrompt) {
       try {
         installPrompt.prompt();
         const choice = await installPrompt.userChoice;
         if (choice?.outcome === 'accepted') {
           setInstallPrompt(null);
+          setIsInstallModalOpen(false);
         }
       } catch (err) {
-        setIsInstallModalOpen(true);
+        console.warn('PWA prompt dialog error:', err);
       }
-    } else {
-      setIsInstallModalOpen(true);
     }
   };
 
