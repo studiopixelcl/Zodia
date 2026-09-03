@@ -6,6 +6,13 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      async_hooks: false,
+    };
+    return config;
+  },
   async redirects() {
     return [
       {
