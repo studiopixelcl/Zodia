@@ -13,6 +13,7 @@ import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
 import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
+import { calculateAstralProfile } from '../../lib/astrology';
 
 // ─── PANTALLA DE ESPERA COMPARTIDA ────────────────────────────────────────────
 const Sincronizando = () => (
@@ -76,13 +77,19 @@ export default function Dashboard() {
 
       // Si no se obtuvo de la API pero tenemos la sesión del usuario activo:
       if (activeUser) {
+        let calculated = null;
+        if (activeUser.dob && activeUser.dob.length >= 8 && activeUser.dob !== 'registered') {
+          try {
+            calculated = calculateAstralProfile(activeUser.dob);
+          } catch {}
+        }
         setProfile({
           user_id: activeUser.id,
           birth_date: activeUser.dob || '1998-07-15',
-          sign: 'Capricornio',
-          element: 'Tierra',
-          life_path_number: 9,
-          archetype: 'El Ermitaño',
+          sign: calculated?.sign || 'Capricornio',
+          element: calculated?.element || 'Tierra',
+          life_path_number: calculated?.lifePath || 9,
+          archetype: calculated?.archetype || 'El Ermitaño',
           user_name: activeUser.name,
           user_image: activeUser.image
         });
@@ -190,6 +197,10 @@ export default function Dashboard() {
             avatarSrc={avatarSrc ?? currentUser?.image}
             onAvatarChange={handleAvatarChange}
             onNavigateTab={setActiveTab}
+            onProfileUpdated={(updatedProfile) => {
+              setProfile(updatedProfile);
+              if (updatedProfile.user_image) setAvatarSrc(updatedProfile.user_image);
+            }}
           />
         )}
         {activeTab === 'eter' && (

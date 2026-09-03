@@ -17,7 +17,8 @@ export const AstralPortalModal = ({
   onClose,
   children,
   maxWidth = "max-w-md",
-  className = ""
+  className = "",
+  closeOnBackdropClick = true
 }) => {
   const [mounted, setMounted] = useState(false);
 
@@ -36,17 +37,17 @@ export const AstralPortalModal = ({
     }
   }, [isOpen]);
 
-  // Cerrar con tecla Escape
+  // Cerrar con tecla Escape (solo si closeOnBackdropClick está activo)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === 'Escape' && onClose && closeOnBackdropClick) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, closeOnBackdropClick]);
 
   if (!mounted || !isOpen) return null;
 
@@ -55,7 +56,7 @@ export const AstralPortalModal = ({
       className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-xl p-3 sm:p-6 overflow-y-auto flex items-center justify-center animate-fadeIn select-none"
       style={{ margin: 0 }}
       onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
+        if (closeOnBackdropClick && e.target === e.currentTarget && onClose) {
           onClose();
         }
       }}

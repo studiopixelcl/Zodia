@@ -13,7 +13,7 @@ import {
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
 
-export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab }) => {
+export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onProfileUpdated }) => {
   const userSign = profile?.sign ?? 'Capricornio';
   const signInfo = zodiacData.find(s => s.sign === userSign) ?? zodiacData[0];
   const zodiacSymbol = getZodiacSymbol(userSign);
@@ -255,18 +255,41 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         }),
       });
 
-      if (res.ok) {
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.success) {
+        // 1. Sincronizar zodia_session en localStorage y cookie para persistencia inmediata
+        try {
+          const stored = localStorage.getItem('zodia_session');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (editName) parsed.name = editName;
+            if (editDob) parsed.dob = editDob;
+            localStorage.setItem('zodia_session', JSON.stringify(parsed));
+            document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(parsed))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          }
+        } catch (storageErr) {
+          console.warn('Storage sync error:', storageErr);
+        }
+
+        // 2. Notificar al Dashboard del nuevo perfil astral calculado
+        if (data.profile && onProfileUpdated) {
+          onProfileUpdated(data.profile);
+        }
+
         setSaveSuccessMsg('Perfil actualizado con éxito');
+
         setTimeout(() => {
           setIsEditModalOpen(false);
           setSaveSuccessMsg(null);
-          // Si cambió la fecha de nacimiento, recargar para recalcular todo el dashboard
-          if (editDob && editDob !== (profile?.birth_date ?? profile?.dob)) {
-            window.location.reload();
-          }
-        }, 1000);
+          // Recargar para que todas las vistas (signo, oráculo, citas) recalculen tránsitos
+          window.location.reload();
+        }, 700);
+      } else {
+        alert(data?.error || 'No se pudieron guardar los cambios. Intenta nuevamente.');
       }
-    } catch {
+    } catch (err) {
+      console.error('Error guardando perfil:', err);
       alert('Ocurrió un error al guardar los cambios.');
     } finally {
       setIsSaving(false);
@@ -1121,6 +1144,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         maxWidth="max-w-lg"
+        closeOnBackdropClick={false}
       >
         <div className="space-y-5">
           <div className="flex justify-between items-center border-b border-white/10 pb-3">
