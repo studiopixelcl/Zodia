@@ -14,6 +14,18 @@ const nextConfig = {
         basePath: false,
         permanent: false,
       },
+      {
+        source: '/admin',
+        destination: '/zodia/admin',
+        basePath: false,
+        permanent: false,
+      },
+      {
+        source: '/admin/:path*',
+        destination: '/zodia/admin/:path*',
+        basePath: false,
+        permanent: false,
+      },
     ];
   },
 };
