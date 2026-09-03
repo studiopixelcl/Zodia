@@ -88,13 +88,16 @@ export default function LandingPage() {
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
       setIsStandalone(Boolean(standalone));
 
-      const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const isIosDevice = /iphone|ipad|ipod/.test(userAgent) || 
+        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
       setIsIOS(isIosDevice);
 
       const handleBeforeInstall = (e) => {
@@ -1466,36 +1469,54 @@ export default function LandingPage() {
 
             {/* Instrucciones según Dispositivo */}
             {isIOS ? (
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
-                <p className="text-[11px] font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Smartphone size={14} /> Pasos para iPhone / iPad (Safari):
-                </p>
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+                  <span className="text-base leading-none mt-0.5">ℹ️</span>
+                  <p className="leading-relaxed">
+                    <strong className="text-amber-300 font-semibold block mb-0.5">Apple no permite descargas directas en iPhone:</strong>
+                    No necesitas App Store ni esperar un archivo. Puedes tener Zodia como App a pantalla completa agregándola en 2 toques desde <strong>Safari</strong>:
+                  </p>
+                </div>
+
                 <div className="space-y-2.5 text-xs text-slate-200">
-                  <div className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                  <div className="flex items-start gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                    <span className="w-6 h-6 rounded-lg bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-xs">
                       1
                     </span>
                     <p>
-                      Toca el botón <strong className="text-sky-300">Compartir</strong> de Safari (icono cuadrado con flecha hacia arriba <Share2 size={13} className="inline mx-0.5 text-sky-400" /> en la barra inferior).
+                      En la barra inferior de tu iPhone en Safari, pulsa el botón <strong className="text-sky-300">Compartir</strong> (<Share2 size={13} className="inline mx-0.5 text-sky-400" /> el cuadrado con flecha arriba).
                     </p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                  <div className="flex items-start gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                    <span className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center shrink-0 text-xs">
                       2
                     </span>
                     <p>
-                      Desplázate hacia abajo y selecciona <strong className="text-sky-300">"Agregar a la pantalla de inicio"</strong> (<PlusSquare size={13} className="inline mx-0.5 text-sky-400" />).
+                      Desplázate hacia abajo en el menú y toca <strong className="text-sky-300">"Agregar a la pantalla de inicio"</strong> (<PlusSquare size={13} className="inline mx-0.5 text-sky-400" />).
                     </p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                  <div className="flex items-start gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold flex items-center justify-center shrink-0 text-xs">
                       3
                     </span>
                     <p>
-                      Toca <strong className="text-sky-300">"Agregar"</strong> en la esquina superior derecha. ¡Listo!
+                      Toca <strong className="text-sky-300">"Agregar"</strong> arriba a la derecha. ¡Listo! Se abrirá a pantalla completa como una app real.
                     </p>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard?.writeText(window.location.href);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 3000);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-sky-300 font-semibold flex items-center justify-center gap-1.5 transition"
+                >
+                  {copiedLink ? '✓ ¡Enlace copiado! Pégalo en Safari' : '📋 Si abriste Zodia desde Chrome, toca aquí para copiar el enlace y abrirlo en Safari'}
+                </button>
               </div>
             ) : (
               <div className="space-y-3">

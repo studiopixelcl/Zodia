@@ -17,9 +17,10 @@ export const PWAInstallPrompt = () => {
       return;
     }
 
-    // Detectar iOS
+    // Detectar iOS / iPadOS
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent) || 
+      (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
     setIsIOS(isIosDevice);
 
     // Si ya lo descartó recientemente
@@ -46,6 +47,8 @@ export const PWAInstallPrompt = () => {
     };
   }, []);
 
+  const [copiedLink, setCopiedLink] = useState(false);
+
   const handleInstallClick = async () => {
     if (isIOS) {
       setShowIOSModal(true);
@@ -53,7 +56,7 @@ export const PWAInstallPrompt = () => {
     }
 
     if (!deferredPrompt) {
-      alert("Para instalar en tu navegador, usa el menú 'Instalar aplicación' o 'Añadir a pantalla de inicio'.");
+      alert("Para instalar en tu navegador, usa el menú del navegador 'Instalar aplicación' o 'Añadir a pantalla de inicio'.");
       return;
     }
 
@@ -85,11 +88,13 @@ export const PWAInstallPrompt = () => {
             <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
               Instalar Zodia en tu móvil
               <span className="text-[9px] px-1.5 py-0.2 bg-cyan-500/20 text-cyan-300 rounded font-semibold border border-cyan-500/30">
-                {isIOS ? 'iOS' : 'Android'}
+                {isIOS ? 'iPhone / iPad' : 'Android'}
               </span>
             </h4>
             <p className="text-[11px] text-gray-300 font-light">
-              Accede a tus citas y mensajes con pantalla completa y sin navegador.
+              {isIOS 
+                ? 'Agrega Zodia a tu pantalla de inicio en 2 toques desde Safari.' 
+                : 'Accede a tus citas y mensajes con pantalla completa y sin navegador.'}
             </p>
           </div>
         </div>
@@ -99,7 +104,15 @@ export const PWAInstallPrompt = () => {
             onClick={handleInstallClick}
             className="btn-mystic px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1 shadow-md hover:scale-105 transition"
           >
-            <Download size={14} /> Instalar
+            {isIOS ? (
+              <>
+                <Smartphone size={14} /> ¿Cómo instalar?
+              </>
+            ) : (
+              <>
+                <Download size={14} /> Instalar
+              </>
+            )}
           </button>
           <button
             onClick={handleDismiss}
@@ -124,39 +137,55 @@ export const PWAInstallPrompt = () => {
               </button>
             </div>
 
-            <p className="text-xs text-gray-300 leading-relaxed font-light">
-              Safari te permite instalar Zodia como una App nativa directamente en tu pantalla de inicio:
-            </p>
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs flex items-start gap-2">
+              <span className="text-sm">ℹ️</span>
+              <p className="leading-relaxed">
+                <strong>Apple no permite descargas directas de archivos en iPhone.</strong> No necesitas App Store: se instala gratis directamente desde <strong>Safari</strong> en 3 toques:
+              </p>
+            </div>
 
-            <ol className="space-y-3 text-xs text-gray-200">
-              <li className="flex items-start gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
+            <ol className="space-y-2.5 text-xs text-gray-200">
+              <li className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
                 <div className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 flex-shrink-0">
                   <Share size={16} />
                 </div>
                 <div>
-                  <span className="font-bold text-white block">1. Toca "Compartir"</span>
-                  En la barra inferior de Safari, pulsa el botón de compartir.
+                  <span className="font-bold text-white block">1. Toca "Compartir" en Safari</span>
+                  En la barra inferior de tu iPhone, pulsa el botón central (el cuadrado con flecha hacia arriba <Share size={12} className="inline text-cyan-400" />).
                 </div>
               </li>
-              <li className="flex items-start gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
+              <li className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
                 <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 flex-shrink-0">
                   <PlusSquare size={16} />
                 </div>
                 <div>
                   <span className="font-bold text-white block">2. "Añadir a pantalla de inicio"</span>
-                  Desliza hacia abajo y selecciona esta opción con el icono (+).
+                  Desplaza la lista hacia abajo y selecciona la opción con el icono (+).
                 </div>
               </li>
-              <li className="flex items-start gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
+              <li className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
                 <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 flex-shrink-0">
                   <Check size={16} />
                 </div>
                 <div>
                   <span className="font-bold text-white block">3. Pulsa "Añadir"</span>
-                  ¡Listo! Se abrirá a pantalla completa como una app real.
+                  Arriba a la derecha. ¡Listo! Se abrirá a pantalla completa como una app real.
                 </div>
               </li>
             </ol>
+
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  navigator.clipboard?.writeText(window.location.href);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 3000);
+                }
+              }}
+              className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-cyan-300 font-semibold flex items-center justify-center gap-1.5 transition"
+            >
+              {copiedLink ? '✓ ¡Enlace copiado! Ábrelo en Safari' : '📋 Si estás en Chrome, pulsa para copiar el enlace y abrirlo en Safari'}
+            </button>
 
             <button
               onClick={() => setShowIOSModal(false)}
