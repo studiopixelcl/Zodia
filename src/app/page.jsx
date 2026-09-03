@@ -75,6 +75,10 @@ export default function LandingPage() {
   const [generatedPin, setGeneratedPin] = useState(null);
   const [showRecoverPassword, setShowRecoverPassword] = useState(false);
 
+  // Estado para modal informativo de Google OAuth
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [googleRedirectUri, setGoogleRedirectUri] = useState('');
+
   // Selector interactivo de ejemplo en el Hero
   const [heroExampleIndex, setHeroExampleIndex] = useState(0);
   const activeHeroExample = HERO_MATCH_EXAMPLES[heroExampleIndex];
@@ -394,6 +398,26 @@ export default function LandingPage() {
       setErrorMsg('Error de conexión al guardar el perfil.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  /**
+   * Manejar Inicio de Sesión con Google OAuth
+   */
+  const handleGoogleSignIn = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/zodia/api/auth/google');
+      const data = await res.json().catch(() => null);
+      if (data && data.configured === false) {
+        setIsSaving(false);
+        setGoogleRedirectUri(data.redirectUri || 'https://zodia.studiopixel.cl/zodia/api/auth/google/callback');
+        setIsGoogleModalOpen(true);
+        return;
+      }
+      window.location.href = '/zodia/api/auth/google';
+    } catch {
+      window.location.href = '/zodia/api/auth/google';
     }
   };
 
@@ -1030,7 +1054,7 @@ export default function LandingPage() {
 
                 <button
                   type="button"
-                  onClick={() => signIn('google')}
+                  onClick={handleGoogleSignIn}
                   className="w-full flex items-center justify-center gap-2.5 bg-white text-black py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-all shadow-sm"
                 >
                   <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
@@ -1143,7 +1167,7 @@ export default function LandingPage() {
 
                 <button
                   type="button"
-                  onClick={() => signIn('google')}
+                  onClick={handleGoogleSignIn}
                   className="w-full flex items-center justify-center gap-2.5 bg-white text-black py-2.5 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-all shadow-sm"
                 >
                   <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
@@ -1279,6 +1303,75 @@ export default function LandingPage() {
               </form>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL INFORMATIVO: CONFIGURACIÓN DE GOOGLE OAUTH ── */}
+      {isGoogleModalOpen && (
+        <div className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto grid place-items-center animate-fadeIn">
+          <div className="relative my-auto w-full max-w-md p-6 sm:p-7 rounded-3xl border border-sky-500/30 bg-[#0c0e18] shadow-2xl space-y-4">
+            <button
+              onClick={() => setIsGoogleModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/[0.05]"
+              aria-label="Cerrar modal"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-md">
+                <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Inicio de Sesión con Google</h3>
+                <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">
+                  Configuración de Credenciales
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Para habilitar el acceso con Google en este dominio, se requiere crear un ID de Cliente OAuth 2.0 en <strong>Google Cloud Console</strong> e ingresar las variables de entorno <code className="text-sky-300 bg-black/50 px-1 py-0.5 rounded">GOOGLE_CLIENT_ID</code> y <code className="text-sky-300 bg-black/50 px-1 py-0.5 rounded">GOOGLE_CLIENT_SECRET</code>.
+            </p>
+
+            <div className="p-3.5 rounded-xl bg-black/50 border border-white/[0.07] space-y-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                URI de Redirección Autorizada:
+              </span>
+              <p className="text-xs text-sky-400 font-mono break-all select-all bg-black/60 p-2 rounded-lg border border-sky-500/20">
+                {googleRedirectUri || 'https://zodia.studiopixel.cl/zodia/api/auth/google/callback'}
+              </p>
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Mientras configuras las credenciales de Google, puedes acceder y registrarte de inmediato con tu correo y contraseña, o probar la plataforma en modo demo:
+            </p>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGoogleModalOpen(false);
+                  openModal('register');
+                }}
+                className="btn-primary-zodia w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                Registrarme con Correo y Contraseña
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGoogleModalOpen(false);
+                  handleGuestAccess();
+                }}
+                className="w-full py-2.5 rounded-xl text-xs font-medium text-slate-300 bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-colors flex items-center justify-center gap-2"
+              >
+                <Zap size={14} className="text-amber-400" />
+                Entrar con Modo Demo (1 Clic)
+              </button>
+            </div>
           </div>
         </div>
       )}
