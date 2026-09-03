@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
+import { DATING_CANDIDATES } from '../../../lib/dating';
 
 export const runtime = 'edge';
 
@@ -13,66 +14,18 @@ async function getDB() {
   }
 }
 
-const GUIDE_TUNERS = [
-  {
-    id: "guide_astraea",
-    name: "Astraea Mística",
-    sign: "Virgo",
-    element: "Tierra",
-    life_path_number: 7,
-    archetype: "El Ermitaño",
-    bio: "Amante del diseño, los libros antiguos y el té herbal. Buscando almas serenas para conversaciones profundas y viajes.",
-    intent: "Citas y Pareja",
-    location: "Santiago, Chile",
-    image: "https://ui-avatars.com/api/?name=Astraea&background=10b981&color=fff&bold=true",
-    photos: []
-  },
-  {
-    id: "guide_orion",
-    name: "Orion Solis",
-    sign: "Leo",
-    element: "Fuego",
-    life_path_number: 1,
-    archetype: "El Mago",
-    bio: "Emprendedor, apasionado de la astronomía y la música en vivo. Me encanta crear nuevos proyectos e inspirar a quienes me rodean.",
-    intent: "Conexiones Astrales",
-    location: "Buenos Aires, Argentina",
-    image: "https://ui-avatars.com/api/?name=Orion&background=f59e0b&color=fff&bold=true",
-    photos: []
-  },
-  {
-    id: "guide_luna",
-    name: "Luna Vespera",
-    sign: "Piscis",
-    element: "Agua",
-    life_path_number: 11,
-    archetype: "El Iluminado",
-    bio: "Poeta, fotógrafa nocturna y practicante de meditación. Busco alguien empático con quien compartir atardeceres y arte.",
-    intent: "Amistad & Conexiones",
-    location: "Medellín, Colombia",
-    image: "https://ui-avatars.com/api/?name=Luna&background=a855f7&color=fff&bold=true",
-    photos: []
-  },
-  {
-    id: "guide_zephyr",
-    name: "Zephyr del Éter",
-    sign: "Acuario",
-    element: "Aire",
-    life_path_number: 5,
-    archetype: "El Hierofante",
-    bio: "Curioso empedernido, viajero y tecnólogo místico. Disfruto los debates filosóficos y los festivales de música.",
-    intent: "Citas y Pareja",
-    location: "CDMX, México",
-    image: "https://ui-avatars.com/api/?name=Zephyr&background=3b82f6&color=fff&bold=true",
-    photos: []
-  }
-];
-
 export async function GET(request) {
   const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('search')?.toLowerCase()?.trim() || '';
+  const elementFilter = searchParams.get('element')?.toLowerCase() || 'todos';
+  const signFilter = searchParams.get('sign')?.toLowerCase() || 'todos';
+  const intentFilter = searchParams.get('intent')?.toLowerCase() || 'todos';
+  const minScore = parseInt(searchParams.get('minScore') || '0', 10);
 
   const db = await getDB();
   const myId = resolveUserId(token);
@@ -102,12 +55,13 @@ export async function GET(request) {
         FROM astral_profiles p 
         JOIN users u ON p.user_id = u.id 
         WHERE p.user_id != ? 
-        LIMIT 20
+        LIMIT 30
       `).bind(myId).all();
 
       othersList = (dbOthers.results || []).map(o => ({
         id: o.user_id,
         name: o.name,
+        age: 27,
         image: o.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(o.name || 'Z')}&background=06b6d4&color=fff`,
         sign: o.sign,
         element: o.element,
@@ -115,66 +69,107 @@ export async function GET(request) {
         archetype: o.archetype,
         bio: o.bio ?? '',
         intent: o.intent ?? 'Citas y Pareja',
-        location: o.location ?? '',
-        photos: o.photos ? JSON.parse(o.photos) : []
+        location: o.location ?? 'Santiago, Chile',
+        photos: o.photos ? (typeof o.photos === 'string' ? JSON.parse(o.photos) : o.photos) : [],
+        interests: o.interests ? (typeof o.interests === 'string' ? JSON.parse(o.interests) : o.interests) : ['Música indie', 'Café de especialidad', 'Astrología']
       }));
     } catch (err) {
       console.error("Error consultando D1 en /api/resonances:", err);
     }
   }
 
-  if (othersList.length < 3) {
-    const existingIds = new Set(othersList.map(o => o.id));
-    for (const guide of GUIDE_TUNERS) {
-      if (!existingIds.has(guide.id) && guide.id !== myId) {
-        othersList.push({
-          id: guide.id,
-          name: guide.name,
-          image: guide.image,
-          sign: guide.sign,
-          element: guide.element,
-          path: guide.life_path_number,
-          archetype: guide.archetype,
-          bio: guide.bio,
-          intent: guide.intent,
-          location: guide.location,
-          photos: guide.photos
-        });
-      }
+  // Integrar catálogo de perfiles de citas de alta calidad
+  const existingIds = new Set(othersList.map(o => o.id));
+  for (const candidate of DATING_CANDIDATES) {
+    if (!existingIds.has(candidate.id) && candidate.id !== myId) {
+      othersList.push({
+        id: candidate.id,
+        name: candidate.name,
+        age: candidate.age || 26,
+        image: candidate.image,
+        sign: candidate.sign,
+        element: candidate.element,
+        path: candidate.life_path_number,
+        archetype: candidate.archetype,
+        bio: candidate.bio,
+        intent: candidate.intent,
+        location: candidate.location,
+        photos: candidate.photos || [candidate.image],
+        interests: candidate.interests || []
+      });
     }
   }
 
-  const resonances = othersList.map(other => {
-    const affinityScore = calculateResonance(myProfile, {
+  let myInterests = [];
+  if (myProfile?.interests) {
+    try {
+      myInterests = typeof myProfile.interests === 'string' ? JSON.parse(myProfile.interests) : myProfile.interests;
+    } catch {
+      myInterests = [];
+    }
+  }
+
+  // Calcular afinidad astral personalizada y bono por intereses en común
+  let resonances = othersList.map(other => {
+    const otherInterests = Array.isArray(other.interests) ? other.interests : [];
+    const sharedInterests = myInterests.filter(myInt => 
+      otherInterests.some(otherInt => otherInt.toLowerCase() === myInt.toLowerCase())
+    );
+
+    const baseAstralScore = calculateResonance(myProfile, {
       element: other.element,
       lifePath: other.path ?? other.life_path_number,
       archetype: other.archetype
     });
+
+    // Bono de +4% por cada interés compartido (máximo 99%)
+    const interestBonus = sharedInterests.length * 4;
+    const totalAffinity = Math.min(99, Math.max(60, baseAstralScore + interestBonus));
     
     return {
-      id: other.id,
-      name: other.name,
-      image: other.image,
-      sign: other.sign,
-      element: other.element,
-      path: other.path ?? other.life_path_number,
-      archetype: other.archetype,
-      bio: other.bio,
-      intent: other.intent,
-      location: other.location,
-      photos: other.photos,
-      affinity: `${affinityScore}%`,
-      affinityScore
+      ...other,
+      affinity: `${totalAffinity}%`,
+      affinityScore: totalAffinity,
+      baseAstralScore,
+      sharedInterests
     };
   });
 
+  // Filtros dinámicos
+  if (elementFilter && elementFilter !== 'todos') {
+    resonances = resonances.filter(r => r.element?.toLowerCase() === elementFilter);
+  }
+
+  if (signFilter && signFilter !== 'todos') {
+    resonances = resonances.filter(r => r.sign?.toLowerCase() === signFilter);
+  }
+
+  if (intentFilter && intentFilter !== 'todos') {
+    resonances = resonances.filter(r => r.intent?.toLowerCase()?.includes(intentFilter));
+  }
+
+  if (search) {
+    resonances = resonances.filter(r => 
+      r.name?.toLowerCase()?.includes(search) ||
+      r.location?.toLowerCase()?.includes(search) ||
+      r.bio?.toLowerCase()?.includes(search) ||
+      r.sign?.toLowerCase()?.includes(search) ||
+      r.interests?.some(i => i.toLowerCase().includes(search))
+    );
+  }
+
+  if (minScore > 0) {
+    resonances = resonances.filter(r => r.affinityScore >= minScore);
+  }
+
+  // Ordenar por afinidad astral de mayor a menor
   resonances.sort((a, b) => b.affinityScore - a.affinityScore);
 
   return NextResponse.json(resonances);
 }
 
 export async function POST(request) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getAuthUser(request);
   if (!token) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

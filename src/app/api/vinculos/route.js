@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
+import { DATING_CANDIDATES } from '../../../lib/dating';
 
 export const runtime = 'edge';
 
@@ -15,24 +16,56 @@ async function getDB() {
 
 const DEFAULT_VINCULOS_GUIDES = [
   {
+    id: "candidate_valeria",
+    name: "Valeria Ríos",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
+    sign: "Leo",
+    element: "Fuego",
+    path: "1",
+    affinity: "96%",
+    lastMessage: "¡Hola! Vi que también te gusta la música indie y los atardeceres ✨",
+    lastMessageDate: new Date(Date.now() - 3600000).toISOString(),
+    isSelfSender: false,
+    isNewMatch: false
+  },
+  {
+    id: "candidate_camila",
+    name: "Camila Beltrán",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
+    sign: "Géminis",
+    element: "Aire",
+    path: "5",
+    affinity: "92%",
+    lastMessage: null,
+    lastMessageDate: null,
+    isSelfSender: false,
+    isNewMatch: true
+  },
+  {
+    id: "candidate_sofia",
+    name: "Sofía Navarro",
+    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
+    sign: "Escorpio",
+    element: "Agua",
+    path: "11",
+    affinity: "89%",
+    lastMessage: null,
+    lastMessageDate: null,
+    isSelfSender: false,
+    isNewMatch: true
+  },
+  {
     id: "zodia_bot",
-    name: "ZODIA | Inteligencia Astral",
+    name: "ZODIA | Guía de Citas Astrales",
     image: "https://ui-avatars.com/api/?name=Zodia+Bot&background=06b6d4&color=fff&bold=true",
     sign: "Firmamento",
     element: "Éter",
     path: "∞",
     affinity: "100%",
-    lastMessage: "Transmisión mística disponible 24/7."
-  },
-  {
-    id: "guide_astraea",
-    name: "Astraea Mística",
-    image: "https://ui-avatars.com/api/?name=Astraea&background=10b981&color=fff&bold=true",
-    sign: "Virgo",
-    element: "Tierra",
-    path: "7",
-    affinity: "94%",
-    lastMessage: "Vínculo de sintonía preparado."
+    lastMessage: "¿Deseas saber cómo conquistar a tu nuevo match según su signo?",
+    lastMessageDate: new Date(Date.now() - 7200000).toISOString(),
+    isSelfSender: false,
+    isNewMatch: false
   }
 ];
 
@@ -78,8 +111,30 @@ export async function GET(request) {
           WHERE u.id IN (${placeholders})
         `).bind(...userIds).all();
 
+        const dbUsersMap = new Map((details.results || []).map(u => [u.id, u]));
+
         resultVinculos = await Promise.all(
-          (details.results || []).map(async (other) => {
+          userIds.map(async (otherId) => {
+            let other = dbUsersMap.get(otherId);
+
+            // Si es un candidato del catálogo
+            if (!other) {
+              const cand = DATING_CANDIDATES.find(c => c.id === otherId);
+              if (cand) {
+                other = {
+                  id: cand.id,
+                  name: cand.name,
+                  image: cand.image,
+                  sign: cand.sign,
+                  element: cand.element,
+                  life_path_number: cand.life_path_number,
+                  archetype: cand.archetype
+                };
+              }
+            }
+
+            if (!other) return null;
+
             const lastMsg = await db.prepare(`
               SELECT content, created_at, sender_id
               FROM messages
@@ -90,7 +145,7 @@ export async function GET(request) {
 
             const affinityScore = (myProfile && other.sign) 
               ? calculateResonance(myProfile, other) 
-              : 85;
+              : 88;
 
             return {
               id: other.id,
@@ -100,12 +155,15 @@ export async function GET(request) {
               element: other.element ?? 'Éter',
               path: other.life_path_number ?? '—',
               affinity: `${affinityScore}%`,
-              lastMessage: lastMsg ? lastMsg.content : 'Vínculo manifestado',
+              lastMessage: lastMsg ? lastMsg.content : null,
               lastMessageDate: lastMsg ? lastMsg.created_at : null,
-              isSelfSender: lastMsg ? lastMsg.sender_id === myId : false
+              isSelfSender: lastMsg ? lastMsg.sender_id === myId : false,
+              isNewMatch: !lastMsg
             };
           })
         );
+
+        resultVinculos = resultVinculos.filter(Boolean);
       }
     } catch (err) {
       console.error("Error en /api/vinculos:", err);
@@ -115,9 +173,10 @@ export async function GET(request) {
   if (resultVinculos.length === 0) {
     resultVinculos = DEFAULT_VINCULOS_GUIDES;
   } else {
+    // Si no tiene bot, añadirlo para asistencia cósmica
     const hasBot = resultVinculos.some(v => v.id === "zodia_bot");
     if (!hasBot) {
-      resultVinculos.unshift(DEFAULT_VINCULOS_GUIDES[0]);
+      resultVinculos.push(DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot"));
     }
   }
 

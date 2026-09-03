@@ -10,6 +10,8 @@ import { TabOraculo }  from '../../components/astral/TabOraculo';
 import { TabVinculos } from '../../components/astral/TabVinculos';
 import { TabJuegos }   from '../../components/astral/TabJuegos';
 import { BottomNav }   from '../../components/astral/BottomNav';
+import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
+import { apiFetch } from '../../lib/api';
 
 // ─── PANTALLA DE ESPERA COMPARTIDA ────────────────────────────────────────────
 const Sincronizando = () => (
@@ -31,18 +33,18 @@ export default function Dashboard() {
   const [profile,        setProfile]        = useState(null);
   const [profileError,   setProfileError]   = useState(null);
   const [avatarSrc,      setAvatarSrc]      = useState(null);
-  const [activeTab,      setActiveTab]      = useState('espejo');
+  const [activeTab,      setActiveTab]      = useState('eter');
   const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/'); return; }
+    if (status === 'unauthenticated') { window.location.href = '/zodia'; return; }
     if (status !== 'authenticated')   return;
 
     const fetchProfile = async () => {
       try {
-        const res  = await fetch('/api/profile');
+        const res  = await apiFetch('/api/profile');
         const data = await res.json();
-        if (!data.exists || !data.profile) { router.push('/'); return; }
+        if (!data.exists || !data.profile) { window.location.href = '/zodia'; return; }
         setProfile(data.profile);
         setAvatarSrc(data.profile.user_image ?? session?.user?.image ?? null);
       } catch {
@@ -50,7 +52,7 @@ export default function Dashboard() {
       }
     };
     fetchProfile();
-  }, [status, router, session]);
+  }, [status, session]);
   const [isGameActive, setIsGameActive] = useState(false);
 
   // ── Avatar upload ──────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ export default function Dashboard() {
       const base64 = ev.target.result;
       setAvatarSrc(base64);
       try {
-        await fetch('/api/profile', {
+        await apiFetch('/api/profile', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ image: base64 }),
@@ -92,7 +94,7 @@ export default function Dashboard() {
       <div className="flex h-screen items-center justify-center flex-col gap-4">
         <p className="text-red-400 text-sm">{profileError}</p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => { window.location.href = '/zodia'; }}
           className="text-cyan-400 text-xs uppercase tracking-widest hover:text-white transition"
         >
           Volver al inicio
@@ -105,38 +107,61 @@ export default function Dashboard() {
 
   // ── Render principal ───────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-2xl mx-auto pb-28 pt-6 relative">
-      <div className="flex justify-between items-center mb-6 px-4">
-        <h2 className="mystic-font text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-widest">
-          ZODIA
-        </h2>
+    <div className="h-[100dvh] max-h-[100dvh] w-full max-w-xl mx-auto flex flex-col justify-between overflow-hidden relative selection:bg-cyan-500 selection:text-black">
+      <PWAInstallPrompt />
+
+      {/* Header Fijo Arriba */}
+      <header className="shrink-0 flex justify-between items-center px-3 pt-2 sm:pt-3 pb-2 border-b border-white/5 bg-[#030308]/80 backdrop-blur-md z-30">
+        <div>
+          <h2 className="mystic-font text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-widest font-extrabold leading-none">
+            ZODIA
+          </h2>
+          <p className="text-[9px] sm:text-[10px] text-cyan-400/80 uppercase tracking-widest font-medium mt-0.5">
+            Citas & Conexión Astral
+          </p>
+        </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="text-gray-500 hover:text-cyan-400 transition flex items-center gap-2 text-xs uppercase tracking-widest"
+          onClick={() => signOut({ callbackUrl: '/zodia' })}
+          className="text-gray-400 hover:text-cyan-400 transition flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-widest px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
         >
-          <LogOut size={14} /> Desconectar
+          <LogOut size={13} /> Desconectar
         </button>
-      </div>
+      </header>
 
-      {activeTab === 'espejo' && (
-        <TabEspejo
-          profile={profile}
-          user={session.user}
-          avatarSrc={avatarSrc ?? session.user.image}
-          onAvatarChange={handleAvatarChange}
-        />
-      )}
-      {activeTab === 'eter'     && <TabEter profile={profile} onSyncUser={handleSyncUserFromEter} />}
-      {activeTab === 'oraculo'  && <TabOraculo profile={profile} />}
-      {activeTab === 'vinculos' && (
-        <TabVinculos
-          selectedUserId={selectedUserId}
-          onClearSelection={() => setSelectedUserId(null)}
-        />
-      )}
-      {activeTab === 'juegos'   && <TabJuegos profile={profile} onGameActiveChange={setIsGameActive} />}
+      {/* Contenido Principal con Scroll Interno Independiente */}
+      <main className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden p-1.5 sm:p-2 relative no-scrollbar">
+        {activeTab === 'espejo' && (
+          <TabEspejo
+            profile={profile}
+            user={session.user}
+            avatarSrc={avatarSrc ?? session.user.image}
+            onAvatarChange={handleAvatarChange}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+        {activeTab === 'eter' && (
+          <TabEter
+            profile={profile}
+            onSyncUser={handleSyncUserFromEter}
+            userAvatar={avatarSrc ?? session.user.image}
+          />
+        )}
+        {activeTab === 'oraculo'  && <TabOraculo profile={profile} />}
+        {activeTab === 'vinculos' && (
+          <TabVinculos
+            selectedUserId={selectedUserId}
+            onClearSelection={() => setSelectedUserId(null)}
+          />
+        )}
+        {activeTab === 'juegos'   && <TabJuegos profile={profile} onGameActiveChange={setIsGameActive} />}
+      </main>
 
-      {!isGameActive && <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />}
+      {/* Nav Inferior en su propio espacio (NUNCA tapa ni invade el contenido) */}
+      {!isGameActive && (
+        <footer className="shrink-0 w-full px-2 pt-1.5 pb-2 sm:pb-3 z-30 bg-[#030308]/95 backdrop-blur-2xl border-t border-white/5">
+          <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+        </footer>
+      )}
     </div>
   );
 }

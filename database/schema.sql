@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS astral_profiles (
     intent TEXT,
     location TEXT,
     photos TEXT,
+    interests TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -44,4 +45,16 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sender_id) REFERENCES users(id),
     FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+
+-- Tabla de Interacciones de Citas (Likes, Passes, Superlikes)
+CREATE TABLE IF NOT EXISTS interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'like', 'pass', 'superlike'
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (target_id) REFERENCES users(id),
+    UNIQUE(user_id, target_id)
 );

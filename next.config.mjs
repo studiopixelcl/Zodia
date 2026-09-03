@@ -6,6 +6,16 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/zodia',
+        basePath: false,
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

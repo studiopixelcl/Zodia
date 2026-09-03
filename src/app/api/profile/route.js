@@ -48,6 +48,7 @@ export async function GET(request) {
         intent: 'Citas y Pareja',
         location: 'Santiago, Chile',
         photos: JSON.stringify([]),
+        interests: JSON.stringify(['Música indie', 'Café de especialidad', 'Astrología']),
         user_name: token.name || 'Sintonizador',
         user_image: token.picture || null
       }
@@ -91,7 +92,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Payload inválido.' }, { status: 400 });
   }
 
-  const { dob, name, image, bio, intent, location, photos } = body;
+  const { dob, name, image, bio, intent, location, photos, interests } = body;
   const userId    = resolveUserId(token);
   const userName  = name ?? token.name ?? 'Sintonizador';
   const userEmail = token.email ?? `${userId}@zodia.eter`;
@@ -101,7 +102,7 @@ export async function POST(request) {
   }
 
   // Si es solo una actualización de avatar
-  if (image && !dob && bio === undefined && intent === undefined && photos === undefined) {
+  if (image && !dob && bio === undefined && intent === undefined && photos === undefined && interests === undefined) {
     try {
       await db.prepare(`UPDATE users SET image = ? WHERE id = ?`)
         .bind(image, userId)
@@ -113,8 +114,8 @@ export async function POST(request) {
     }
   }
 
-  // Si es una actualización de detalles del perfil (bio, intent, location, photos, name, image)
-  if (bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined) {
+  // Si es una actualización de detalles del perfil (bio, intent, location, photos, interests, name, image)
+  if (bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || interests !== undefined) {
     try {
       if (name || image) {
         await db.prepare(`
@@ -125,18 +126,26 @@ export async function POST(request) {
       }
 
       const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
+      const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || []);
+
+      try {
+        await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run();
+      } catch {}
+
       await db.prepare(`
         UPDATE astral_profiles
         SET bio = COALESCE(?, bio),
             intent = COALESCE(?, intent),
             location = COALESCE(?, location),
-            photos = COALESCE(?, photos)
+            photos = COALESCE(?, photos),
+            interests = COALESCE(?, interests)
         WHERE user_id = ?
       `).bind(
         bio ?? null,
         intent ?? null,
         location ?? null,
-        photosStr,
+        photos !== undefined ? photosStr : null,
+        interests !== undefined ? interestsStr : null,
         userId
       ).run();
 
@@ -161,6 +170,7 @@ export async function POST(request) {
 
   const userImage = image ?? token.picture ?? null;
   const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
+  const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || ['Música indie', 'Café de especialidad', 'Astrología']);
 
   try {
     await db.prepare(`
@@ -172,10 +182,14 @@ export async function POST(request) {
   }
 
   try {
+    try {
+      await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run();
+    } catch {}
+
     await db.prepare(`
       INSERT OR REPLACE INTO astral_profiles
-        (user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, interests)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       userId,
       dob,
@@ -188,7 +202,8 @@ export async function POST(request) {
       bio ?? '',
       intent ?? 'Citas y Pareja',
       location ?? '',
-      photosStr
+      photosStr,
+      interestsStr
     ).run();
   } catch (err) {
     console.error('[POST /api/profile] Error al persistir astral_profiles:', err);
@@ -208,7 +223,8 @@ export async function POST(request) {
       bio:              bio ?? '',
       intent:           intent ?? 'Citas y Pareja',
       location:         location ?? '',
-      photos:           photosStr
+      photos:           photosStr,
+      interests:        interestsStr
     },
   });
 }

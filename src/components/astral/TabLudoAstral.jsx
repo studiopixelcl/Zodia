@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Dices, RotateCcw, Award, ArrowLeft, Star, Zap, Volume2, VolumeX, Trophy, Swords, Share2, Users, Radio, Check, Copy, MessageCircle, Play, Settings, Bot, UserCheck, UserX } from 'lucide-react';
 import { ZodiacBadge } from './ZodiacBadge';
+import { apiFetch } from '../../lib/api';
 
 // Mapa Astrológico de Signos a Elementos
 const SIGN_ELEMENT_MAP = {
@@ -308,7 +309,7 @@ export const TabLudoAstral = ({ profile, onBack }) => {
   const handleCreateRoomWhatsApp = async () => {
     setPlayType('online');
     try {
-      const res = await fetch('/api/ludo/rooms', {
+      const res = await apiFetch('/api/ludo/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

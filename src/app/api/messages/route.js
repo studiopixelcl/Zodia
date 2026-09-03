@@ -12,28 +12,48 @@ async function getDB() {
   }
 }
 
-// Respuestas místicas contextuales de los Sintonizadores Guía y ZODIA Bot
+// Respuestas contextuales de citas y sintonizadores
 const BOT_RESPONSES = {
   zodia_bot: [
     "Las constelaciones observan tu mensaje. Tu frecuencia está alineada con el propósito de tu camino de vida.",
-    "El éter procesa tu consulta mística. Confía en la intuición que nace de tu centro espiritual hoy.",
-    "Sintonía recibida. La energía astral sugiere mantener el equilibrio entre tus deseos de Luz y tus lecciones de Sombra."
+    "El éter procesa tu consulta. Confía en la intuición que nace de tu centro espiritual hoy.",
+    "Para conquistar a signos de Fuego, sé directo y audaz; para signos de Agua, abre tu vulnerabilidad."
   ],
-  guide_astraea: [
-    "Siento la firmeza de tu mensaje. Como energía de Tierra (Virgo), te sugiero organizar tus ideas con paciencia y detalle.",
-    "Tu inquietud resuena en el elemento Tierra. Todo proyecto sólido requiere cimientos profundos y constancia."
+  candidate_valeria: [
+    "¡Hola! Me alegra que hayamos hecho match 😊 ¿Qué tipo de música te gusta escuchar cuando necesitas desconectar?",
+    "¡Totalmente de acuerdo! Como Leo suelo ser súper intensa con mis proyectos, pero adoro una buena charla relajada ✨",
+    "¡Jajaja me hiciste reír! ¿Tienes algún lugar favorito para tomar un trago o café en la ciudad?",
+    "Me encanta tu energía astral. Siento que las conversaciones fluidas son difíciles de encontrar hoy en día 🔥"
   ],
-  guide_orion: [
-    "¡Tu mensaje enciende la chispa del éter! Como alma de Fuego (Leo), te animo a liderar tus proyectos con fe y pasión.",
-    "No permitas que la duda apague tu llama. El universo favorece a quienes actúan con valentía y coraje."
+  candidate_mateo: [
+    "¡Hola! Qué buena onda que hayamos conectado. Como buen Piscis a veces me pierdo en mis pensamientos, pero aquí estoy jaja 🌊",
+    "Me encanta eso. Si tuvieses que elegir una canción que resuma tu momento actual, ¿cuál sería?",
+    "¡Qué buena respuesta! Oye, ¿eres más de planes tranquilos de domingo o de salir a explorar?",
+    "Siento que nuestra sinergia astral tiene mucho sentido. Me encanta conocer gente con profundidad ✨"
   ],
-  guide_luna: [
-    "Tu palabra fluye como el agua misma (Piscis). Escucha los sueños y las corazonadas que surgen en tu interior.",
-    "En las aguas profundas de la emoción habita la verdadera verdad. Permítete sentir sin juzgar el proceso."
+  candidate_camila: [
+    "¡Hola! Me llamó mucho la atención tu perfil 📸 ¿Qué es lo que más te apasiona hacer en tus días libres?",
+    "¡Qué interesante! Mi mente Géminis siempre necesita nuevos estímulos jaja. Cuéntame más de eso ✨",
+    "¡Exacto! Oye, conozco un café con una vista hermosa de la cordillera, ¿lo conoces?",
+    "Me encanta cuando alguien tiene buen sentido del humor y sabe conversar de todo un poco."
   ],
-  guide_zephyr: [
-    "Una perspectiva sumamente original (Acuario/Aire). La mente clara es capaz de ver soluciones donde otros ven límites.",
-    "El aire transporta tus ideas hacia nuevos horizontes. Sigue explorando esa visión con libertad espiritual."
+  candidate_sofia: [
+    "Hola... Qué linda sorpresa nuestra resonancia cósmica 🌙 ¿Crees que las conexiones se eligen o simplemente suceden?",
+    "Qué linda forma de expresarlo. Me gusta la gente que no se queda en lo superficial.",
+    "Dicen que los Escorpio somos un enigma, pero en realidad solo valoramos la autenticidad pura.",
+    "Me encantaría saber qué es lo que más te motiva en la vida ahora mismo ✨"
+  ],
+  candidate_nicolas: [
+    "¡Ey qué tal! Qué bueno coincidir por aquí. ¿Haces deporte o te gusta salir a la montaña?",
+    "¡Buena esa! Yo estoy planeando una escapada para el próximo fin de semana, amo no quedarme quieto 🚀",
+    "¡Jajaja genial! Oye, ¿café o cerveza para una primera charla?",
+    "Buena vibra total. ¡Se nota la afinidad cósmica!"
+  ],
+  candidate_elena: [
+    "¡Hola! Qué hermosa sintonía tenemos 🌸 ¿Cómo estuvo tu día hoy?",
+    "Me encanta lo que dices. Disfruto mucho los pequeños detalles y la buena conversación.",
+    "¡Totalmente! Hay que buscar momentos de paz y buena compañía.",
+    "Si te gusta el arte o la música suave, creo que nos vamos a llevar increíble ✨"
   ]
 };
 
@@ -110,8 +130,8 @@ export async function POST(request) {
     created_at: new Date().toISOString()
   };
 
-  // Si se chatea con un bot o guía arquetípico, generar respuesta automática
-  const isGuideOrBot = receiverId.startsWith('guide_') || receiverId === 'zodia_bot';
+  // Si se chatea con un bot, guía o candidato de prueba, generar respuesta automática
+  const isGuideOrBot = receiverId.startsWith('guide_') || receiverId.startsWith('candidate_') || receiverId === 'zodia_bot';
 
   if (!db) {
     const mockResponse = [userMsgObj];

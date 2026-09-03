@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Moon, Sparkles, Compass, Eye, RotateCw } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
 
 export const TabOraculo = ({ profile }) => {
   const [data, setData]         = useState(null);
@@ -11,7 +12,7 @@ export const TabOraculo = ({ profile }) => {
   useEffect(() => {
     const fetchOraculo = async () => {
       try {
-        const res = await fetch('/api/oraculo');
+        const res = await apiFetch('/api/oraculo');
         if (res.ok) {
           const resData = await res.json();
           setData(resData);

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sparkles, User, ArrowRight, Globe, Moon, Shield, MessageCircle, Flame, CheckCircle, AlertCircle, X, Compass, ChevronRight } from 'lucide-react';
 import { calculateAstralProfile, getZodiacSymbol } from '../lib/astrology';
 import { ZodiacBadge } from '../components/astral/ZodiacBadge';
+import { apiFetch } from '../lib/api';
 
 export default function LandingPage() {
   const { data: session, status } = useSession();
@@ -35,17 +36,17 @@ export default function LandingPage() {
 
     const isManualUser = session?.user?.email?.endsWith('@zodia.eter');
     if (isManualUser) {
-      router.push('/dashboard');
+      window.location.href = '/zodia/dashboard';
       return;
     }
 
     // Usuario Google: verificar si ya tiene perfil astral guardado
     const checkProfile = async () => {
       try {
-        const res = await fetch('/api/profile');
+        const res = await apiFetch('/api/profile');
         const data = await res.json();
         if (data.exists) {
-          router.push('/dashboard');
+          window.location.href = '/zodia/dashboard';
         } else {
           setAuthTab('onboarding');
           setIsAuthModalOpen(true);
@@ -56,7 +57,7 @@ export default function LandingPage() {
       }
     };
     checkProfile();
-  }, [status, session, router]);
+  }, [status, session]);
 
   // Abrir modal configurado
   const openModal = (tab = 'register', defaultDob = '') => {
@@ -81,32 +82,29 @@ export default function LandingPage() {
     const inputName = formData.name.trim();
 
     try {
-      // 1. Consultar en D1 si el usuario realmente existe
-      const checkRes = await fetch(`/api/check-user?name=${encodeURIComponent(inputName)}`);
+      // 1. Consultar en D1 si el usuario existe
+      const checkRes = await apiFetch(`/api/check-user?name=${encodeURIComponent(inputName)}`);
       const checkData = await checkRes.json();
 
       if (!checkData.exists && !checkData.mock) {
-        // Usuario NO existe: alertar y permitir cambio rápido a Registro
         setUserNotFoundAlert(true);
         setIsSaving(false);
         return;
       }
 
-      // 2. Si existe o es mock local, proceder a iniciar sesión
-      const dobToUse = checkData.user?.birth_date || formData.dob || '2000-01-01';
-      const res = await signIn('credentials', {
-        redirect: false,
-        name: inputName,
-        dob: dobToUse
+      // 2. Establecer sesión directamente mediante POST a callback/credentials
+      const dobToUse = checkData.user?.birth_date || formData.dob || '1998-07-15';
+      
+      const authRes = await apiFetch('/api/auth/callback/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inputName, dob: dobToUse })
       });
 
-      if (res?.error) {
+      if (authRes.ok) {
+        window.location.href = '/zodia/dashboard';
+      } else {
         setErrorMsg('Error al conectar la sintonía. Intenta de nuevo.');
-        return;
-      }
-
-      if (res?.ok) {
-        router.push('/dashboard');
       }
     } catch {
       setErrorMsg('Fallo de conexión mística con el servidor.');
@@ -121,7 +119,7 @@ export default function LandingPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.dob) {
-      setErrorMsg('Por favor completa tu nombre y fecha de origen.');
+      setErrorMsg('Por favor completa tu nombre y fecha de nacimiento.');
       return;
     }
 
@@ -131,22 +129,22 @@ export default function LandingPage() {
     const inputName = formData.name.trim();
 
     try {
-      // Registrar e Iniciar sesión
-      const res = await signIn('credentials', {
-        redirect: false,
-        name: inputName,
-        dob: formData.dob
+      // 1. Establecer sesión
+      const authRes = await apiFetch('/api/auth/callback/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: inputName, dob: formData.dob })
       });
 
-      if (res?.ok) {
-        // Guardar perfil astral en D1
-        await fetch('/api/profile', {
+      if (authRes.ok) {
+        // 2. Guardar perfil astral en D1
+        await apiFetch('/api/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: inputName, dob: formData.dob, isManual: true }),
         });
 
-        router.push('/dashboard');
+        window.location.href = '/zodia/welcome';
       } else {
         setErrorMsg('No se pudo registrar tu perfil astral.');
       }
@@ -154,6 +152,23 @@ export default function LandingPage() {
       setErrorMsg('Fallo de conexión al manifestar tu perfil.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  /**
+   * Acceso Inmediato de Prueba / Invitado (1 Clic)
+   */
+  const handleGuestAccess = async () => {
+    setIsSaving(true);
+    try {
+      await apiFetch('/api/auth/callback/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Sintonizador Cósmico', dob: '1998-07-15' })
+      });
+      window.location.href = '/zodia/dashboard';
+    } catch {
+      window.location.href = '/zodia/dashboard';
     }
   };
 
@@ -167,13 +182,13 @@ export default function LandingPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/profile', {
+      const res = await apiFetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dob: formData.dob }),
       });
       if (res.ok) {
-        router.push('/dashboard');
+        window.location.href = '/zodia/dashboard';
       } else {
         setErrorMsg('No se pudo guardar tu esencia astral.');
       }
@@ -245,20 +260,27 @@ export default function LandingPage() {
           ZODIA integra astrología clásica, numerología sagrada y lecturas de tarot para revelar tu vibración única en el universo.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => openModal('register')}
-            className="btn-mystic w-full sm:w-auto px-8 py-4 rounded-2xl text-white font-bold text-sm tracking-widest flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(6,182,212,0.4)] group"
+            className="btn-mystic w-full sm:w-auto px-7 py-4 rounded-2xl text-white font-bold text-sm tracking-widest flex items-center justify-center gap-2.5 shadow-[0_0_30px_rgba(6,182,212,0.4)] group"
           >
             COMENZAR GRATIS
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
+          <button
+            onClick={handleGuestAccess}
+            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600/30 via-pink-600/30 to-cyan-600/30 border border-cyan-400/50 text-cyan-300 font-bold text-sm hover:scale-105 transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+          >
+            <Sparkles size={17} className="text-amber-400 animate-spin" />
+            Explorar Citas (Demo 1-Clic)
+          </button>
           <a
             href="#calculadora"
-            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 hover:border-cyan-500/30 transition flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold text-sm hover:bg-white/10 hover:border-cyan-500/30 transition flex items-center justify-center gap-2"
           >
             <Compass size={18} className="text-cyan-400" />
-            Probar Calculadora Astral
+            Calculadora
           </a>
         </div>
 
@@ -526,6 +548,14 @@ export default function LandingPage() {
 
                 <button
                   type="button"
+                  onClick={handleGuestAccess}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-3 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
+                >
+                  <Sparkles size={14} className="text-amber-400" /> Entrar en 1 Clic (Modo Demo)
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => signIn('google')}
                   className="w-full flex items-center justify-center gap-3 bg-white text-black py-3 rounded-xl font-bold text-xs hover:bg-gray-100 transition shadow-md"
                 >
@@ -589,6 +619,14 @@ export default function LandingPage() {
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
                   <span className="relative bg-black px-3 text-[10px] text-gray-500 uppercase tracking-widest">o accede con</span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleGuestAccess}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/15 via-purple-500/15 to-pink-500/15 border border-cyan-400/40 text-cyan-300 py-3 rounded-xl font-bold text-xs hover:bg-cyan-500/25 transition shadow-sm"
+                >
+                  <Sparkles size={14} className="text-amber-400" /> Entrar en 1 Clic (Modo Demo)
+                </button>
 
                 <button
                   type="button"

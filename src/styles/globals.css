@@ -58,6 +58,15 @@
   .animate-pulseGlow {
     animation: pulseGlow 4s ease-in-out infinite;
   }
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar,
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
   .animate-float {
     animation: floatSlow 4s ease-in-out infinite;
   }

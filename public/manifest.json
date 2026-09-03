@@ -1,0 +1,20 @@
+{
+  "name": "ZODIA | Citas Astrales",
+  "short_name": "Zodia",
+  "description": "Encuentra tu conexión predestinada según tu sintonía zodiacal y numerología.",
+  "start_url": "/zodia/dashboard",
+  "scope": "/zodia/",
+  "display": "standalone",
+  "background_color": "#030308",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "categories": ["dating", "lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/zodia/assets/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

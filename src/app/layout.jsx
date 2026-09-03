@@ -14,9 +14,28 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 });
 
+export const viewport = {
+  themeColor: '#030308',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata = {
-  title: 'Zodia | El Espejo Astral',
-  description: 'Plataforma de Resonancia Astral',
+  title: 'Zodia | Citas Astrales y Compatibilidad',
+  description: 'Conecta con personas predestinadas según tu sinergia zodiacal, arquetipos y numerología.',
+  manifest: '/zodia/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Zodia',
+  },
+  icons: {
+    icon: '/zodia/assets/icon.svg',
+    apple: '/zodia/assets/icon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {
