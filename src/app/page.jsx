@@ -89,6 +89,7 @@ export default function LandingPage() {
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [installPlatformTab, setInstallPlatformTab] = useState('ios');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -99,6 +100,7 @@ export default function LandingPage() {
       const isIosDevice = /iphone|ipad|ipod/.test(userAgent) || 
         (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
       setIsIOS(isIosDevice);
+      setInstallPlatformTab(isIosDevice ? 'ios' : 'android');
 
       const handleBeforeInstall = (e) => {
         e.preventDefault();
@@ -1465,10 +1467,28 @@ export default function LandingPage() {
               <p className="text-xs text-slate-300 mt-1 leading-relaxed">
                 Disfruta de Zodia como una app nativa, a pantalla completa y con acceso instantáneo desde tu inicio.
               </p>
+
+              {/* Selector de plataforma explícito */}
+              <div className="flex p-1 rounded-xl bg-white/[0.05] border border-white/[0.08] max-w-xs mx-auto mt-4">
+                <button
+                  type="button"
+                  onClick={() => setInstallPlatformTab('ios')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${installPlatformTab === 'ios' ? 'bg-sky-500 text-white shadow-[0_0_12px_rgba(56,189,248,0.4)]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  🍎 iPhone / iPad
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInstallPlatformTab('android')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${installPlatformTab === 'android' ? 'bg-sky-500 text-white shadow-[0_0_12px_rgba(56,189,248,0.4)]' : 'text-slate-400 hover:text-white'}`}
+                >
+                  🤖 Android / PC
+                </button>
+              </div>
             </div>
 
             {/* Instrucciones según Dispositivo */}
-            {isIOS ? (
+            {installPlatformTab === 'ios' ? (
               <div className="space-y-3">
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
                   <span className="text-base leading-none mt-0.5">ℹ️</span>
