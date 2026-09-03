@@ -7,6 +7,7 @@ compatibility_flags = [ "nodejs_compat" ]
 NEXTAUTH_SECRET = "zodia_secreto_cosmico_prod_2026"
 NEXTAUTH_URL = "https://zodia.studiopixel.cl/zodia"
 NODE_VERSION = "20"
+GOOGLE_CLIENT_ID = "370481562583-1ka28j6qc8n47e8jtq5p3b06ac1kbsc9.apps.googleusercontent.com"
 
 [[d1_databases]]
 database_id = "fdafd4fb-34e5-4ee3-86d2-8331452e8d43"
