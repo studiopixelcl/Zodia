@@ -1,4 +1,9 @@
 name = "zodia-web"
 pages_build_output_dir = ".vercel/output/static"
-compatibility_date = "2024-05-08"
+compatibility_date = "2024-11-11"
 compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zodia_db"
+database_id = "fdaf64fb-34e5-4ee3-8bd2-8331452a8d43"

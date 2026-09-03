@@ -8,7 +8,7 @@ export const runtime = 'edge';
 async function getDB() {
   try {
     const { getRequestContext } = await import('@cloudflare/next-on-pages');
-    return getRequestContext().env?.DB ?? null;
+    return getRequestContext()?.env?.DB ?? null;
   } catch {
     return null;
   }

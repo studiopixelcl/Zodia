@@ -61,27 +61,33 @@ export default function Dashboard() {
     const fetchProfile = async () => {
       try {
         const res  = await apiFetch('/api/profile');
-        const data = await res.json();
-        if (data.exists && data.profile) {
-          setProfile(data.profile);
-          setAvatarSrc(data.profile.user_image ?? activeUser?.image ?? null);
-        } else if (activeUser) {
-          setProfile({
-            user_id: activeUser.id,
-            birth_date: activeUser.dob || '1998-07-15',
-            sign: 'Capricornio',
-            element: 'Tierra',
-            life_path_number: 9,
-            archetype: 'El Ermitaño',
-            user_name: activeUser.name,
-            user_image: activeUser.image
-          });
-          setAvatarSrc(activeUser.image);
-        } else {
-          window.location.href = '/zodia';
+        if (res && res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data && data.exists && data.profile) {
+            setProfile(data.profile);
+            setAvatarSrc(data.profile.user_image ?? activeUser?.image ?? null);
+            return;
+          }
         }
-      } catch {
-        setProfileError('No se pudo cargar tu perfil astral.');
+      } catch (err) {
+        console.warn('Advertencia al consultar /api/profile:', err);
+      }
+
+      // Si no se obtuvo de la API pero tenemos la sesión del usuario activo:
+      if (activeUser) {
+        setProfile({
+          user_id: activeUser.id,
+          birth_date: activeUser.dob || '1998-07-15',
+          sign: 'Capricornio',
+          element: 'Tierra',
+          life_path_number: 9,
+          archetype: 'El Ermitaño',
+          user_name: activeUser.name,
+          user_image: activeUser.image
+        });
+        setAvatarSrc(activeUser.image);
+      } else {
+        window.location.href = '/zodia';
       }
     };
     fetchProfile();

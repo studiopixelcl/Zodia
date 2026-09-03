@@ -53,6 +53,11 @@ export default function LandingPage() {
     }
 
     if (activeUser && status !== 'loading') {
+      const isPendingOnboarding = typeof window !== 'undefined' && localStorage.getItem('zodia_onboarding') === 'pending';
+      if (isPendingOnboarding) {
+        window.location.href = '/zodia/welcome';
+        return;
+      }
       window.location.href = '/zodia/dashboard';
       return;
     }
@@ -130,6 +135,7 @@ export default function LandingPage() {
       if (data.user) {
         try {
           localStorage.setItem('zodia_session', JSON.stringify(data.user));
+          localStorage.removeItem('zodia_onboarding');
           document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
         } catch {}
       }
@@ -195,6 +201,7 @@ export default function LandingPage() {
       if (data.user) {
         try {
           localStorage.setItem('zodia_session', JSON.stringify(data.user));
+          localStorage.setItem('zodia_onboarding', 'pending');
           document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
         } catch {}
       }

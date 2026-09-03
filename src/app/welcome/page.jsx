@@ -150,10 +150,19 @@ export default function WelcomePage() {
         } catch {}
       }
 
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('zodia_onboarding');
+        } catch {}
+      }
+
       // Redirigir directamente al dashboard (pestaña citas)
       window.location.href = '/zodia/dashboard';
     } catch (err) {
       console.error('Error al guardar el perfil:', err);
+      if (typeof window !== 'undefined') {
+        try { localStorage.removeItem('zodia_onboarding'); } catch {}
+      }
       alert('Ocurrió un detalle al guardar tu perfil. Redirigiendo...');
       window.location.href = '/zodia/dashboard';
     } finally {
