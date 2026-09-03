@@ -122,6 +122,28 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleCleanupDemos = async () => {
+    if (!confirm('¿Deseas purgar permanentemente todas las cuentas de prueba, bots simulados y registros de ejemplo? Esta acción dejará únicamente cuentas reales.')) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cleanup_demos' })
+      });
+      if (res.ok) {
+        alert('Cuentas de prueba eliminadas correctamente.');
+        fetchUsers();
+      }
+    } catch (e) {
+      console.error('Error limpiando cuentas demo:', e);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       
@@ -130,21 +152,32 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide flex items-center gap-2.5">
             <Users className="w-6 h-6 text-cyan-400" />
-            <span>Directorio de Sintonizadores</span>
+            <span>Directorio de Sintonizadores Reales</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Gestión de perfiles, permisos, sanciones y moderación de cuentas de la red astral.
+            Gestión de cuentas auténticas, cartas cósmicas, moderación y registros de la red Zodia.
           </p>
         </div>
 
-        <button
-          onClick={fetchUsers}
-          disabled={loading}
-          className="self-start md:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Recargar Lista
-        </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={handleCleanupDemos}
+            disabled={actionLoading || loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-xs font-medium text-rose-300 border border-rose-500/30 transition-colors shadow-sm"
+            title="Elimina cuentas demo o bots simulados de la base de datos"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Purgar Cuentas Demo
+          </button>
+          <button
+            onClick={fetchUsers}
+            disabled={loading}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Recargar Lista
+          </button>
+        </div>
       </div>
 
       {/* Filters and Search Bar */}
@@ -212,11 +245,26 @@ export default function AdminUsersPage() {
                   <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center font-bold text-cyan-300 text-xs shrink-0">
-                          {user.name ? user.name[0].toUpperCase() : 'Z'}
-                        </div>
+                        {user.image ? (
+                          <img
+                            src={user.image}
+                            alt={user.name}
+                            className="w-9 h-9 rounded-full object-cover border border-cyan-500/40 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center font-bold text-cyan-300 text-xs shrink-0">
+                            {user.name ? user.name[0].toUpperCase() : 'Z'}
+                          </div>
+                        )}
                         <div className="min-w-0">
-                          <div className="font-semibold text-white truncate">{user.name}</div>
+                          <div className="font-semibold text-white truncate flex items-center gap-1.5">
+                            <span>{user.name}</span>
+                            {(user.id?.includes('google') || (!user.id?.startsWith('tuner_') && user.id?.length > 15)) ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold">Google</span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">Email</span>
+                            )}
+                          </div>
                           <div className="text-[11px] text-slate-500 font-mono truncate">{user.email || user.id}</div>
                         </div>
                       </div>
@@ -308,11 +356,19 @@ export default function AdminUsersPage() {
             </button>
 
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/20">
-                <div className="w-full h-full bg-[#0a0e22] rounded-[14px] flex items-center justify-center text-xl font-bold text-white">
-                  {selectedUser.name ? selectedUser.name[0].toUpperCase() : 'Z'}
+              {selectedUser.image ? (
+                <img
+                  src={selectedUser.image}
+                  alt={selectedUser.name}
+                  className="w-16 h-16 rounded-2xl object-cover border border-cyan-500/40 shadow-lg shadow-cyan-500/20"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/20">
+                  <div className="w-full h-full bg-[#0a0e22] rounded-[14px] flex items-center justify-center text-xl font-bold text-white">
+                    {selectedUser.name ? selectedUser.name[0].toUpperCase() : 'Z'}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <h3 className="text-lg font-bold text-white">{selectedUser.name}</h3>
                 <p className="text-xs text-cyan-400 font-mono">{selectedUser.email || selectedUser.id}</p>
@@ -334,7 +390,15 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <span className="text-slate-500 uppercase text-[10px] font-mono">Camino de Vida</span>
-                  <div className="text-white font-medium mt-0.5">Número #{selectedUser.life_path_number || 7}</div>
+                  <div className="text-white font-medium mt-0.5">Número #{selectedUser.life_path_number || '—'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500 uppercase text-[10px] font-mono">Fecha de Nacimiento</span>
+                  <div className="text-white font-medium mt-0.5">{selectedUser.birth_date || 'Sin registrar'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500 uppercase text-[10px] font-mono">Registro / Creación</span>
+                  <div className="text-white font-medium mt-0.5">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('es-CL') : 'Reciente'}</div>
                 </div>
                 <div>
                   <span className="text-slate-500 uppercase text-[10px] font-mono">Intención</span>

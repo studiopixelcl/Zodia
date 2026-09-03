@@ -12,7 +12,7 @@ async function getDB() {
 }
 
 /**
- * GET /api/admin/users - Lista de usuarios con búsqueda y filtros
+ * GET /api/admin/users - Lista de usuarios reales con búsqueda y filtros
  */
 export async function GET(request) {
   if (!checkAdminSession(request)) {
@@ -25,39 +25,104 @@ export async function GET(request) {
 
   const db = await getDB();
   if (!db) {
-    // Mock data si no hay D1
-    const mockUsers = [
-      { id: 'tuner_maverick', name: 'Maverick', email: 'tuner_maverick@zodia.eter', sign: 'Capricornio', element: 'Tierra', archetype: 'El Ermitaño', status: 'active', created_at: '2026-09-02 21:00:00', bio: 'Explorando resonancias cósmicas y portales.', interests: '["Tarot","Astrología","Música Ambient"]' },
-      { id: 'tuner_valeria', name: 'Valeria Solar', email: 'tuner_valeria@zodia.eter', sign: 'Leo', element: 'Fuego', archetype: 'La Soberana', status: 'active', created_at: '2026-09-02 20:00:00', bio: 'Buscando almas con fuego vital.', interests: '["Arte","Fotografía","Viajes Astrales"]' },
-      { id: 'tuner_diego', name: 'Diego Acuario', email: 'tuner_diego@zodia.eter', sign: 'Acuario', element: 'Aire', archetype: 'El Visionario', status: 'active', created_at: '2026-09-02 19:00:00', bio: 'Sincronía cuántica y frecuencias 432Hz.', interests: '["Filosofía","Tecnología Cósmica"]' },
-      { id: 'tuner_bot_spam', name: 'Usuario Spam', email: 'tuner_bot@zodia.eter', sign: 'Géminis', element: 'Aire', archetype: 'El Bufón', status: 'banned', ban_reason: 'Envío de enlaces externos no autorizados.', created_at: '2026-09-02 18:00:00', bio: 'Cuenta bloqueada por seguridad.', interests: '[]' }
-    ];
-    let filtered = mockUsers;
-    if (q) {
-      filtered = filtered.filter(u => u.name.toLowerCase().includes(q.toLowerCase()) || u.sign.toLowerCase().includes(q.toLowerCase()));
+    // Si no hay D1 (desarrollo local), consultar almacén en memoria sin inventar cuentas de ejemplo
+    try {
+      const { devStore } = await import('../../../../lib/dev-store');
+      let localUsers = (devStore.users || []).filter(u => 
+        !u.id.startsWith('candidate_') && 
+        !u.id.startsWith('guide_') && 
+        u.id !== 'zodia_bot' && 
+        !(u.email || '').endsWith('@zodia.eter') &&
+        !['tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam'].includes(u.id)
+      );
+
+      if (q) {
+        const queryLower = q.toLowerCase();
+        localUsers = localUsers.filter(u => 
+          (u.name || '').toLowerCase().includes(queryLower) || 
+          (u.email || '').toLowerCase().includes(queryLower) ||
+          (u.sign || '').toLowerCase().includes(queryLower)
+        );
+      }
+
+      if (statusFilter) {
+        localUsers = localUsers.filter(u => (u.status || 'active') === statusFilter);
+      }
+
+      return new Response(JSON.stringify({ users: localUsers }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch {
+      return new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    if (statusFilter) {
-      filtered = filtered.filter(u => u.status === statusFilter);
-    }
-    return new Response(JSON.stringify({ users: filtered }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
   }
 
   try {
+    // Asegurar existencia de columnas opcionales en D1
+    try { await db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run(); } catch {}
+    try { await db.prepare("ALTER TABLE users ADD COLUMN ban_reason TEXT").run(); } catch {}
+    try { await db.prepare("ALTER TABLE users ADD COLUMN nombre_actual TEXT").run(); } catch {}
+    try { await db.prepare("ALTER TABLE users ADD COLUMN nombre_completo TEXT").run(); } catch {}
+    try { await db.prepare("ALTER TABLE users ADD COLUMN avatar_url TEXT").run(); } catch {}
+    try { await db.prepare("ALTER TABLE users ADD COLUMN fecha_nacimiento TEXT").run(); } catch {}
+
+    // Purgar de forma proactiva cuentas de demostración o bots si existen en la tabla
+    try {
+      await db.prepare(`
+        DELETE FROM users 
+        WHERE id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+           OR id LIKE 'candidate_%'
+           OR id LIKE 'guide_%'
+           OR email LIKE '%@zodia.eter'
+      `).run();
+    } catch {}
+
     let query = `
-      SELECT u.id, u.name, u.email, u.image, COALESCE(u.status, 'active') as status, u.ban_reason, u.created_at,
-             p.sign, p.element, p.life_path_number, p.archetype, p.bio, p.intent, p.location, p.interests
+      SELECT 
+        u.id, 
+        COALESCE(NULLIF(u.nombre_actual, ''), NULLIF(u.nombre_completo, ''), NULLIF(u.name, ''), u.email, 'Sintonizador') AS name,
+        u.email, 
+        COALESCE(u.avatar_url, u.image) AS image, 
+        COALESCE(u.status, 'active') AS status, 
+        u.ban_reason, 
+        u.created_at,
+        COALESCE(NULLIF(u.fecha_nacimiento, ''), p.birth_date) AS birth_date,
+        COALESCE(p.sign, 'Sin calcular') AS sign, 
+        COALESCE(p.element, 'Éter') AS element, 
+        p.life_path_number, 
+        COALESCE(p.archetype, 'Sintonizador') AS archetype, 
+        p.bio, 
+        p.intent, 
+        p.location, 
+        p.interests,
+        p.photos
       FROM users u
-      LEFT JOIN astral_profiles p ON p.user_id = u.id
-      WHERE 1=1
+      LEFT JOIN astral_profiles p ON (
+        p.user_id = u.id 
+        OR (u.email IS NOT NULL AND LOWER(p.user_id) = LOWER(u.email))
+        OR (u.email IS NOT NULL AND p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(u.email)))
+      )
+      WHERE u.id NOT LIKE 'candidate_%'
+        AND u.id NOT LIKE 'guide_%'
+        AND u.id != 'zodia_bot'
+        AND (u.email IS NULL OR u.email NOT LIKE '%@zodia.eter')
+        AND u.id NOT IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
     `;
     const params = [];
 
     if (q) {
-      query += ` AND (LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(p.sign) LIKE ?)`;
-      params.push(`%${q.toLowerCase()}%`, `%${q.toLowerCase()}%`, `%${q.toLowerCase()}%`);
+      query += ` AND (
+        LOWER(COALESCE(u.nombre_actual, u.nombre_completo, u.name, '')) LIKE ? 
+        OR LOWER(COALESCE(u.email, '')) LIKE ? 
+        OR LOWER(COALESCE(p.sign, '')) LIKE ?
+        OR LOWER(u.id) LIKE ?
+      )`;
+      const wild = `%${q.toLowerCase()}%`;
+      params.push(wild, wild, wild, wild);
     }
 
     if (statusFilter) {
@@ -65,7 +130,7 @@ export async function GET(request) {
       params.push(statusFilter);
     }
 
-    query += ` ORDER BY u.created_at DESC LIMIT 100`;
+    query += ` ORDER BY COALESCE(u.created_at, u.rowid) DESC LIMIT 200`;
 
     const stmt = db.prepare(query);
     const users = params.length > 0 ? await stmt.bind(...params).all() : await stmt.all();
@@ -81,7 +146,7 @@ export async function GET(request) {
 }
 
 /**
- * POST /api/admin/users - Banear, suspender o desbanear usuario
+ * POST /api/admin/users - Banear, desbanear o purgar cuentas de ejemplo
  */
 export async function POST(request) {
   if (!checkAdminSession(request)) {
@@ -90,21 +155,53 @@ export async function POST(request) {
 
   try {
     const { userId, action, reason } = await request.json();
-    if (!userId || !action) {
-      return new Response(JSON.stringify({ error: 'Faltan parámetros requeridos' }), { status: 400 });
+    if (!action) {
+      return new Response(JSON.stringify({ error: 'Acción requerida' }), { status: 400 });
     }
 
     const db = await getDB();
+
+    // Acción para limpiar cuentas de prueba / bots
+    if (action === 'cleanup_demos') {
+      if (db) {
+        await db.prepare(`
+          DELETE FROM users 
+          WHERE id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR id LIKE 'candidate_%'
+             OR id LIKE 'guide_%'
+             OR email LIKE '%@zodia.eter'
+        `).run();
+        await db.prepare(`
+          DELETE FROM astral_profiles 
+          WHERE user_id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR user_id LIKE 'candidate_%'
+             OR user_id LIKE 'guide_%'
+        `).run();
+        await db.prepare(`
+          DELETE FROM resonances 
+          WHERE user_a_id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR user_b_id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR user_a_id LIKE 'candidate_%'
+             OR user_b_id LIKE 'candidate_%'
+        `).run();
+        await db.prepare(`
+          DELETE FROM messages 
+          WHERE sender_id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR receiver_id IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+             OR sender_id LIKE 'candidate_%'
+             OR receiver_id LIKE 'candidate_%'
+        `).run();
+      }
+      return new Response(JSON.stringify({ success: true, message: 'Cuentas de prueba eliminadas con éxito.' }), { status: 200 });
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'userId requerido' }), { status: 400 });
+    }
+
     if (!db) {
       return new Response(JSON.stringify({ success: true, mock: true, action, userId }), { status: 200 });
     }
-
-    try {
-      await db.prepare("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'").run();
-    } catch {}
-    try {
-      await db.prepare("ALTER TABLE users ADD COLUMN ban_reason TEXT").run();
-    } catch {}
 
     if (action === 'ban') {
       await db.prepare(`

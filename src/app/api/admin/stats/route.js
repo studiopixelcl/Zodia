@@ -18,42 +18,82 @@ export async function GET(request) {
 
   const db = await getDB();
   if (!db) {
-    // Datos de demostración enriquecidos si no hay D1 disponible
-    return new Response(JSON.stringify({
-      totalUsers: 14,
-      activeUsers: 13,
-      bannedUsers: 1,
-      totalMatches: 8,
-      totalMessages: 36,
-      recentUsers: [
-        { id: 'tuner_maverick', name: 'Maverick', sign: 'Capricornio', element: 'Tierra', status: 'active', created_at: new Date().toISOString() },
-        { id: 'tuner_valeria', name: 'Valeria Solar', sign: 'Leo', element: 'Fuego', status: 'active', created_at: new Date(Date.now() - 3600000).toISOString() },
-        { id: 'tuner_diego', name: 'Diego Acuario', sign: 'Acuario', element: 'Aire', status: 'active', created_at: new Date(Date.now() - 7200000).toISOString() }
-      ],
-      signDistribution: {
-        'Fuego': 4,
-        'Tierra': 3,
-        'Aire': 4,
-        'Agua': 3
-      }
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    try {
+      const { devStore } = await import('../../../../lib/dev-store');
+      const realUsers = (devStore.users || []).filter(u => 
+        !u.id.startsWith('candidate_') && 
+        !u.id.startsWith('guide_') && 
+        u.id !== 'zodia_bot' && 
+        !(u.email || '').endsWith('@zodia.eter') &&
+        !['tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam'].includes(u.id)
+      );
+
+      return new Response(JSON.stringify({
+        totalUsers: realUsers.length,
+        activeUsers: realUsers.filter(u => (u.status || 'active') !== 'banned').length,
+        bannedUsers: realUsers.filter(u => u.status === 'banned').length,
+        totalMatches: (devStore.resonances || []).length,
+        totalMessages: (devStore.messages || []).length,
+        recentUsers: realUsers.slice(0, 6)
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch {
+      return new Response(JSON.stringify({
+        totalUsers: 0,
+        activeUsers: 0,
+        bannedUsers: 0,
+        totalMatches: 0,
+        totalMessages: 0,
+        recentUsers: []
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   try {
-    const usersCountRes = await db.prepare("SELECT COUNT(*) as count FROM users").first();
-    const bannedCountRes = await db.prepare("SELECT COUNT(*) as count FROM users WHERE status = 'banned'").first();
-    const matchesCountRes = await db.prepare("SELECT COUNT(*) as count FROM resonances").first();
-    const messagesCountRes = await db.prepare("SELECT COUNT(*) as count FROM messages").first();
+    const REAL_USERS_FILTER = `
+      WHERE id NOT LIKE 'candidate_%' 
+        AND id NOT LIKE 'guide_%' 
+        AND id != 'zodia_bot' 
+        AND (email IS NULL OR email NOT LIKE '%@zodia.eter')
+        AND id NOT IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+    `;
+
+    const usersCountRes = await db.prepare(`SELECT COUNT(*) as count FROM users ${REAL_USERS_FILTER}`).first();
+    const bannedCountRes = await db.prepare(`SELECT COUNT(*) as count FROM users ${REAL_USERS_FILTER} AND status = 'banned'`).first();
+    const matchesCountRes = await db.prepare(`
+      SELECT COUNT(*) as count FROM resonances 
+      WHERE user_a_id NOT LIKE 'candidate_%' AND user_b_id NOT LIKE 'candidate_%'
+    `).first();
+    const messagesCountRes = await db.prepare(`
+      SELECT COUNT(*) as count FROM messages 
+      WHERE sender_id NOT LIKE 'candidate_%' AND receiver_id NOT LIKE 'candidate_%'
+        AND sender_id != 'zodia_bot' AND receiver_id != 'zodia_bot'
+    `).first();
 
     const recentUsers = await db.prepare(`
-      SELECT u.id, u.name, u.email, u.image, COALESCE(u.status, 'active') as status, u.created_at,
-             p.sign, p.element, p.birth_date
+      SELECT 
+        u.id, 
+        COALESCE(NULLIF(u.nombre_actual, ''), NULLIF(u.nombre_completo, ''), NULLIF(u.name, ''), u.email, 'Sintonizador') as name, 
+        u.email, 
+        COALESCE(u.avatar_url, u.image) as image, 
+        COALESCE(u.status, 'active') as status, 
+        u.created_at,
+        COALESCE(NULLIF(u.fecha_nacimiento, ''), p.birth_date, 'Sin registrar') as birth_date,
+        COALESCE(p.sign, 'Sin calcular') as sign, 
+        COALESCE(p.element, 'Éter') as element
       FROM users u
-      LEFT JOIN astral_profiles p ON p.user_id = u.id
-      ORDER BY u.created_at DESC
+      LEFT JOIN astral_profiles p ON (
+        p.user_id = u.id 
+        OR (u.email IS NOT NULL AND LOWER(p.user_id) = LOWER(u.email))
+        OR (u.email IS NOT NULL AND p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(u.email)))
+      )
+      ${REAL_USERS_FILTER.replace('WHERE', 'WHERE u.')}
+      ORDER BY COALESCE(u.created_at, u.rowid) DESC
       LIMIT 6
     `).all();
 
