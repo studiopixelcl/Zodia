@@ -8,7 +8,7 @@ import {
   Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, 
   MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, 
   Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon,
-  Video, Play, Film, UploadCloud, Loader2
+  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle
 } from 'lucide-react';
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
@@ -78,6 +78,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
   };
   const [editPhotos, setEditPhotos] = useState(initialPhotos());
   const [editVideoUrl, setEditVideoUrl] = useState(profile?.video_url ?? null);
+  const [editDob, setEditDob] = useState(profile?.birth_date ?? profile?.dob ?? '');
 
   // Estados de progreso de compresión y subida
   const [isProcessingMedia, setIsProcessingMedia] = useState(false);
@@ -92,6 +93,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
       setEditLocation(profile.location ?? 'Santiago, Chile');
       setEditPhotos(initialPhotos());
       setEditVideoUrl(profile.video_url ?? null);
+      setEditDob(profile.birth_date ?? profile.dob ?? '');
       setEditInterests(initialInterests());
     }
   }, [profile, user]);
@@ -242,6 +244,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          dob: editDob,
           name: editName,
           bio: editBio,
           intent: editIntent,
@@ -257,6 +260,10 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         setTimeout(() => {
           setIsEditModalOpen(false);
           setSaveSuccessMsg(null);
+          // Si cambió la fecha de nacimiento, recargar para recalcular todo el dashboard
+          if (editDob && editDob !== (profile?.birth_date ?? profile?.dob)) {
+            window.location.reload();
+          }
         }, 1000);
       }
     } catch {
@@ -1135,6 +1142,35 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           )}
 
           <form onSubmit={handleSaveProfile} className="space-y-4">
+            {/* Campo para cambiar Fecha de Nacimiento con Advertencia */}
+            <div className="space-y-2 p-4 rounded-2xl bg-amber-500/[0.07] border border-amber-500/30">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold text-amber-300 uppercase tracking-widest flex items-center gap-1.5">
+                  <Calendar size={13} className="text-amber-400" /> Fecha de Nacimiento
+                </label>
+                <span className="text-[9px] text-amber-300 font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40">
+                  Identidad Cósmica
+                </span>
+              </div>
+
+              <input
+                type="date"
+                required
+                value={editDob}
+                onChange={(e) => setEditDob(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full bg-black/70 border border-amber-500/30 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-4 py-2.5 text-white outline-none text-sm cursor-pointer"
+              />
+
+              {/* Advertencia destacada */}
+              <div className="flex items-start gap-2 pt-1 text-[11px] text-amber-200/90 leading-relaxed">
+                <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                <p>
+                  <strong className="text-amber-300">Aviso importante:</strong> Zodia utiliza tu fecha de nacimiento para calcular tu Signo Solar, Elemento, Arquetipo y la compatibilidad cósmica en Citas. Modificarla recalculará toda tu carta y tus afinidades astrales.
+                </p>
+              </div>
+            </div>
+
             <div>
               <label className="block text-[10px] font-bold text-cyan-400 uppercase mb-1 tracking-widest">
                 Nombre o Alias

@@ -114,7 +114,99 @@ export async function POST(request) {
     }
   }
 
-  // Si es una actualización de detalles del perfil (bio, intent, location, photos, video_url, interests, name, image)
+  // Si se incluye dob (fecha de nacimiento): recalculamos toda la carta astral y actualizamos users + astral_profiles
+  if (dob) {
+    let astralProfile;
+    try {
+      astralProfile = calculateAstralProfile(dob);
+    } catch (err) {
+      console.error('[POST /api/profile] Fecha inválida:', dob, err);
+      return NextResponse.json({ error: 'Fecha de nacimiento inválida.' }, { status: 400 });
+    }
+
+    try {
+      await db.prepare(`
+        UPDATE users 
+        SET fecha_nacimiento = ?,
+            name = COALESCE(?, name),
+            image = COALESCE(?, image)
+        WHERE id = ?
+      `).bind(dob, name ?? null, image ?? null, userId).run();
+    } catch (uErr) {
+      console.warn('[POST /api/profile] Error actualizando users con dob:', uErr.message);
+    }
+
+    const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
+    const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || ['Música indie', 'Café de especialidad', 'Astrología']);
+
+    try {
+      await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run();
+    } catch {}
+    try {
+      await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN video_url TEXT`).run();
+    } catch {}
+
+    try {
+      await db.prepare(`
+        INSERT INTO astral_profiles (
+          user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, video_url, interests
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          birth_date = excluded.birth_date,
+          sign = excluded.sign,
+          element = excluded.element,
+          life_path_number = excluded.life_path_number,
+          archetype = excluded.archetype,
+          luz = excluded.luz,
+          sombra = excluded.sombra,
+          bio = COALESCE(excluded.bio, astral_profiles.bio),
+          intent = COALESCE(excluded.intent, astral_profiles.intent),
+          location = COALESCE(excluded.location, astral_profiles.location),
+          photos = COALESCE(excluded.photos, astral_profiles.photos),
+          video_url = COALESCE(excluded.video_url, astral_profiles.video_url),
+          interests = COALESCE(excluded.interests, astral_profiles.interests)
+      `).bind(
+        userId,
+        dob,
+        astralProfile.sign,
+        astralProfile.element,
+        astralProfile.lifePath,
+        astralProfile.archetype,
+        astralProfile.luz,
+        astralProfile.sombra,
+        bio ?? null,
+        intent ?? null,
+        location ?? null,
+        photos !== undefined ? photosStr : null,
+        video_url !== undefined ? video_url : null,
+        interests !== undefined ? interestsStr : null
+      ).run();
+    } catch (pErr) {
+      console.error('[POST /api/profile] Error al persistir astral_profiles con dob:', pErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      profile: {
+        user_id: userId,
+        birth_date: dob,
+        sign: astralProfile.sign,
+        element: astralProfile.element,
+        life_path_number: astralProfile.lifePath,
+        archetype: astralProfile.archetype,
+        luz: astralProfile.luz,
+        sombra: astralProfile.sombra,
+        bio,
+        intent,
+        location,
+        photos,
+        video_url,
+        interests
+      }
+    });
+  }
+
+  // Si es una actualización de detalles sin cambiar dob (bio, intent, location, photos, video_url, interests, name, image)
   if (bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || video_url !== undefined || interests !== undefined) {
     try {
       if (name || image) {
@@ -161,75 +253,5 @@ export async function POST(request) {
     }
   }
 
-  if (!dob) {
-    return NextResponse.json({ error: 'La fecha de nacimiento es requerida.' }, { status: 400 });
-  }
-
-  let astralProfile;
-  try {
-    astralProfile = calculateAstralProfile(dob);
-  } catch (err) {
-    console.error('[POST /api/profile] Fecha inválida:', dob, err);
-    return NextResponse.json({ error: 'Fecha de nacimiento inválida.' }, { status: 400 });
-  }
-
-  const userImage = image ?? token.picture ?? null;
-  const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
-  const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || ['Música indie', 'Café de especialidad', 'Astrología']);
-
-  try {
-    await db.prepare(`
-      INSERT OR IGNORE INTO users (id, email, name, image)
-      VALUES (?, ?, ?, ?)
-    `).bind(userId, userEmail, userName, userImage).run();
-  } catch (err) {
-    console.error('[POST /api/profile] Error al insertar en users:', err);
-  }
-
-  try {
-    try {
-      await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run();
-    } catch {}
-
-    await db.prepare(`
-      INSERT OR REPLACE INTO astral_profiles
-        (user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, interests)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      userId,
-      dob,
-      astralProfile.sign,
-      astralProfile.element,
-      astralProfile.lifePath,
-      astralProfile.archetype,
-      astralProfile.luz,
-      astralProfile.sombra,
-      bio ?? '',
-      intent ?? 'Citas y Pareja',
-      location ?? '',
-      photosStr,
-      interestsStr
-    ).run();
-  } catch (err) {
-    console.error('[POST /api/profile] Error al persistir astral_profiles:', err);
-  }
-
-  return NextResponse.json({
-    success: true,
-    profile: {
-      user_id:          userId,
-      birth_date:       dob,
-      sign:             astralProfile.sign,
-      element:          astralProfile.element,
-      life_path_number: astralProfile.lifePath,
-      archetype:        astralProfile.archetype,
-      luz:              astralProfile.luz,
-      sombra:           astralProfile.sombra,
-      bio:              bio ?? '',
-      intent:           intent ?? 'Citas y Pareja',
-      location:         location ?? '',
-      photos:           photosStr,
-      interests:        interestsStr
-    },
-  });
+  return NextResponse.json({ error: 'La fecha de nacimiento es requerida.' }, { status: 400 });
 }

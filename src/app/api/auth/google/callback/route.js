@@ -263,13 +263,14 @@ export async function GET(request) {
       name: finalName,
       email: email,
       image: finalImage,
-      dob: finalDob || 'registered'
+      dob: finalDob || ''
     };
 
     // 5. Destino de redirección:
-    // Si ya tiene fecha de nacimiento registrada o es usuario existente, va directo al Dashboard!
-    // Si es un usuario completamente nuevo sin fecha de nacimiento, va a Welcome para calcular su perfil astral.
-    const targetUrl = (finalDob && finalDob.length > 4) || isExistingUser
+    // Si NO tiene fecha de nacimiento registrada (es NULL o vacía), SIEMPRE debe ir a /zodia/welcome
+    // para que ingrese su fecha de nacimiento obligatoriamente.
+    const hasBirthDate = Boolean(finalDob && finalDob.length >= 8 && finalDob !== 'registered');
+    const targetUrl = hasBirthDate
       ? `${baseUrl}/zodia/dashboard` 
       : `${baseUrl}/zodia/welcome`;
 

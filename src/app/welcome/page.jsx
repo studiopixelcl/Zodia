@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { apiFetch } from '../../lib/api';
 import { CATEGORIZED_INTERESTS } from '../../lib/dating';
+import { calculateAstralProfile } from '../../lib/astrology';
 import { ZodiacBadge } from '../../components/astral/ZodiacBadge';
-import { Sparkles, Camera, MapPin, Heart, ArrowRight, Check, Star, User, Compass } from 'lucide-react';
+import { Sparkles, Camera, MapPin, Heart, ArrowRight, Check, Star, User, Compass, Calendar, AlertCircle } from 'lucide-react';
 
 export default function WelcomePage() {
   const { data: session, status } = useSession();
@@ -16,6 +17,7 @@ export default function WelcomePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Campos de configuración
+  const [dob, setDob] = useState('');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('Santiago, Chile');
   const [intent, setIntent] = useState('Citas y Pareja');
@@ -57,6 +59,9 @@ export default function WelcomePage() {
         const data = await res.json();
         if (data.exists && data.profile) {
           setProfile(data.profile);
+          if (data.profile.birth_date && data.profile.birth_date.length >= 8) {
+            setDob(data.profile.birth_date);
+          }
           setName(data.profile.user_name || activeUser?.name || '');
           if (data.profile.location) setLocation(data.profile.location);
           if (data.profile.intent) setIntent(data.profile.intent);
@@ -71,6 +76,9 @@ export default function WelcomePage() {
             } catch {}
           }
         } else if (activeUser) {
+          if (activeUser.dob && activeUser.dob.length >= 8 && activeUser.dob !== 'registered') {
+            setDob(activeUser.dob);
+          }
           setName(activeUser.name || '');
           if (activeUser.image) setAvatarSrc(activeUser.image);
         }
@@ -121,6 +129,12 @@ export default function WelcomePage() {
   // Guardar y continuar al Dashboard de Citas
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!dob) {
+      alert('Por favor ingresa tu fecha de nacimiento. Es indispensable para calcular tu firma cósmica y tus afinidades.');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -128,6 +142,7 @@ export default function WelcomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          dob,
           name: name.trim() || session?.user?.name || 'Sintonizador',
           location: location.trim(),
           intent,
@@ -143,6 +158,7 @@ export default function WelcomePage() {
           if (stored) {
             const parsed = JSON.parse(stored);
             parsed.name = name.trim() || parsed.name;
+            parsed.dob = dob;
             if (avatarSrc) parsed.image = avatarSrc;
             localStorage.setItem('zodia_session', JSON.stringify(parsed));
             document.cookie = `next-auth.session-token=${encodeURIComponent(JSON.stringify(parsed))}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
@@ -180,10 +196,18 @@ export default function WelcomePage() {
     );
   }
 
-  const userSign = profile?.sign || 'Capricornio';
-  const userElement = profile?.element || 'Tierra';
-  const lifePath = profile?.life_path_number || 9;
-  const archetype = profile?.archetype || 'El Ermitaño';
+  // Cálculo en vivo del perfil astral según la fecha de nacimiento ingresada
+  let dynamicAstral = null;
+  if (dob) {
+    try {
+      dynamicAstral = calculateAstralProfile(dob);
+    } catch {}
+  }
+
+  const userSign = dynamicAstral?.sign || profile?.sign || null;
+  const userElement = dynamicAstral?.element || profile?.element || null;
+  const lifePath = dynamicAstral?.lifePath || profile?.life_path_number || null;
+  const archetype = dynamicAstral?.archetype || profile?.archetype || null;
 
   return (
     <div className="min-h-screen w-full bg-[#050505] text-white py-8 px-4 sm:px-6 relative overflow-x-hidden selection:bg-cyan-500 selection:text-black">
@@ -204,42 +228,74 @@ export default function WelcomePage() {
             Tu Espejo Astral Ha Nacido
           </h1>
           <p className="text-sm sm:text-base text-gray-300 mt-3 max-w-lg mx-auto leading-relaxed font-light">
-            Hemos calculado tu firma energética única en el universo. Personaliza tu presentación para comenzar a conectar con personas en tu misma sintonía.
+            Tu fecha de nacimiento nos permite calcular tu mapa astral y la afinidad cósmica con personas en tu misma sintonía.
           </p>
 
-          {/* Tarjeta de Revelación Cósmica */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#0e1222] to-black border border-cyan-500/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] text-left">
-            
-            {/* Signo Solar */}
-            <div className="flex items-center gap-3 p-2">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center shrink-0 shadow-inner">
-                <ZodiacBadge sign={userSign} size="md" zoom={1.2} className="w-10 h-10" />
+          {/* Tarjeta de Revelación Cósmica Dinámica */}
+          {userSign && lifePath ? (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#0e1222] to-black border border-cyan-500/30 shadow-[0_0_35px_rgba(6,182,212,0.15)] text-left animate-fadeIn">
+              
+              {/* Signo Solar */}
+              <div className="flex items-center gap-3 p-2">
+                <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center shrink-0 shadow-inner">
+                  <ZodiacBadge sign={userSign} size="md" zoom={1.2} className="w-10 h-10" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider block">Tu Signo Solar</span>
+                  <span className="text-base sm:text-lg font-bold text-white leading-tight">{userSign}</span>
+                  <span className="text-xs text-gray-400 font-light block mt-0.5">{userElement}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider block">Tu Signo Solar</span>
-                <span className="text-base sm:text-lg font-bold text-white leading-tight">{userSign}</span>
-                <span className="text-xs text-gray-400 font-light block mt-0.5">{userElement}</span>
-              </div>
-            </div>
 
-            {/* Camino de Vida */}
-            <div className="flex items-center gap-3 p-2 border-l border-white/10 pl-4">
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                <span className="mystic-font text-2xl sm:text-3xl text-amber-400 font-extrabold">{lifePath}</span>
+              {/* Camino de Vida */}
+              <div className="flex items-center gap-3 p-2 border-l border-white/10 pl-4">
+                <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                  <span className="mystic-font text-2xl sm:text-3xl text-amber-400 font-extrabold">{lifePath}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider block">Camino de Vida</span>
+                  <span className="text-base sm:text-lg font-bold text-white leading-tight">Número {lifePath}</span>
+                  <span className="text-xs text-gray-400 font-light block mt-0.5 truncate max-w-[120px] sm:max-w-none">{archetype}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider block">Camino de Vida</span>
-                <span className="text-base sm:text-lg font-bold text-white leading-tight">Número {lifePath}</span>
-                <span className="text-xs text-gray-400 font-light block mt-0.5 truncate max-w-[120px] sm:max-w-none">{archetype}</span>
-              </div>
-            </div>
 
-          </div>
+            </div>
+          ) : (
+            <div className="mt-6 p-4 rounded-3xl bg-amber-500/[0.08] border border-amber-500/30 text-amber-200 text-xs flex items-center justify-center gap-2">
+              <Sparkles size={16} className="text-amber-400 animate-spin" />
+              Ingresa tu fecha de nacimiento a continuación para descubrir tu Signo Solar y Número Sagrado.
+            </div>
+          )}
         </div>
 
         {/* ── 2. FORMULARIO PRINCIPAL DE BIENVENIDA ── */}
         <form onSubmit={handleSubmit} className="space-y-8">
           
+          {/* ── PASO OBLIGATORIO: FECHA DE NACIMIENTO ── */}
+          <div className="glass-panel p-6 sm:p-7 rounded-3xl border-2 border-sky-400/40 bg-gradient-to-b from-[#0b1220] via-[#070b14] to-black shadow-[0_0_40px_rgba(56,189,248,0.15)] space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-sky-300 uppercase tracking-wider flex items-center gap-2">
+                <Calendar size={18} className="text-sky-400" /> Fecha de Nacimiento (Paso Obligatorio)
+              </label>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40">
+                Imprescindible
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed font-light">
+              La fecha y año son fundamentales para calcular las posiciones planetarias de tu nacimiento, tu regente cósmico y tu compatibilidad en la sección de Citas.
+            </p>
+            <div className="relative pt-1">
+              <input
+                type="date"
+                required
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full bg-black/70 border border-sky-500/40 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 text-white rounded-2xl p-4 text-base font-semibold outline-none transition shadow-inner cursor-pointer"
+              />
+            </div>
+          </div>
+
           {/* FOTO DE PERFIL & DATOS DE IDENTIDAD */}
           <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/15 bg-gradient-to-b from-[#0a0d18] to-black space-y-6">
             
