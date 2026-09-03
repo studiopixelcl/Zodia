@@ -6,7 +6,7 @@ import {
   Sparkles, User, ArrowRight, Globe, Moon, Shield, MessageCircle, 
   Flame, CheckCircle, AlertCircle, X, Compass, ChevronRight,
   Eye, EyeOff, Lock, Key, Mail, RefreshCw, Heart, Calendar, Zap,
-  Search, ShieldCheck, Stars
+  Search, ShieldCheck, Stars, Download, Smartphone, Share2, PlusSquare
 } from 'lucide-react';
 import { calculateAstralProfile, getZodiacSymbol } from '../lib/astrology';
 import { ZodiacBadge } from '../components/astral/ZodiacBadge';
@@ -82,6 +82,45 @@ export default function LandingPage() {
   // Selector interactivo de ejemplo en el Hero
   const [heroExampleIndex, setHeroExampleIndex] = useState(0);
   const activeHeroExample = HERO_MATCH_EXAMPLES[heroExampleIndex];
+
+  // Estados para descarga e instalación de la App (PWA)
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      setIsStandalone(Boolean(standalone));
+
+      const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+      setIsIOS(isIosDevice);
+
+      const handleBeforeInstall = (e) => {
+        e.preventDefault();
+        setInstallPrompt(e);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+      return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    }
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (installPrompt) {
+      try {
+        installPrompt.prompt();
+        const choice = await installPrompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          setInstallPrompt(null);
+        }
+      } catch (err) {
+        setIsInstallModalOpen(true);
+      }
+    } else {
+      setIsInstallModalOpen(true);
+    }
+  };
 
   // Calculadora libre de previsualización en la landing
   const [previewDob, setPreviewDob] = useState('1998-07-15');
@@ -445,6 +484,16 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {!isStandalone && (
+              <button
+                onClick={handleInstallClick}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/30 transition-all shadow-[0_0_12px_rgba(56,189,248,0.15)]"
+                title="Descargar e instalar aplicación"
+              >
+                <Download size={13} />
+                <span>Descargar App</span>
+              </button>
+            )}
             <button
               onClick={() => openModal('login')}
               className="px-4 py-2 rounded-xl text-xs text-slate-300 hover:text-white hover:bg-white/[0.05] transition-all font-medium"
@@ -489,6 +538,17 @@ export default function LandingPage() {
               Crear mi cuenta gratis
               <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
+
+            {!isStandalone && (
+              <button
+                onClick={handleInstallClick}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/30 transition-all text-sm flex items-center justify-center gap-2 font-semibold shadow-[0_0_15px_rgba(56,189,248,0.15)] group"
+              >
+                <Download size={16} className="text-sky-400 group-hover:scale-110 transition-transform" />
+                <span>Descargar Aplicación</span>
+              </button>
+            )}
+
             <button
               onClick={handleGuestAccess}
               className="btn-secondary-zodia w-full sm:w-auto px-6 py-3.5 rounded-xl text-sm flex items-center justify-center gap-2"
@@ -1372,6 +1432,131 @@ export default function LandingPage() {
                 Entrar con Modo Demo (1 Clic)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE DESCARGA E INSTALACIÓN DE LA APP (PWA) ── */}
+      {isInstallModalOpen && (
+        <div className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto grid place-items-center animate-fadeIn">
+          <div className="relative my-auto w-full max-w-md p-6 sm:p-7 rounded-3xl border border-sky-500/30 bg-[#0c0e18] shadow-[0_0_50px_rgba(56,189,248,0.2)] space-y-5">
+            <button
+              onClick={() => setIsInstallModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/[0.05]"
+              aria-label="Cerrar modal de instalación"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Encabezado con Isotipo */}
+            <div className="text-center pt-2">
+              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-400/30 p-2 mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.25)] mb-3">
+                <img src="/zodia/assets/logo.png" alt="Zodia App" className="w-full h-full object-contain" />
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-400/30 tracking-wider">
+                App Oficial Zodia
+              </span>
+              <h3 className="text-xl sm:text-2xl font-bold text-white mt-2">
+                Instalar en tu Dispositivo
+              </h3>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Disfruta de Zodia como una app nativa, a pantalla completa y con acceso instantáneo desde tu inicio.
+              </p>
+            </div>
+
+            {/* Instrucciones según Dispositivo */}
+            {isIOS ? (
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
+                <p className="text-[11px] font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Smartphone size={14} /> Pasos para iPhone / iPad (Safari):
+                </p>
+                <div className="space-y-2.5 text-xs text-slate-200">
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                      1
+                    </span>
+                    <p>
+                      Toca el botón <strong className="text-sky-300">Compartir</strong> de Safari (icono cuadrado con flecha hacia arriba <Share2 size={13} className="inline mx-0.5 text-sky-400" /> en la barra inferior).
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                      2
+                    </span>
+                    <p>
+                      Desplázate hacia abajo y selecciona <strong className="text-sky-300">"Agregar a la pantalla de inicio"</strong> (<PlusSquare size={13} className="inline mx-0.5 text-sky-400" />).
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                      3
+                    </span>
+                    <p>
+                      Toca <strong className="text-sky-300">"Agregar"</strong> en la esquina superior derecha. ¡Listo!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {installPrompt ? (
+                  <button
+                    onClick={handleInstallClick}
+                    className="btn-primary-zodia w-full py-3.5 rounded-xl text-xs uppercase tracking-wider font-bold flex items-center justify-center gap-2 shadow-lg shadow-sky-950/50"
+                  >
+                    <Download size={16} />
+                    Instalar Directamente Ahora
+                  </button>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-3">
+                    <p className="text-[11px] font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Smartphone size={14} /> En Android / Chrome / Edge:
+                    </p>
+                    <div className="space-y-2.5 text-xs text-slate-200">
+                      <div className="flex items-start gap-3">
+                        <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                          1
+                        </span>
+                        <p>
+                          Toca el menú de opciones del navegador (los <strong className="text-sky-300">tres puntos ⋮</strong> en la esquina superior o inferior).
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
+                          2
+                        </span>
+                        <p>
+                          Selecciona <strong className="text-sky-300">"Instalar aplicación"</strong> o <strong className="text-sky-300">"Agregar a la pantalla principal"</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Ventajas destacadas */}
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/[0.08] text-center">
+              <div className="p-2 rounded-xl bg-black/40">
+                <span className="text-xs">⚡</span>
+                <p className="text-[10px] text-slate-300 font-medium mt-1">Carga Rápida</p>
+              </div>
+              <div className="p-2 rounded-xl bg-black/40">
+                <span className="text-xs">📱</span>
+                <p className="text-[10px] text-slate-300 font-medium mt-1">Sin Barras</p>
+              </div>
+              <div className="p-2 rounded-xl bg-black/40">
+                <span className="text-xs">🔒</span>
+                <p className="text-[10px] text-slate-300 font-medium mt-1">Ligera (&lt;2MB)</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsInstallModalOpen(false)}
+              className="w-full py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] transition"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}
