@@ -215,6 +215,8 @@ export default function Dashboard() {
           <TabVinculos
             selectedUserId={selectedUserId}
             onClearSelection={() => setSelectedUserId(null)}
+            profile={profile}
+            currentUser={currentUser}
           />
         )}
         {activeTab === 'juegos'   && <TabJuegos profile={profile} onGameActiveChange={setIsGameActive} />}

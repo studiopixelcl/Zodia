@@ -1,12 +1,102 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, ArrowLeft, Sparkles, UserCheck, Bot, Heart, Zap, MapPin } from 'lucide-react';
+import { 
+  MessageCircle, Send, ArrowLeft, Sparkles, UserCheck, Bot, Heart, Zap, MapPin,
+  Mic, MicOff, Square, Play, Pause, Trash2, CheckCheck, Loader2, Volume2
+} from 'lucide-react';
 import { getZodiacSymbol } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers } from '../../lib/dating';
 import { apiFetch } from '../../lib/api';
 import { ZodiacBadge } from './ZodiacBadge';
 
-export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
+/**
+ * Reproductor Cósmico de Notas de Voz
+ */
+function AudioMessagePlayer({ audioUrl, duration = 8, isMine }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const totalDuration = duration || 8;
+
+  return (
+    <div className="flex items-center gap-2.5 py-1 min-w-[190px] sm:min-w-[230px]">
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        preload="metadata"
+      />
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md transition-all ${
+          isMine 
+            ? 'bg-black/50 text-cyan-300 hover:bg-black/80 border border-white/20' 
+            : 'bg-cyan-500 text-black hover:bg-cyan-400 font-bold'
+        }`}
+      >
+        {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+      </button>
+
+      <div className="flex-1 space-y-1">
+        {/* Onda de audio animada */}
+        <div className="flex items-center gap-0.5 h-4">
+          {[40, 75, 100, 60, 85, 45, 95, 65, 35, 80, 50, 75, 40].map((h, i) => (
+            <div
+              key={i}
+              className={`w-1 rounded-full transition-all duration-300 ${
+                isMine ? 'bg-cyan-200' : 'bg-cyan-400'
+              } ${isPlaying ? 'animate-pulse' : 'opacity-60'}`}
+              style={{
+                height: `${isPlaying ? Math.max(25, h * (0.6 + (i % 3) * 0.2)) : h}%`,
+                animationDelay: `${i * 60}ms`
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Contador de tiempo */}
+        <div className="flex items-center justify-between text-[9px] opacity-80 font-mono">
+          <span>{formatTime(currentTime)}</span>
+          <span className="flex items-center gap-0.5">
+            <Volume2 size={9} /> {formatTime(totalDuration)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const TabVinculos = ({ selectedUserId, onClearSelection, profile, currentUser }) => {
   const [vinculos, setVinculos]       = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [activeUser, setActiveUser]   = useState(null);
@@ -17,7 +107,17 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
   const [sending, setSending]         = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
 
-  const chatEndRef = useRef(null);
+  // ── Estados para Grabación de Notas de Voz ─────────────────────────────────
+  const [isRecording, setIsRecording]         = useState(false);
+  const [recordingTime, setRecordingTime]     = useState(0);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  const mediaRecorderRef   = useRef(null);
+  const audioChunksRef     = useRef([]);
+  const recordingTimerRef  = useRef(null);
+  const chatEndRef         = useRef(null);
+
+  const mySign = profile?.sign || 'Escorpio';
 
   const fetchVinculos = async () => {
     try {
@@ -84,8 +184,104 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isBotTyping]);
+  }, [messages, isBotTyping, isRecording]);
 
+  // ── Grabación de Audio ──────────────────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= 20) {
+            stopAndSendRecording();
+            return 20;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } catch (err) {
+      console.error('Error accediendo al micrófono:', err);
+      alert('Para enviar notas de voz, por favor habilita el permiso de micrófono en tu navegador.');
+    }
+  };
+
+  const cancelRecording = () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      }
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+    audioChunksRef.current = [];
+  };
+
+  const stopAndSendRecording = () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
+
+    const finalDuration = recordingTime || 1;
+    setIsRecording(false);
+    setIsUploadingAudio(true);
+
+    mediaRecorderRef.current.onstop = async () => {
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      }
+
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      audioChunksRef.current = [];
+
+      try {
+        const formData = new FormData();
+        formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+        formData.append('type', 'audio');
+
+        const res = await apiFetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (data.url) {
+          const audioPayload = JSON.stringify({
+            type: 'audio',
+            audioUrl: data.url,
+            duration: finalDuration
+          });
+          await handleSendMessage(audioPayload);
+        } else {
+          alert('No se pudo subir la nota de voz. Inténtalo de nuevo.');
+        }
+      } catch (err) {
+        console.error('Error subiendo audio:', err);
+        alert('Ocurrió un error al enviar el audio.');
+      } finally {
+        setIsUploadingAudio(false);
+        setRecordingTime(0);
+      }
+    };
+
+    mediaRecorderRef.current.stop();
+  };
+
+  // ── Envío de Mensajes (Texto o Audio) ──────────────────────────────────────
   const handleSendMessage = async (textToSend = null) => {
     const content = (textToSend || inputText).trim();
     if (!content || !activeUser || sending) return;
@@ -120,7 +316,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
           await fetchMessages(activeUser.id);
           setIsBotTyping(false);
           fetchVinculos();
-        }, isSimulated ? 1200 : 300);
+        }, isSimulated ? 1300 : 300);
       }
     } catch {
       setIsBotTyping(false);
@@ -130,8 +326,21 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
   };
 
   const handleBack = () => {
+    cancelRecording();
     setActiveUser(null);
     if (onClearSelection) onClearSelection();
+  };
+
+  // Función auxiliar para parsear mensajes de tipo audio
+  const parseAudio = (content) => {
+    if (!content) return null;
+    if (typeof content === 'string' && (content.startsWith('{"type":"audio"') || content.includes('"audioUrl"'))) {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed?.type === 'audio') return parsed;
+      } catch {}
+    }
+    return null;
   };
 
   // Separar matches recientes de conversaciones existentes
@@ -141,7 +350,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
   // ── RENDER 1: PANTALLA DE CHAT ACTIVO ──────────────────────────────────────
   if (activeUser) {
     const zodiacSymbol = getZodiacSymbol(activeUser.sign);
-    const icebreakers = generateAstrologicalIcebreakers('Capricornio', activeUser.sign, activeUser.name);
+    const icebreakers = generateAstrologicalIcebreakers(mySign, activeUser.sign, activeUser.name);
 
     return (
       <div className="space-y-3 animate-fadeIn px-2 sm:px-4 flex flex-col h-[76vh]">
@@ -170,7 +379,8 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
               <h4 className="text-white font-bold text-sm flex items-center gap-1.5">
                 {activeUser.name}
               </h4>
-              <p className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1">
+              <p className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 {activeUser.sign} • Elemento {activeUser.element}
               </p>
             </div>
@@ -188,14 +398,14 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
               Abriendo canal cósmico...
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center py-10 px-4 space-y-3">
+            <div className="text-center py-8 px-4 space-y-3">
               <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-400">
                 <Sparkles size={22} />
               </div>
               <div>
-                <h5 className="text-sm font-bold text-white">¡Hicieron Match Astral!</h5>
+                <h5 className="text-sm font-bold text-white">¡Hicieron Resonancia Astral!</h5>
                 <p className="text-xs text-gray-400 max-w-xs mx-auto mt-1 font-light">
-                  Inicia la conversación con un rompehielos sugerido para romper el hielo:
+                  {mySign} y {activeUser.sign} comparten una frecuencia única. Elige un rompehielos para comenzar:
                 </p>
               </div>
 
@@ -216,6 +426,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
           ) : (
             messages.map((msg, idx) => {
               const isMine = msg.sender_id === 'me' || (msg.sender_id !== activeUser.id && msg.sender_id !== 'zodia_bot');
+              const audioData = parseAudio(msg.content);
               const formattedTime = msg.created_at
                 ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : '';
@@ -226,18 +437,26 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
                   className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[82%] px-4 py-2.5 shadow-md ${
+                    className={`max-w-[85%] px-3.5 py-2.5 shadow-md ${
                       isMine
                         ? 'btn-mystic text-white rounded-2xl rounded-tr-none'
                         : 'bg-white/10 text-gray-100 rounded-2xl rounded-tl-none border border-white/10 backdrop-blur-md'
                     }`}
                   >
-                    <p className="text-xs leading-relaxed whitespace-pre-wrap font-light">{msg.content}</p>
-                    {formattedTime && (
-                      <p className={`text-[9px] mt-1 text-right ${isMine ? 'text-cyan-200/70' : 'text-gray-400'}`}>
-                        {formattedTime}
-                      </p>
+                    {audioData ? (
+                      <AudioMessagePlayer
+                        audioUrl={audioData.audioUrl}
+                        duration={audioData.duration}
+                        isMine={isMine}
+                      />
+                    ) : (
+                      <p className="text-xs leading-relaxed whitespace-pre-wrap font-light">{msg.content}</p>
                     )}
+
+                    <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-cyan-200/80' : 'text-gray-400'}`}>
+                      {formattedTime && <span className="text-[9px]">{formattedTime}</span>}
+                      {isMine && <CheckCheck size={11} className="text-cyan-300" />}
+                    </div>
                   </div>
                 </div>
               );
@@ -252,33 +471,101 @@ export const TabVinculos = ({ selectedUserId, onClearSelection }) => {
               </div>
             </div>
           )}
+
+          {isUploadingAudio && (
+            <div className="flex justify-end">
+              <div className="bg-cyan-500/20 text-cyan-300 rounded-2xl rounded-tr-none border border-cyan-400/40 px-3 py-1.5 text-xs flex items-center gap-2 animate-pulse">
+                <Loader2 size={13} className="animate-spin" />
+                <span>Transmitiendo nota de voz al éter...</span>
+              </div>
+            </div>
+          )}
           
           <div ref={chatEndRef} />
         </div>
 
-        {/* Formulario de Envío */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="flex gap-2"
-        >
-          <input
-            type="text"
-            placeholder={`Escribe a ${activeUser.name.split(' ')[0]}...`}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 bg-black/70 border border-cyan-500/30 rounded-xl px-4 py-3 text-xs text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-500"
-          />
-          <button
-            type="submit"
-            disabled={!inputText.trim() || sending}
-            className="btn-mystic px-4 rounded-xl text-white flex items-center justify-center disabled:opacity-40 transition-all shadow-lg"
+        {/* Barra de Rompehielos Cósmicos (Siempre Accesible Arriba del Input) */}
+        {messages.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Sparkles size={11} className="text-amber-400" /> Rompehielos:
+            </span>
+            {icebreakers.slice(0, 3).map((prompt, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setInputText(prompt)}
+                className="shrink-0 px-3 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/40 text-[11px] text-gray-300 hover:text-white transition whitespace-nowrap flex items-center gap-1"
+                title="Cargar en el mensaje"
+              >
+                <span>"{prompt.length > 35 ? prompt.slice(0, 35) + '...' : prompt}"</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Barra de Envío y Grabación */}
+        {isRecording ? (
+          <div className="flex items-center justify-between p-2 rounded-2xl bg-red-950/40 border border-red-500/40 shadow-lg animate-pulse">
+            <div className="flex items-center gap-2 px-3 text-red-400 text-xs font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+              <span>Grabando: {recordingTime}s / 20s máx</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="p-2 text-gray-400 hover:text-red-400 rounded-full hover:bg-white/5 transition"
+                title="Cancelar grabación"
+              >
+                <Trash2 size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={stopAndSendRecording}
+                className="btn-mystic px-4 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
+              >
+                <Send size={13} /> Enviar Audio
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-2"
           >
-            <Send size={16} />
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder={`Escribe a ${activeUser.name.split(' ')[0]}...`}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="flex-1 bg-black/70 border border-cyan-500/30 rounded-xl px-4 py-3 text-xs text-white focus:border-cyan-400 outline-none transition shadow-inner placeholder:text-gray-500"
+            />
+
+            {/* Botón para grabar nota de voz */}
+            <button
+              type="button"
+              onClick={startRecording}
+              className="p-3 text-cyan-400 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl transition shadow-md"
+              title="Grabar nota de voz (máx 20s)"
+            >
+              <Mic size={16} />
+            </button>
+
+            {/* Botón enviar texto */}
+            <button
+              type="submit"
+              disabled={!inputText.trim() || sending}
+              className="btn-mystic px-4 py-3 rounded-xl text-white flex items-center justify-center disabled:opacity-40 transition-all shadow-lg"
+            >
+              <Send size={16} />
+            </button>
+          </form>
+        )}
       </div>
     );
   }

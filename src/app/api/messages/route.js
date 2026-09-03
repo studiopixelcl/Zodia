@@ -58,6 +58,17 @@ const BOT_RESPONSES = {
 };
 
 function generateGuideReply(receiverId, userContent) {
+  const isAudio = userContent.includes('"type":"audio"') || userContent.includes('audio_') || userContent.includes('.webm') || userContent.includes('.m4a');
+  if (isAudio) {
+    const audioResponses = [
+      "¡Qué linda tu nota de voz! Me encanta poder escuchar tu tono y tu ritmo, se siente una vibra súper cálida y cercana ✨",
+      "¡Me encantó tu audio! Escuchar la voz de alguien transmite mil veces más que un simple texto plano. ¡Totalmente en sintonía!",
+      "¡Qué linda tu energía al hablar! Me alegra mucho que nos hayamos animado a conectar por aquí 🌙",
+      "¡Me sacaste una sonrisa con tu audio! Tienes una voz muy linda y auténtica 😊"
+    ];
+    return audioResponses[Math.floor(Math.random() * audioResponses.length)];
+  }
+
   const list = BOT_RESPONSES[receiverId] || BOT_RESPONSES.zodia_bot;
   const index = Math.abs(userContent.length + Date.now()) % list.length;
   return list[index];

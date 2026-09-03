@@ -32,10 +32,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No se recibió ningún archivo válido.' }, { status: 400 });
     }
 
-    const contentType = file.type || (mediaType === 'video' ? 'video/webm' : 'image/webp');
+    const contentType = file.type || (mediaType === 'video' ? 'video/webm' : (mediaType === 'audio' ? 'audio/webm' : 'image/webp'));
     let ext = 'webp';
     if (mediaType === 'video') {
       ext = contentType.includes('mp4') ? 'mp4' : 'webm';
+    } else if (mediaType === 'audio' || contentType.startsWith('audio/')) {
+      ext = contentType.includes('mp4') || contentType.includes('m4a') ? 'm4a' : (contentType.includes('ogg') ? 'ogg' : 'webm');
     } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
       ext = 'jpg';
     } else if (contentType.includes('png')) {
@@ -43,7 +45,8 @@ export async function POST(request) {
     }
 
     const randomSuffix = Math.random().toString(36).substring(2, 9);
-    const fileKey = `media/${userId}/${Date.now()}_${randomSuffix}.${ext}`;
+    const filePrefix = mediaType === 'audio' ? 'audio_' : '';
+    const fileKey = `media/${userId}/${filePrefix}${Date.now()}_${randomSuffix}.${ext}`;
 
     const bucket = await getR2Bucket();
     const fileBuffer = await file.arrayBuffer();
