@@ -27,14 +27,15 @@ export const ZodiacBadge = ({ sign, size = "md", className = "", zoom = 1.35 }) 
       {!imgError && iconPath ? (
         <img
           src={iconPath}
-          alt={sign}
+          alt=""
           onError={() => setImgError(true)}
           style={{ transform: `scale(${zoom})` }}
           className="w-full h-full object-cover rounded-full group-hover/badge:scale-[1.5] transition-transform duration-300"
         />
-      ) : (
-        <span className="text-cyan-400 font-extrabold">{symbol}</span>
-      )}
+      ) : null}
+      {imgError || !iconPath ? (
+        <span className="text-sky-400 font-extrabold">{symbol}</span>
+      ) : null}
     </div>
   );
 };

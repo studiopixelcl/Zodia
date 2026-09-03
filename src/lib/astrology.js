@@ -37,7 +37,7 @@ export function getZodiacSymbol(sign) {
 
 export function getZodiacIconPath(sign) {
   const slug = ZODIAC_SLUGS[sign] ?? 'capricornio';
-  return `/assets/zodiac/${slug}.png`;
+  return `/zodia/assets/zodiac/${slug}.png`;
 }
 
 // ─── DETALLES EXHAUSTIVOS DE CADA SIGNO ZODIACAL ────────────────────────────
