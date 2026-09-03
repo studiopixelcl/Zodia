@@ -33,6 +33,22 @@ export function resolveUserId(token) {
   return token.id ?? token.sub ?? token.email ?? null;
 }
 
+export async function resolveCanonicalUserId(db, token) {
+  if (!token) return null;
+  const rawId = token.id ?? token.sub ?? token.email ?? null;
+  const rawEmail = token.email ? token.email.toLowerCase().trim() : '';
+
+  if (db && (rawId || rawEmail)) {
+    try {
+      const user = await db.prepare(
+        "SELECT id FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
+      ).bind(rawId, rawEmail).first();
+      if (user?.id) return user.id;
+    } catch {}
+  }
+  return rawId;
+}
+
 const PASSWORD_SALT = 'zodia_astral_matrix_2026_salt';
 
 /**

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
+import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { DATING_CANDIDATES } from '../../../lib/dating';
 import { sendNotification } from '../../../lib/push-notifications';
 
@@ -21,7 +21,8 @@ export async function GET(request) {
   }
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const myId = await resolveCanonicalUserId(db, token);
+  const myRawId = resolveUserId(token);
 
   if (!db) {
     return NextResponse.json({ swipedIds: [], matches: [] });
@@ -29,8 +30,9 @@ export async function GET(request) {
 
   try {
     const interactions = await db.prepare(`
-      SELECT target_id, type, created_at FROM interactions WHERE user_id = ?
-    `).bind(myId).all();
+      SELECT target_id, type, created_at FROM interactions 
+      WHERE user_id = ? OR user_id = ?
+    `).bind(myId, myRawId).all();
 
     const swipedIds = (interactions.results || []).map(i => i.target_id);
 
@@ -60,7 +62,8 @@ export async function POST(request) {
   }
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const myId = await resolveCanonicalUserId(db, token);
+  const myRawId = resolveUserId(token);
 
   let body;
   try {
@@ -72,6 +75,15 @@ export async function POST(request) {
   const { targetUserId, type = 'like' } = body;
   if (!targetUserId) {
     return NextResponse.json({ error: "targetUserId es requerido." }, { status: 400 });
+  }
+
+  let actualTargetId = targetUserId;
+  let targetUserRow = null;
+  if (db) {
+    targetUserRow = await db.prepare(
+      "SELECT id, name, email FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
+    ).bind(targetUserId, targetUserId.toLowerCase().trim()).first().catch(() => null);
+    if (targetUserRow?.id) actualTargetId = targetUserRow.id;
   }
 
   // 1. Verificar si el candidato da match
@@ -92,14 +104,14 @@ export async function POST(request) {
       await db.prepare(`
         INSERT OR REPLACE INTO interactions (user_id, target_id, type)
         VALUES (?, ?, ?)
-      `).bind(myId, targetUserId, type).run();
+      `).bind(myId, actualTargetId, type).run();
 
       if (type === 'like' || type === 'superlike') {
-        // Verificar si el otro usuario ya nos dio like en D1
+        // Verificar si el otro usuario ya nos dio like en D1 (por ID canónico o raw)
         const reverseLike = await db.prepare(`
           SELECT id FROM interactions
-          WHERE user_id = ? AND target_id = ? AND type IN ('like', 'superlike')
-        `).bind(targetUserId, myId).first();
+          WHERE user_id IN (?, ?) AND target_id IN (?, ?) AND type IN ('like', 'superlike')
+        `).bind(actualTargetId, targetUserId, myId, myRawId).first();
 
         if (reverseLike || candidate?.likesYou) {
           isMatch = true;
@@ -107,25 +119,28 @@ export async function POST(request) {
           // Registrar en resonances si no existe ya
           const existingRes = await db.prepare(`
             SELECT id FROM resonances
-            WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
-          `).bind(myId, targetUserId, targetUserId, myId).first();
+            WHERE (user_a_id IN (?, ?) AND user_b_id IN (?, ?)) 
+               OR (user_a_id IN (?, ?) AND user_b_id IN (?, ?))
+          `).bind(
+            myId, myRawId, actualTargetId, targetUserId,
+            actualTargetId, targetUserId, myId, myRawId
+          ).first();
 
           if (!existingRes) {
             await db.prepare(`
               INSERT INTO resonances (user_a_id, user_b_id, score)
               VALUES (?, ?, ?)
-            `).bind(myId, targetUserId, type === 'superlike' ? 98 : 88).run();
+            `).bind(myId, actualTargetId, type === 'superlike' ? 98 : 88).run();
           }
 
           // Emitir notificaciones de Match Cósmico
-          const meUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(myId).first().catch(() => null);
-          const targetUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(targetUserId).first().catch(() => null);
-          const myName = meUser?.name || token.name || 'Alguien';
-          const targetName = targetUser?.name || candidate?.name || 'Tu match';
+          const meUser = await db.prepare("SELECT name, nombre_actual FROM users WHERE id = ?").bind(myId).first().catch(() => null);
+          const myName = meUser?.nombre_actual || meUser?.name || token.name || 'Alguien';
+          const targetName = targetUserRow?.nombre_actual || targetUserRow?.name || candidate?.name || 'Tu match';
 
           await sendNotification({
             db,
-            userId: targetUserId,
+            userId: actualTargetId,
             title: '¡Nueva Resonancia Cósmica! ✨',
             body: `${myName} ha sintonizado contigo en el Éter. ¡Hicieron Match!`,
             url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
@@ -137,7 +152,7 @@ export async function POST(request) {
             userId: myId,
             title: '¡Nueva Resonancia Cósmica! ✨',
             body: `Has conectado con ${targetName} en Zodia.`,
-            url: `/zodia/dashboard?tab=vinculos&userId=${targetUserId}`,
+            url: `/zodia/dashboard?tab=vinculos&userId=${actualTargetId}`,
             type: 'match'
           });
         }

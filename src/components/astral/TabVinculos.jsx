@@ -135,6 +135,8 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
 
   useEffect(() => {
     fetchVinculos();
+    const interval = setInterval(fetchVinculos, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -329,6 +331,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
     cancelRecording();
     setActiveUser(null);
     if (onClearSelection) onClearSelection();
+    fetchVinculos();
   };
 
   // Función auxiliar para parsear mensajes de tipo audio

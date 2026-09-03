@@ -41,7 +41,7 @@ export const NotificationManager = ({ onNavigateToChat }) => {
   // 2. Registrar Service Worker silenciosamente si está soportado
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
+      navigator.serviceWorker.register('/zodia/sw.js', { scope: '/zodia/' }).catch((err) => {
         console.warn('Registro de Service Worker:', err.message);
       });
     }

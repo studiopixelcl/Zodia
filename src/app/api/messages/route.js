@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
+import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { sendNotification } from '../../../lib/push-notifications';
 
 export const runtime = 'edge';
@@ -89,21 +89,32 @@ export async function GET(request) {
   }
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const myCanonicalId = await resolveCanonicalUserId(db, token);
+  const myRawId = resolveUserId(token);
 
   if (!db) {
     return NextResponse.json([]);
   }
 
   try {
+    let otherCanonicalId = withUserId;
+    const otherUser = await db.prepare(
+      "SELECT id FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
+    ).bind(withUserId, withUserId.toLowerCase().trim()).first().catch(() => null);
+
+    if (otherUser?.id) otherCanonicalId = otherUser.id;
+
     const messages = await db.prepare(`
       SELECT 
         id, sender_id, receiver_id, content, created_at
       FROM messages
-      WHERE (sender_id = ? AND receiver_id = ?) 
-         OR (sender_id = ? AND receiver_id = ?)
+      WHERE (sender_id IN (?, ?) AND receiver_id IN (?, ?)) 
+         OR (sender_id IN (?, ?) AND receiver_id IN (?, ?))
       ORDER BY created_at ASC
-    `).bind(myId, withUserId, withUserId, myId).all();
+    `).bind(
+      myCanonicalId, myRawId, otherCanonicalId, withUserId,
+      otherCanonicalId, withUserId, myCanonicalId, myRawId
+    ).all();
 
     return NextResponse.json(messages.results || []);
   } catch (err) {
@@ -119,7 +130,7 @@ export async function POST(request) {
   }
 
   const db = await getDB();
-  const myId = resolveUserId(token);
+  const myId = await resolveCanonicalUserId(db, token);
 
   let body;
   try {
@@ -133,26 +144,42 @@ export async function POST(request) {
     return NextResponse.json({ error: "Destinatario y contenido son requeridos." }, { status: 400 });
   }
 
+  let actualReceiverId = receiverId;
+  let targetUser = null;
+
+  if (db) {
+    try {
+      targetUser = await db.prepare(
+        "SELECT id, name, email FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
+      ).bind(receiverId, receiverId.toLowerCase().trim()).first();
+
+      if (targetUser?.id) {
+        actualReceiverId = targetUser.id;
+      }
+    } catch (e) {
+      console.warn('[POST /api/messages] Resolver targetUser warning:', e.message);
+    }
+  }
+
   const cleanContent = content.trim();
   const userMsgObj = {
     id: Date.now(),
     sender_id: myId,
-    receiver_id: receiverId,
+    receiver_id: actualReceiverId,
     content: cleanContent,
     created_at: new Date().toISOString()
   };
 
-  // Si se chatea con un bot, guía o candidato de prueba, generar respuesta automática
-  const isGuideOrBot = receiverId.startsWith('guide_') || receiverId.startsWith('candidate_') || receiverId === 'zodia_bot';
+  const isGuideOrBot = actualReceiverId.startsWith('guide_') || actualReceiverId.startsWith('candidate_') || actualReceiverId === 'zodia_bot';
 
   if (!db) {
     const mockResponse = [userMsgObj];
     if (isGuideOrBot) {
       mockResponse.push({
         id: Date.now() + 1,
-        sender_id: receiverId,
+        sender_id: actualReceiverId,
         receiver_id: myId,
-        content: generateGuideReply(receiverId, cleanContent),
+        content: generateGuideReply(actualReceiverId, cleanContent),
         created_at: new Date(Date.now() + 1000).toISOString()
       });
     }
@@ -164,25 +191,44 @@ export async function POST(request) {
     const result = await db.prepare(`
       INSERT INTO messages (sender_id, receiver_id, content)
       VALUES (?, ?, ?)
-    `).bind(myId, receiverId, cleanContent).run();
+    `).bind(myId, actualReceiverId, cleanContent).run();
 
     // 2. Si es guía/bot, guardar respuesta mística
     if (isGuideOrBot) {
-      const replyText = generateGuideReply(receiverId, cleanContent);
+      const replyText = generateGuideReply(actualReceiverId, cleanContent);
       await db.prepare(`
         INSERT INTO messages (sender_id, receiver_id, content)
         VALUES (?, ?, ?)
-      `).bind(receiverId, myId, replyText).run();
+      `).bind(actualReceiverId, myId, replyText).run();
     } else {
-      // 3. Si es mensaje entre dos usuarios reales, emitir notificación al destinatario
+      // 3. Garantizar que ambos usuarios estén vinculados en la tabla de resonancias
+      try {
+        const existingRes = await db.prepare(`
+          SELECT id FROM resonances
+          WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
+        `).bind(myId, actualReceiverId, actualReceiverId, myId).first();
+
+        if (!existingRes) {
+          await db.prepare(`
+            INSERT INTO resonances (user_a_id, user_b_id, score)
+            VALUES (?, ?, 92)
+          `).bind(myId, actualReceiverId).run();
+        }
+      } catch (rErr) {
+        console.warn('Error asegurando resonancia:', rErr.message);
+      }
+
+      // 4. Emitir notificación al destinatario
       const isAudio = cleanContent.includes('"type":"audio"');
       const preview = isAudio ? '🎤 Te envió una nota de voz cósmica' : (cleanContent.length > 50 ? cleanContent.slice(0, 50) + '...' : cleanContent);
-      const senderUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(myId).first().catch(() => null);
-      const senderName = senderUser?.name || token.name || 'Alguien';
+      const senderUser = await db.prepare(
+        "SELECT name, nombre_actual FROM users WHERE id = ?"
+      ).bind(myId).first().catch(() => null);
+      const senderName = senderUser?.nombre_actual || senderUser?.name || token.name || 'Alguien';
 
       await sendNotification({
         db,
-        userId: receiverId,
+        userId: actualReceiverId,
         title: `${senderName} te envió un mensaje 💬`,
         body: preview,
         url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
@@ -193,7 +239,7 @@ export async function POST(request) {
     return NextResponse.json({
       id: result.meta?.last_row_id ?? Date.now(),
       sender_id: myId,
-      receiver_id: receiverId,
+      receiver_id: actualReceiverId,
       content: cleanContent,
       created_at: new Date().toISOString()
     });
