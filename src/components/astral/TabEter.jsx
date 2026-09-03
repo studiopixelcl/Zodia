@@ -199,7 +199,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       items.push({ type: 'image', url: photoUrl });
     });
 
-    return items.length > 0 ? items : [{ type: 'image', url: currentCandidate?.image || '/zodia/assets/ico.png' }];
+    return items.length > 0 ? items : [{ type: 'image', url: currentCandidate?.image || '/zodia/assets/logo.png' }];
   }, [currentCandidate]);
 
   // Resetear índice y progreso al cambiar de candidato

@@ -17,15 +17,17 @@ export default function ZodiaLogo({ size = 'md', showText = true, className = ''
   return (
     <div className={`flex items-center gap-3 select-none group ${className}`}>
       {/* Isotipo Oficial Zodia */}
-      <div className={`relative ${currentSize.box} shrink-0 overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)] border border-white/10 transition-all duration-300 group-hover:scale-105 group-hover:border-sky-400/50 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.35)]`}>
+      <div className={`relative ${currentSize.box} shrink-0 overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)] border border-sky-400/20 transition-all duration-300 group-hover:scale-105 group-hover:border-sky-400/50 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.35)]`}>
         {!imgError ? (
           <img
-            src="/zodia/assets/ico.png"
-            alt="Zodia"
+            src="/zodia/assets/logo.png"
+            alt="Zodia Logo"
             className="w-full h-full object-cover select-none"
             onError={(e) => {
-              if (e.currentTarget.src.includes('/zodia/')) {
-                e.currentTarget.src = '/assets/ico.png';
+              if (e.currentTarget.src.includes('/zodia/assets/logo.png')) {
+                e.currentTarget.src = '/zodia/assets/ico.png';
+              } else if (e.currentTarget.src.includes('/zodia/assets/ico.png')) {
+                e.currentTarget.src = '/assets/logo.png';
               } else {
                 setImgError(true);
               }

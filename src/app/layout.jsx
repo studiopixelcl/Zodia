@@ -38,12 +38,13 @@ export const metadata = {
   },
   icons: {
     icon: [
+      { url: '/zodia/assets/logo.png', type: 'image/png' },
       { url: '/zodia/assets/ico.png', type: 'image/png' },
     ],
     apple: [
-      { url: '/zodia/assets/ico.png', sizes: '180x180', type: 'image/png' },
+      { url: '/zodia/assets/logo.png', sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/zodia/assets/ico.png',
+    shortcut: '/zodia/assets/logo.png',
   },
   openGraph: {
     title: 'Zodia | Astrología & Compatibilidad Consciente',
@@ -52,7 +53,7 @@ export const metadata = {
     siteName: 'Zodia',
     images: [
       {
-        url: 'https://zodia.studiopixel.cl/zodia/assets/ico.png',
+        url: 'https://zodia.studiopixel.cl/zodia/assets/logo.png',
         width: 1024,
         height: 1024,
         type: 'image/png',
@@ -66,7 +67,7 @@ export const metadata = {
     card: 'summary',
     title: 'Zodia | Astrología & Compatibilidad Consciente',
     description: 'Conexiones auténticas basadas en quién eres realmente. Descubre tu perfil astral, química de elementos y numerología.',
-    images: ['https://zodia.studiopixel.cl/zodia/assets/ico.png'],
+    images: ['https://zodia.studiopixel.cl/zodia/assets/logo.png'],
   },
 };
 
@@ -75,12 +76,12 @@ export default function RootLayout({ children }) {
     <html lang="es" className={`${cinzel.variable} ${spaceGrotesk.variable}`}>
       <head>
         {/* Fallback directo para crawlers de WhatsApp y mensajería */}
-        <meta property="og:image" content="https://zodia.studiopixel.cl/zodia/assets/ico.png" />
-        <meta property="og:image:secure_url" content="https://zodia.studiopixel.cl/zodia/assets/ico.png" />
+        <meta property="og:image" content="https://zodia.studiopixel.cl/zodia/assets/logo.png" />
+        <meta property="og:image:secure_url" content="https://zodia.studiopixel.cl/zodia/assets/logo.png" />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1024" />
         <meta property="og:image:height" content="1024" />
-        <link rel="image_src" href="https://zodia.studiopixel.cl/zodia/assets/ico.png" />
+        <link rel="image_src" href="https://zodia.studiopixel.cl/zodia/assets/logo.png" />
       </head>
       <body>
         <AuthProvider>
