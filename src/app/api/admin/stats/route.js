@@ -1,4 +1,5 @@
 import { checkAdminSession } from '../../../../lib/admin-auth';
+import { ensureDatabaseSchema } from '../../../../lib/db-init';
 
 export const runtime = 'edge';
 
@@ -55,12 +56,14 @@ export async function GET(request) {
   }
 
   try {
+    await ensureDatabaseSchema(db);
+
     const REAL_USERS_FILTER = `
       WHERE id NOT LIKE 'candidate_%' 
         AND id NOT LIKE 'guide_%' 
         AND id != 'zodia_bot' 
         AND (email IS NULL OR email NOT LIKE '%@zodia.eter')
-        AND id NOT IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+        AND id != 'tuner_bot_spam'
     `;
 
     const usersCountRes = await db.prepare(`SELECT COUNT(*) as count FROM users ${REAL_USERS_FILTER}`).first();

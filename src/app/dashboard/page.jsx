@@ -162,6 +162,22 @@ export default function Dashboard() {
           user_image: activeUser.image
         });
         setAvatarSrc(activeUser.image);
+
+        // Sincronizar automáticamente en segundo plano con Cloudflare D1 para garantizar visibilidad
+        apiFetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: activeUser.name,
+            image: activeUser.image,
+            dob: activeUser.dob || '1998-07-15'
+          })
+        }).then(r => r.json()).then(res => {
+          if (res?.profile) {
+            setProfile(res.profile);
+            if (res.profile.user_image) setAvatarSrc(res.profile.user_image);
+          }
+        }).catch(() => {});
       } else {
         window.location.href = '/zodia';
       }

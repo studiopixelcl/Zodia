@@ -1,3 +1,6 @@
+import { ensureDatabaseSchema } from '../../../../../lib/db-init';
+import { calculateAstralProfile } from '../../../../../lib/astrology';
+
 export const runtime = 'edge';
 
 const COOKIE_NAME = 'next-auth.session-token';
@@ -220,7 +223,6 @@ export async function GET(request) {
 
     if (db) {
       try {
-        const { ensureDatabaseSchema } = await import('../../../../../lib/db-init');
         await ensureDatabaseSchema(db);
 
         // Buscar si ya existe una cuenta registrada con este correo (o ID previo)
@@ -234,28 +236,40 @@ export async function GET(request) {
         if (existing) {
           isExistingUser = true;
           finalUserId = existing.id;
-          finalName = existing.nombre_actual || existing.nombre_completo || existing.name || name;
-          finalImage = existing.avatar_url || existing.image || image;
+          finalName = name || existing.nombre_actual || existing.nombre_completo || existing.name;
+          finalImage = image || existing.avatar_url || existing.image;
           finalDob = existing.fecha_nacimiento || '';
 
-          // Actualizar imagen o nombre si faltaban
-          await db.prepare(`
-            UPDATE users 
-            SET name = COALESCE(name, ?),
-                nombre_actual = COALESCE(nombre_actual, ?),
-                nombre_completo = COALESCE(nombre_completo, ?),
-                image = COALESCE(image, ?), 
-                avatar_url = COALESCE(avatar_url, ?), 
-                status = 'active'
-            WHERE id = ?
-          `).bind(name, name, name, image, image, existing.id).run();
+          // Actualizar imagen o nombre si venían desde Google
+          try {
+            await db.prepare(`
+              UPDATE users 
+              SET name = COALESCE(?, name),
+                  nombre_actual = COALESCE(?, nombre_actual),
+                  nombre_completo = COALESCE(?, nombre_completo),
+                  image = COALESCE(?, image), 
+                  avatar_url = COALESCE(?, avatar_url), 
+                  status = 'active'
+              WHERE id = ?
+            `).bind(name, name, name, image, image, existing.id).run();
+          } catch (upErr) {
+            console.warn('[Google Callback Update Warning]:', upErr.message);
+          }
         } else {
-          // Usuario nuevo: registrarlo en D1
+          // Usuario nuevo: registrarlo en D1 con fallback resiliente
           finalUserId = candidateId;
-          await db.prepare(`
-            INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active')
-          `).bind(finalUserId, email, name, name, name, image, image).run();
+          try {
+            await db.prepare(`
+              INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status)
+              VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active')
+            `).bind(finalUserId, email, name, name, name, image, image).run();
+          } catch (insFullErr) {
+            console.warn('[Google Callback] Fallback a inserción básica de usuario:', insFullErr.message);
+            await db.prepare(`
+              INSERT INTO users (id, email, name, image)
+              VALUES (?, ?, ?, ?)
+            `).bind(finalUserId, email, name, image).run();
+          }
         }
 
         // Si no tiene fecha de nacimiento en users, revisar si ya existía en astral_profiles
@@ -266,10 +280,37 @@ export async function GET(request) {
             ).bind(finalUserId, email).first();
             if (astral?.birth_date) {
               finalDob = astral.birth_date;
-              await db.prepare("UPDATE users SET fecha_nacimiento = ? WHERE id = ?").bind(finalDob, finalUserId).run();
+              try {
+                await db.prepare("UPDATE users SET fecha_nacimiento = ? WHERE id = ?").bind(finalDob, finalUserId).run();
+              } catch {}
             }
           } catch {}
         }
+
+        // Crear/Asegurar inmediatamente perfil astral inicial para visibilidad garantizada en Citas y Administración
+        try {
+          const defaultDob = (finalDob && finalDob.length >= 8) ? finalDob : '1998-07-15';
+          const astral = calculateAstralProfile(defaultDob);
+
+          await db.prepare(`
+            INSERT INTO astral_profiles (
+              user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, intent, location
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Citas y Pareja', 'Santiago, Chile')
+            ON CONFLICT(user_id) DO NOTHING
+          `).bind(
+            finalUserId,
+            defaultDob,
+            astral.sign,
+            astral.element,
+            astral.lifePath,
+            astral.archetype,
+            astral.luz,
+            astral.sombra
+          ).run();
+        } catch (astralErr) {
+          console.warn('[Google Callback] Astral profile insert warning:', astralErr.message);
+        }
+
       } catch (dbErr) {
         console.error('[Google OAuth Callback] D1 Error:', dbErr);
         if (!finalUserId) finalUserId = 'tuner_' + email.replace(/[@.]/g, '_');

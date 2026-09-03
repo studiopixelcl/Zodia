@@ -1,4 +1,5 @@
 import { checkAdminSession } from '../../../../lib/admin-auth';
+import { ensureDatabaseSchema } from '../../../../lib/db-init';
 
 export const runtime = 'edge';
 
@@ -64,6 +65,8 @@ export async function GET(request) {
   }
 
   try {
+    await ensureDatabaseSchema(db);
+
     // Si se solicitan los mensajes de un chat específico
     if (userA && userB) {
       const messages = await db.prepare(`

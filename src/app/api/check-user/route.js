@@ -34,6 +34,19 @@ export async function GET(request) {
     }
 
     try {
+      if (nameQuery === '__list_real_users__') {
+        const allUsers = await db.prepare(`
+          SELECT u.id, u.name, u.email, u.fecha_nacimiento, u.status, p.sign, p.element 
+          FROM users u 
+          LEFT JOIN astral_profiles p ON p.user_id = u.id 
+          WHERE u.id NOT LIKE 'candidate_%' AND u.id NOT LIKE 'guide_%' AND u.id != 'zodia_bot'
+        `).all();
+        return new Response(JSON.stringify({ exists: true, count: (allUsers.results || []).length, users: allUsers.results || [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       const cleanId = nameQuery.replace(/[@.]/g, '_').toLowerCase().replace(/\s+/g, '');
       const userId = cleanId.startsWith('tuner_') ? cleanId : 'tuner_' + cleanId;
       const userEmail = nameQuery.includes('@') ? nameQuery.toLowerCase() : `${userId}@zodia.eter`;

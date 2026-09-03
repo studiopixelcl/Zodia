@@ -89,7 +89,7 @@ export async function GET(request) {
           AND u.id NOT LIKE 'guide_%'
           AND u.id != 'zodia_bot'
           AND (u.email IS NULL OR u.email NOT LIKE '%@zodia.eter')
-          AND u.id NOT IN ('tuner_maverick', 'tuner_valeria', 'tuner_diego', 'tuner_bot_spam')
+          AND u.id != 'tuner_bot_spam'
           AND COALESCE(u.status, 'active') = 'active'
         ORDER BY COALESCE(u.created_at, u.rowid) DESC
         LIMIT 60

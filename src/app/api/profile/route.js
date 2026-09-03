@@ -91,11 +91,40 @@ export async function GET(request) {
          OR p.user_id IN (SELECT id FROM users WHERE LOWER(email) = LOWER(?))
     `).bind(searchId, userEmail, userEmail).first();
 
-    // Si el usuario existe en users pero aún no tenía fila en astral_profiles, generarla automáticamente
+    // Si el usuario o el perfil astral no existían en D1, generarlos y registrarlos inmediatamente
     if (!profile) {
-      const u = await db.prepare(
+      let u = await db.prepare(
         "SELECT id, name, nombre_actual, nombre_completo, email, image, avatar_url, fecha_nacimiento FROM users WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))"
       ).bind(searchId, userEmail).first();
+
+      // Si no existía en users pero tiene sesión activa válida, auto-registrarlo en users
+      if (!u && token && (token.email || token.name)) {
+        const fallbackName = token.name || 'Sintonizador';
+        const fallbackEmail = userEmail || `${searchId}@zodia.eter`;
+        const fallbackImage = token.picture || token.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=0284c7&color=fff&bold=true`;
+        const fallbackDob = token.dob || '1998-07-15';
+
+        try {
+          await db.prepare(`
+            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            ON CONFLICT(id) DO UPDATE SET
+              name = COALESCE(users.name, excluded.name),
+              nombre_actual = COALESCE(users.nombre_actual, excluded.nombre_actual),
+              image = COALESCE(users.image, excluded.image),
+              avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
+              status = 'active'
+          `).bind(searchId, fallbackEmail, fallbackName, fallbackName, fallbackName, fallbackDob, fallbackImage, fallbackImage).run();
+        } catch (uInsErr) {
+          try {
+            await db.prepare(`
+              INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)
+            `).bind(searchId, fallbackEmail, fallbackName, fallbackImage).run();
+          } catch {}
+        }
+
+        u = await db.prepare("SELECT * FROM users WHERE id = ?").bind(searchId).first();
+      }
 
       if (u) {
         const effectiveDob = u.fecha_nacimiento || token.dob || '1998-07-15';
@@ -107,7 +136,10 @@ export async function GET(request) {
             INSERT INTO astral_profiles (
               user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, intent, location
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Citas y Pareja', 'Santiago, Chile')
-            ON CONFLICT(user_id) DO NOTHING
+            ON CONFLICT(user_id) DO UPDATE SET
+              birth_date = COALESCE(astral_profiles.birth_date, excluded.birth_date),
+              sign = COALESCE(astral_profiles.sign, excluded.sign),
+              element = COALESCE(astral_profiles.element, excluded.element)
           `).bind(
             effectiveId,
             effectiveDob,
