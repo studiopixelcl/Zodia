@@ -210,6 +210,45 @@ export async function GET(request) {
     }
   }
 
+  if (!db) {
+    try {
+      const { devStore } = await import('../../../lib/dev-store');
+      const relatedMsgs = (devStore.messages || []).filter(m => 
+        m.sender_id === myCanonicalId || m.sender_id === myRawId ||
+        m.receiver_id === myCanonicalId || m.receiver_id === myRawId
+      );
+
+      const otherUserIds = Array.from(new Set(relatedMsgs.map(m => 
+        (m.sender_id === myCanonicalId || m.sender_id === myRawId) ? m.receiver_id : m.sender_id
+      )));
+
+      for (const otherId of otherUserIds) {
+        const msgs = relatedMsgs.filter(m => 
+          (m.sender_id === otherId && (m.receiver_id === myCanonicalId || m.receiver_id === myRawId)) ||
+          ((m.sender_id === myCanonicalId || m.sender_id === myRawId) && m.receiver_id === otherId)
+        );
+        const lastMsg = msgs[msgs.length - 1];
+        const cand = DATING_CANDIDATES.find(c => c.id === otherId);
+
+        resultVinculos.push({
+          id: otherId,
+          name: cand?.name || otherId.replace('tuner_', '').replace(/_/g, ' '),
+          image: cand?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherId)}&background=06b6d4&color=fff`,
+          sign: cand?.sign || 'Cosmos',
+          element: cand?.element || 'Éter',
+          path: cand?.life_path_number || '∞',
+          affinity: '92%',
+          lastMessage: lastMsg ? lastMsg.content : null,
+          lastMessageDate: lastMsg ? lastMsg.created_at : null,
+          isSelfSender: lastMsg ? (lastMsg.sender_id === myCanonicalId || lastMsg.sender_id === myRawId) : false,
+          isNewMatch: !lastMsg
+        });
+      }
+    } catch (devErr) {
+      console.error('[DEV VINCULOS ERROR]:', devErr);
+    }
+  }
+
   if (resultVinculos.length === 0) {
     resultVinculos = DEFAULT_VINCULOS_GUIDES;
   } else {

@@ -93,7 +93,16 @@ export async function GET(request) {
   const myRawId = resolveUserId(token);
 
   if (!db) {
-    return NextResponse.json([]);
+    try {
+      const { devStore } = await import('../../../lib/dev-store');
+      const filtered = (devStore.messages || []).filter(m => 
+        ((m.sender_id === myCanonicalId || m.sender_id === myRawId) && (m.receiver_id === withUserId)) ||
+        ((m.sender_id === withUserId) && (m.receiver_id === myCanonicalId || m.receiver_id === myRawId))
+      );
+      return NextResponse.json(filtered);
+    } catch {
+      return NextResponse.json([]);
+    }
   }
 
   try {
@@ -173,16 +182,34 @@ export async function POST(request) {
   const isGuideOrBot = actualReceiverId.startsWith('guide_') || actualReceiverId.startsWith('candidate_') || actualReceiverId === 'zodia_bot';
 
   if (!db) {
-    const mockResponse = [userMsgObj];
-    if (isGuideOrBot) {
-      mockResponse.push({
-        id: Date.now() + 1,
-        sender_id: actualReceiverId,
-        receiver_id: myId,
-        content: generateGuideReply(actualReceiverId, cleanContent),
-        created_at: new Date(Date.now() + 1000).toISOString()
-      });
-    }
+    try {
+      const { devStore } = await import('../../../lib/dev-store');
+      devStore.messages.push(userMsgObj);
+      if (!isGuideOrBot) {
+        devStore.resonances.push({ user_a_id: myId, user_b_id: actualReceiverId, score: 92 });
+        // Emitir notificación in-app en memoria
+        const isAudio = cleanContent.includes('"type":"audio"');
+        const preview = isAudio ? '🎤 Te envió una nota de voz cósmica' : (cleanContent.length > 50 ? cleanContent.slice(0, 50) + '...' : cleanContent);
+        devStore.notifications.unshift({
+          id: Date.now(),
+          user_id: actualReceiverId,
+          title: `${token.name || 'Alguien'} te envió un mensaje 💬`,
+          body: preview,
+          url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
+          type: 'message',
+          is_read: 0,
+          created_at: new Date().toISOString()
+        });
+      } else {
+        devStore.messages.push({
+          id: Date.now() + 1,
+          sender_id: actualReceiverId,
+          receiver_id: myId,
+          content: generateGuideReply(actualReceiverId, cleanContent),
+          created_at: new Date(Date.now() + 1000).toISOString()
+        });
+      }
+    } catch {}
     return NextResponse.json(userMsgObj);
   }
 

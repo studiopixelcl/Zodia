@@ -40,6 +40,23 @@ export async function ensureNotificationTables(db) {
 export async function sendNotification({ db, userId, title, body, url = '/zodia/dashboard', type = 'general' }) {
   if (!userId || !title) return { success: false, error: 'Faltan parámetros' };
 
+  if (!db) {
+    try {
+      const { devStore } = await import('./dev-store');
+      devStore.notifications.unshift({
+        id: Date.now(),
+        user_id: userId,
+        title,
+        body,
+        url,
+        type,
+        is_read: 0,
+        created_at: new Date().toISOString()
+      });
+    } catch {}
+    return { success: true };
+  }
+
   if (db) {
     try {
       await ensureNotificationTables(db);

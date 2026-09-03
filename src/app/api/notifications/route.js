@@ -25,7 +25,18 @@ export async function GET(request) {
   const userId = resolveUserId(token);
 
   if (!db) {
-    return NextResponse.json({ notifications: [], unreadCount: 0 });
+    try {
+      const { devStore } = await import('../../../lib/dev-store');
+      const userNotifs = (devStore.notifications || []).filter(n => n.user_id === userId);
+      const unreadCount = userNotifs.filter(n => !n.is_read).length;
+      const { searchParams } = new URL(request.url);
+      if (searchParams.get('mark_read') === 'true') {
+        userNotifs.forEach(n => { n.is_read = 1; });
+      }
+      return NextResponse.json({ notifications: userNotifs.slice(0, 15), unreadCount });
+    } catch {
+      return NextResponse.json({ notifications: [], unreadCount: 0 });
+    }
   }
 
   try {
