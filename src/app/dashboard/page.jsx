@@ -11,6 +11,7 @@ import { TabVinculos } from '../../components/astral/TabVinculos';
 import { TabJuegos }   from '../../components/astral/TabJuegos';
 import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
+import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
 
 // ─── PANTALLA DE ESPERA COMPARTIDA ────────────────────────────────────────────
@@ -161,13 +162,16 @@ export default function Dashboard() {
 
       {/* Header Fijo Arriba */}
       <header className="shrink-0 flex justify-between items-center px-3 pt-2 sm:pt-3 pb-2 border-b border-white/5 bg-[#030308]/80 backdrop-blur-md z-30">
-        <div>
-          <h2 className="mystic-font text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-widest font-extrabold leading-none">
-            ZODIA
-          </h2>
-          <p className="text-[9px] sm:text-[10px] text-cyan-400/80 uppercase tracking-widest font-medium mt-0.5">
-            Citas & Conexión Astral
-          </p>
+        <div className="flex items-center gap-2.5">
+          <ZodiaLogo size="xs" showText={false} />
+          <div>
+            <h2 className="mystic-font text-lg sm:text-xl text-white tracking-widest font-extrabold leading-none">
+              ZODIA
+            </h2>
+            <p className="text-[9px] text-slate-400 uppercase tracking-wider font-medium mt-0.5">
+              Compatibilidad & Conexiones
+            </p>
+          </div>
         </div>
         <button
           onClick={handleSignOut}

@@ -1,59 +1,50 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function ZodiaLogo({ size = 'md', showText = true, className = '', textClassName = '' }) {
+  const [imgError, setImgError] = useState(false);
+
   const sizeMap = {
-    xs: { icon: 20, box: 'w-6 h-6', text: 'text-sm tracking-[0.2em]' },
-    sm: { icon: 26, box: 'w-8 h-8', text: 'text-base tracking-[0.22em]' },
-    md: { icon: 34, box: 'w-10 h-10', text: 'text-xl tracking-[0.25em]' },
-    lg: { icon: 44, box: 'w-12 h-12', text: 'text-2xl tracking-[0.28em]' },
-    xl: { icon: 56, box: 'w-16 h-16', text: 'text-3xl tracking-[0.3em]' }
+    xs: { box: 'w-6 h-6 rounded-lg', text: 'text-sm tracking-[0.2em]' },
+    sm: { box: 'w-8 h-8 rounded-xl', text: 'text-base tracking-[0.22em]' },
+    md: { box: 'w-10 h-10 rounded-2xl', text: 'text-xl tracking-[0.25em]' },
+    lg: { box: 'w-12 h-12 rounded-2xl', text: 'text-2xl tracking-[0.28em]' },
+    xl: { box: 'w-16 h-16 rounded-3xl', text: 'text-3xl tracking-[0.3em]' }
   };
 
   const currentSize = sizeMap[size] || sizeMap.md;
 
   return (
     <div className={`flex items-center gap-3 select-none group ${className}`}>
-      {/* Isotipo Zodia SVG */}
-      <div className={`relative ${currentSize.box} shrink-0 rounded-2xl bg-[#0b0e1a]/90 border border-white/10 flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-all duration-300 group-hover:border-sky-400/40 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.25)]`}>
-        <svg
-          viewBox="0 0 100 100"
-          width="75%"
-          height="75%"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="transition-transform duration-500 group-hover:scale-105"
-        >
-          <defs>
-            <linearGradient id="zodiaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#38BDF8" />
-              <stop offset="50%" stopColor="#818CF8" />
-              <stop offset="100%" stopColor="#F59E0B" />
-            </linearGradient>
-            <linearGradient id="orbitGradMini" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="rgba(56,189,248,0.5)" />
-              <stop offset="100%" stopColor="rgba(245,158,11,0.3)" />
-            </linearGradient>
-          </defs>
-
-          {/* Órbita sutil */}
-          <g transform="translate(50, 50) rotate(-28)">
-            <ellipse cx="0" cy="0" rx="42" ry="16" stroke="url(#orbitGradMini)" strokeWidth="1.2" strokeDasharray="3 3" />
-            <circle cx="41" cy="-4" r="2" fill="#38BDF8" />
-          </g>
-
-          {/* Monograma geométrico Z */}
-          <path
-            d="M26 30 H74 L68 37 H34 L74 65 H26 L32 58 H66 Z"
-            fill="url(#zodiaGradient)"
+      {/* Isotipo Oficial Zodia */}
+      <div className={`relative ${currentSize.box} shrink-0 overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)] border border-white/10 transition-all duration-300 group-hover:scale-105 group-hover:border-sky-400/50 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.35)]`}>
+        {!imgError ? (
+          <img
+            src="/zodia/assets/ico.png"
+            alt="Zodia"
+            className="w-full h-full object-cover select-none"
+            onError={(e) => {
+              if (e.currentTarget.src.includes('/zodia/')) {
+                e.currentTarget.src = '/assets/ico.png';
+              } else {
+                setImgError(true);
+              }
+            }}
           />
-
-          {/* Estrella guía de 4 puntas */}
-          <path
-            d="M50 43 L51.5 48.5 L57 50 L51.5 51.5 L50 57 L48.5 51.5 L43 50 L48.5 48.5 Z"
-            fill="#FFFFFF"
-          />
-        </svg>
+        ) : (
+          /* SVG Fallback vectorial */
+          <div className="w-full h-full bg-[#0b0e1a] flex items-center justify-center">
+            <svg viewBox="0 0 100 100" width="75%" height="75%" fill="none">
+              <defs>
+                <linearGradient id="fallbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#38BDF8" />
+                  <stop offset="100%" stopColor="#F59E0B" />
+                </linearGradient>
+              </defs>
+              <path d="M26 30 H74 L68 37 H34 L74 65 H26 L32 58 H66 Z" fill="url(#fallbackGrad)" />
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* Logotipo tipográfico */}

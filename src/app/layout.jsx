@@ -33,8 +33,8 @@ export const metadata = {
     title: 'Zodia',
   },
   icons: {
-    icon: '/zodia/assets/icon.svg',
-    apple: '/zodia/assets/icon.svg',
+    icon: '/zodia/assets/ico.png',
+    apple: '/zodia/assets/ico.png',
   },
 };
 
