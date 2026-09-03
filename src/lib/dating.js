@@ -154,6 +154,7 @@ export const DATING_CANDIDATES = [
       "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&auto=format&fit=crop&q=80",
       "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&auto=format&fit=crop&q=80"
     ],
+    video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     interests: ["Lectura de Tarot", "Fotografía", "Vino natural", "Arte contemporáneo"],
     likesYou: true
   },

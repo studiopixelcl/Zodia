@@ -1,9 +1,10 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { 
   Sparkles, Flame, Mountain, Wind, Droplets, Filter, ArrowRight, 
   MapPin, Heart, MessageCircle, X, Star, Shield, RotateCcw, 
-  Zap, Search, ChevronRight, Check, Compass, SlidersHorizontal, Info, Eye
+  Zap, Search, ChevronRight, Check, Compass, SlidersHorizontal, Info, Eye,
+  Play, Video
 } from 'lucide-react';
 import { getZodiacSymbol } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers, DATING_INTERESTS } from '../../lib/dating';
@@ -23,7 +24,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
 
   // Estados del Deck de Swipe
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [photoIndex, setPhotoIndex] = useState(0);
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [mediaProgress, setMediaProgress] = useState(0); // Progreso de 0 a 100%
+  const [isHoldingMedia, setIsHoldingMedia] = useState(false); // Pausa al presionar
   const [swipedHistory, setSwipedHistory] = useState([]); // para Deshacer
   const [swipeDirection, setSwipeDirection] = useState(null); // 'left' | 'right' | 'up'
 
@@ -126,18 +129,21 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
     const lastSwiped = swipedHistory[swipedHistory.length - 1];
     setSwipedHistory(prev => prev.slice(0, -1));
     setCurrentIndex(lastSwiped.index);
-    setPhotoIndex(0);
+    setMediaIndex(0);
+    setMediaProgress(0);
   };
 
-  // Navegación de fotos dentro de la tarjeta
-  const handleNextPhoto = (e, totalPhotos) => {
-    e.stopPropagation();
-    setPhotoIndex(prev => (prev + 1) % totalPhotos);
+  // Navegación de multimedia (video / fotos) dentro de la tarjeta
+  const handleNextMedia = (e, totalItems) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    setMediaIndex(prev => (prev + 1) % totalItems);
+    setMediaProgress(0);
   };
 
-  const handlePrevPhoto = (e, totalPhotos) => {
-    e.stopPropagation();
-    setPhotoIndex(prev => (prev - 1 + totalPhotos) % totalPhotos);
+  const handlePrevMedia = (e, totalItems) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    setMediaIndex(prev => (prev - 1 + totalItems) % totalItems);
+    setMediaProgress(0);
   };
 
   // Gestos táctiles y ratón para arrastrar tarjeta (Swipe)
@@ -158,6 +164,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   const handleTouchEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
+    setIsHoldingMedia(false);
 
     // Umbral para confirmar like / pass / superlike
     const threshold = 100;
@@ -174,7 +181,51 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
 
   // Candidato actual en el modo Swipe
   const currentCandidate = candidates[currentIndex];
-  const photosList = currentCandidate?.photos?.length ? currentCandidate.photos : [currentCandidate?.image].filter(Boolean);
+
+  // Lista multimedia: Si contiene video_url, va de primero (índice 0), luego las fotos
+  const mediaList = useMemo(() => {
+    if (!currentCandidate) return [];
+    const items = [];
+    if (currentCandidate.video_url) {
+      items.push({ type: 'video', url: currentCandidate.video_url });
+    }
+    const rawPhotos = currentCandidate.photos?.length 
+      ? currentCandidate.photos 
+      : [currentCandidate.image].filter(Boolean);
+    
+    rawPhotos.slice(0, 5).forEach(photoUrl => {
+      items.push({ type: 'image', url: photoUrl });
+    });
+
+    return items.length > 0 ? items : [{ type: 'image', url: currentCandidate?.image || '/zodia/assets/ico.png' }];
+  }, [currentCandidate]);
+
+  // Resetear índice y progreso al cambiar de candidato
+  useEffect(() => {
+    setMediaIndex(0);
+    setMediaProgress(0);
+  }, [currentIndex]);
+
+  // Temporizador de avance automático cada 5 segundos (estilo Stories)
+  useEffect(() => {
+    if (isDragging || isHoldingMedia || mediaList.length <= 1) return;
+
+    const intervalTime = 50; // ms
+    const totalDuration = 5000; // 5 segundos
+    const step = (intervalTime / totalDuration) * 100;
+
+    const timer = setInterval(() => {
+      setMediaProgress(prev => {
+        if (prev >= 100) {
+          setMediaIndex(curr => (curr + 1) % mediaList.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [isDragging, isHoldingMedia, mediaList.length, mediaIndex]);
 
   return (
     <div className="h-full flex flex-col justify-between animate-fadeIn px-1 sm:px-2">
@@ -262,12 +313,33 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
               >
-                {/* Imagen del Candidato */}
-                <img
-                  src={photosList[photoIndex] || currentCandidate.image}
-                  alt={currentCandidate.name}
-                  className="w-full h-full object-cover pointer-events-none"
-                />
+                {/* Contenido Multimedia (Video prioritario o Fotos en rotación) */}
+                {mediaList[mediaIndex]?.type === 'video' ? (
+                  <video
+                    key={mediaList[mediaIndex]?.url}
+                    src={mediaList[mediaIndex]?.url}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover pointer-events-none"
+                  />
+                ) : (
+                  <img
+                    src={mediaList[mediaIndex]?.url || currentCandidate.image}
+                    alt={currentCandidate.name}
+                    className="w-full h-full object-cover pointer-events-none"
+                  />
+                )}
+
+                {/* Badge flotante de Mini Video */}
+                {mediaList[mediaIndex]?.type === 'video' && (
+                  <div className="absolute top-6 left-3 sm:left-4 z-20">
+                    <span className="px-2.5 py-1 rounded-full bg-black/75 border border-sky-400/60 backdrop-blur-md text-sky-300 font-extrabold text-[10px] flex items-center gap-1 shadow-md animate-pulse">
+                      <Play size={10} className="fill-sky-300" /> Mini Video 5s
+                    </span>
+                  </div>
+                )}
 
                 {/* Degradados de fondo para legibilidad */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
@@ -290,27 +362,41 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                   </div>
                 )}
 
-                {/* Barras de progreso de fotos superiores (estilo Instagram Stories) */}
-                {photosList.length > 1 && (
-                  <div className="absolute top-2.5 inset-x-3 sm:inset-x-4 flex gap-1 z-20">
-                    {photosList.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                          idx === photoIndex ? 'bg-white shadow-[0_0_8px_#ffffff]' : 'bg-white/30'
-                        }`}
-                      />
-                    ))}
+                {/* Barras de progreso superiores (estilo Instagram Stories, cada 5 segundos) */}
+                {mediaList.length > 1 && (
+                  <div className="absolute top-2.5 inset-x-3 sm:inset-x-4 flex gap-1.5 z-30">
+                    {mediaList.map((item, idx) => {
+                      const isPast = idx < mediaIndex;
+                      const isCurrent = idx === mediaIndex;
+                      return (
+                        <div key={idx} className="h-1 flex-1 rounded-full bg-white/25 overflow-hidden backdrop-blur-sm">
+                          <div
+                            className="h-full bg-white rounded-full transition-all duration-75 ease-linear shadow-[0_0_8px_#ffffff]"
+                            style={{
+                              width: isPast ? '100%' : isCurrent ? `${mediaProgress}%` : '0%'
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Zonas de toque para cambiar fotos */}
+                {/* Zonas de toque para cambiar fotos y mantener presionado para pausar */}
                 <div
-                  onClick={(e) => handlePrevPhoto(e, photosList.length)}
+                  onClick={(e) => handlePrevMedia(e, mediaList.length)}
+                  onMouseDown={() => setIsHoldingMedia(true)}
+                  onMouseUp={() => setIsHoldingMedia(false)}
+                  onTouchStart={() => setIsHoldingMedia(true)}
+                  onTouchEnd={() => setIsHoldingMedia(false)}
                   className="absolute left-0 top-0 bottom-1/3 w-1/3 z-10"
                 />
                 <div
-                  onClick={(e) => handleNextPhoto(e, photosList.length)}
+                  onClick={(e) => handleNextMedia(e, mediaList.length)}
+                  onMouseDown={() => setIsHoldingMedia(true)}
+                  onMouseUp={() => setIsHoldingMedia(false)}
+                  onTouchStart={() => setIsHoldingMedia(true)}
+                  onTouchEnd={() => setIsHoldingMedia(false)}
                   className="absolute right-0 top-0 bottom-1/3 w-2/3 z-10"
                 />
 
@@ -680,22 +766,39 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
               </div>
             </div>
 
-            {/* Galería de Fotos */}
-            {selectedCandidate.photos && selectedCandidate.photos.length > 1 && (
+            {/* Multimedia de Presentación (Video y Fotos) */}
+            {(selectedCandidate.video_url || (selectedCandidate.photos && selectedCandidate.photos.length > 0)) && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">
-                  Galería Astral
+                  Multimedia de Presentación
                 </span>
-                <div className="grid grid-cols-3 gap-2">
-                  {selectedCandidate.photos.map((photo, i) => (
-                    <img
-                      key={i}
-                      src={photo}
-                      alt={`Foto ${i + 1}`}
-                      className="w-full aspect-square object-cover rounded-xl border border-white/10 bg-black/40"
+                {selectedCandidate.video_url && (
+                  <div className="relative rounded-2xl overflow-hidden border border-sky-400/40 bg-black mb-2">
+                    <video
+                      src={selectedCandidate.video_url}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-44 object-cover"
                     />
-                  ))}
-                </div>
+                    <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                      <Play size={10} className="fill-sky-300" /> Mini Video 5s
+                    </span>
+                  </div>
+                )}
+                {selectedCandidate.photos && selectedCandidate.photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedCandidate.photos.map((photo, i) => (
+                      <img
+                        key={i}
+                        src={photo}
+                        alt={`Foto ${i + 1}`}
+                        className="w-full aspect-square object-cover rounded-xl border border-white/10 bg-black/40"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

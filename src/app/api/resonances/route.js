@@ -71,6 +71,7 @@ export async function GET(request) {
         intent: o.intent ?? 'Citas y Pareja',
         location: o.location ?? 'Santiago, Chile',
         photos: o.photos ? (typeof o.photos === 'string' ? JSON.parse(o.photos) : o.photos) : [],
+        video_url: o.video_url || null,
         interests: o.interests ? (typeof o.interests === 'string' ? JSON.parse(o.interests) : o.interests) : ['Música indie', 'Café de especialidad', 'Astrología']
       }));
     } catch (err) {
@@ -92,10 +93,12 @@ export async function GET(request) {
         path: candidate.life_path_number,
         archetype: candidate.archetype,
         bio: candidate.bio,
-        intent: candidate.intent,
-        location: candidate.location,
+        intent: candidate.intent || 'Citas y Pareja',
+        location: candidate.location || 'Santiago, Chile',
         photos: candidate.photos || [candidate.image],
-        interests: candidate.interests || []
+        video_url: candidate.video_url || null,
+        interests: candidate.interests || ['Astrología', 'Música indie'],
+        likesYou: candidate.likesYou ?? false
       });
     }
   }

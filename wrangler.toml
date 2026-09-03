@@ -14,6 +14,10 @@ database_id = "fdafd4fb-34e5-4ee3-86d2-8331452e8d43"
 binding = "DB"
 database_name = "zodia_db"
 
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "zodia-media"
+
 [env.production]
 compatibility_date = "2024-11-11"
 compatibility_flags = [ "nodejs_compat" ]
@@ -22,3 +26,7 @@ compatibility_flags = [ "nodejs_compat" ]
 database_id = "fdafd4fb-34e5-4ee3-86d2-8331452e8d43"
 binding = "DB"
 database_name = "zodia_db"
+
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "zodia-media"

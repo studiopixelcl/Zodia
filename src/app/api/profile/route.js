@@ -92,7 +92,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Payload inválido.' }, { status: 400 });
   }
 
-  const { dob, name, image, bio, intent, location, photos, interests } = body;
+  const { dob, name, image, bio, intent, location, photos, video_url, interests } = body;
   const userId    = resolveUserId(token);
   const userName  = name ?? token.name ?? 'Sintonizador';
   const userEmail = token.email ?? `${userId}@zodia.eter`;
@@ -102,7 +102,7 @@ export async function POST(request) {
   }
 
   // Si es solo una actualización de avatar
-  if (image && !dob && bio === undefined && intent === undefined && photos === undefined && interests === undefined) {
+  if (image && !dob && bio === undefined && intent === undefined && photos === undefined && video_url === undefined && interests === undefined) {
     try {
       await db.prepare(`UPDATE users SET image = ? WHERE id = ?`)
         .bind(image, userId)
@@ -114,8 +114,8 @@ export async function POST(request) {
     }
   }
 
-  // Si es una actualización de detalles del perfil (bio, intent, location, photos, interests, name, image)
-  if (bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || interests !== undefined) {
+  // Si es una actualización de detalles del perfil (bio, intent, location, photos, video_url, interests, name, image)
+  if (bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || video_url !== undefined || interests !== undefined) {
     try {
       if (name || image) {
         await db.prepare(`
@@ -131,6 +131,9 @@ export async function POST(request) {
       try {
         await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN interests TEXT`).run();
       } catch {}
+      try {
+        await db.prepare(`ALTER TABLE astral_profiles ADD COLUMN video_url TEXT`).run();
+      } catch {}
 
       await db.prepare(`
         UPDATE astral_profiles
@@ -138,6 +141,7 @@ export async function POST(request) {
             intent = COALESCE(?, intent),
             location = COALESCE(?, location),
             photos = COALESCE(?, photos),
+            video_url = COALESCE(?, video_url),
             interests = COALESCE(?, interests)
         WHERE user_id = ?
       `).bind(
@@ -145,6 +149,7 @@ export async function POST(request) {
         intent ?? null,
         location ?? null,
         photos !== undefined ? photosStr : null,
+        video_url !== undefined ? video_url : null,
         interests !== undefined ? interestsStr : null,
         userId
       ).run();

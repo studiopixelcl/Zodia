@@ -4,7 +4,13 @@ import { zodiacData, archetypes, getZodiacSymbol, ZODIAC_DETAILS, LIFE_PATH_DETA
 import { CATEGORIZED_INTERESTS } from '../../lib/dating';
 import { ZodiacBadge } from './ZodiacBadge';
 import { apiFetch } from '../../lib/api';
-import { Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon } from 'lucide-react';
+import { 
+  Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, 
+  MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, 
+  Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon,
+  Video, Play, Film, UploadCloud, Loader2
+} from 'lucide-react';
+import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab }) => {
@@ -59,17 +65,24 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
   };
   const [editInterests, setEditInterests] = useState(initialInterests());
   
-  // Fotos de presentación (Galería)
+  // Fotos y Video de presentación (Galería)
   const initialPhotos = () => {
     if (!profile?.photos) return [];
-    if (Array.isArray(profile.photos)) return profile.photos;
+    if (Array.isArray(profile.photos)) return profile.photos.slice(0, 5);
     try {
-      return JSON.parse(profile.photos);
+      const parsed = JSON.parse(profile.photos);
+      return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
     } catch {
       return [];
     }
   };
   const [editPhotos, setEditPhotos] = useState(initialPhotos());
+  const [editVideoUrl, setEditVideoUrl] = useState(profile?.video_url ?? null);
+
+  // Estados de progreso de compresión y subida
+  const [isProcessingMedia, setIsProcessingMedia] = useState(false);
+  const [mediaProgressMsg, setMediaProgressMsg] = useState('');
+  const [mediaProgressPercent, setMediaProgressPercent] = useState(0);
 
   useEffect(() => {
     if (profile) {
@@ -78,6 +91,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
       setEditIntent(profile.intent ?? 'Citas y Pareja');
       setEditLocation(profile.location ?? 'Santiago, Chile');
       setEditPhotos(initialPhotos());
+      setEditVideoUrl(profile.video_url ?? null);
       setEditInterests(initialInterests());
     }
   }, [profile, user]);
@@ -88,25 +102,133 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
     editName || user?.name || 'Maverick'
   );
 
-  // Manejador para agregar fotos a la galería
-  const handleAddPhoto = (e) => {
+  // Manejador para agregar fotos a la galería con compresión WebP
+  const handleAddPhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      alert('La imagen no debe superar los 3 MB.');
+    if (editPhotos.length >= 5) {
+      alert('Has alcanzado el límite máximo de 5 fotografías.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target.result;
-      setEditPhotos(prev => [...prev.slice(0, 5), base64]);
-    };
-    reader.readAsDataURL(file);
+
+    setIsProcessingMedia(true);
+    setMediaProgressMsg('Comprimiendo imagen a WebP...');
+    setMediaProgressPercent(30);
+
+    try {
+      const compressed = await compressImage(file, 1280, 0.82);
+      setMediaProgressMsg('Subiendo foto optimizada...');
+      setMediaProgressPercent(70);
+
+      const formData = new FormData();
+      formData.append('file', compressed.file);
+      formData.append('type', 'photo');
+
+      const res = await apiFetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir la fotografía');
+
+      const updatedPhotos = [...editPhotos.slice(0, 4), data.url];
+      setEditPhotos(updatedPhotos);
+
+      // Persistir automáticamente en el perfil
+      await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: updatedPhotos })
+      });
+
+      setSaveSuccessMsg('Fotografía añadida y optimizada con éxito');
+      setTimeout(() => setSaveSuccessMsg(null), 2500);
+    } catch (err) {
+      alert(err.message || 'Ocurrió un error al procesar la fotografía.');
+    } finally {
+      setIsProcessingMedia(false);
+      setMediaProgressMsg('');
+      setMediaProgressPercent(0);
+      e.target.value = '';
+    }
   };
 
   // Eliminar foto de la galería
-  const handleRemovePhoto = (index) => {
-    setEditPhotos(prev => prev.filter((_, i) => i !== index));
+  const handleRemovePhoto = async (index) => {
+    const updatedPhotos = editPhotos.filter((_, i) => i !== index);
+    setEditPhotos(updatedPhotos);
+    try {
+      await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photos: updatedPhotos })
+      });
+    } catch {}
+  };
+
+  // Manejador para subir y recortar automáticamente el mini video a 5 segundos
+  const handleAddVideo = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingMedia(true);
+    setMediaProgressMsg('Recortando video automáticamente a 5.0 segundos...');
+    setMediaProgressPercent(15);
+
+    try {
+      const trimmed = await trimAndOptimizeVideo(file, 5.0, (pct) => {
+        setMediaProgressPercent(Math.round(15 + pct * 0.6));
+      });
+
+      setMediaProgressMsg('Subiendo mini video a Cloudflare R2...');
+      setMediaProgressPercent(80);
+
+      const formData = new FormData();
+      formData.append('file', trimmed.file);
+      formData.append('type', 'video');
+
+      const res = await apiFetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir el video');
+
+      setEditVideoUrl(data.url);
+
+      // Persistir automáticamente en el perfil
+      await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_url: data.url })
+      });
+
+      setSaveSuccessMsg(
+        trimmed.wasTrimmed 
+          ? 'Video recortado automáticamente a 5.0s y optimizado con éxito.' 
+          : 'Mini video de 5s guardado con éxito.'
+      );
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    } catch (err) {
+      alert(err.message || 'Error al procesar el video.');
+    } finally {
+      setIsProcessingMedia(false);
+      setMediaProgressMsg('');
+      setMediaProgressPercent(0);
+      e.target.value = '';
+    }
+  };
+
+  // Eliminar mini video
+  const handleRemoveVideo = async () => {
+    setEditVideoUrl(null);
+    try {
+      await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_url: null })
+      });
+    } catch {}
   };
 
   // Guardar cambios del perfil
@@ -125,6 +247,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           intent: editIntent,
           location: editLocation,
           photos: editPhotos,
+          video_url: editVideoUrl,
           interests: editInterests
         }),
       });
@@ -309,58 +432,163 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         </div>
       </div>
 
-      {/* ── 3. GALERÍA DE FOTOS DE PRESENTACIÓN (TINDER/INSTAGRAM STYLE) ── */}
-      <div className="glass-panel p-6 border border-white/10">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="mystic-font text-lg text-white flex items-center gap-2">
-            <ImageIcon className="text-purple-400" size={18} /> Fotos de Presentación
-          </h4>
-          <span className="text-xs text-cyan-400 font-semibold">{editPhotos.length} / 6 fotos</span>
+      {/* ── 3. MULTIMEDIA DE PRESENTACIÓN (1 MINI VIDEO 5S + 5 FOTOS WEBP) ── */}
+      <div className="glass-panel p-5 sm:p-6 border border-white/10 space-y-5">
+        
+        {/* Cabecera del módulo multimedia */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
+          <div>
+            <h4 className="mystic-font text-lg text-white flex items-center gap-2">
+              <Film className="text-sky-400" size={19} /> Multimedia de Presentación
+            </h4>
+            <p className="text-xs text-slate-400 mt-0.5">
+              1 mini video de 5s (reproducción prioritaria en Citas) + hasta 5 fotografías optimizadas en R2.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+              editVideoUrl ? 'bg-sky-500/10 border-sky-400/40 text-sky-300' : 'bg-white/[0.03] border-white/10 text-slate-400'
+            }`}>
+              Video: {editVideoUrl ? '1 / 1' : '0 / 1'}
+            </span>
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+              editPhotos.length > 0 ? 'bg-purple-500/10 border-purple-400/40 text-purple-300' : 'bg-white/[0.03] border-white/10 text-slate-400'
+            }`}>
+              Fotos: {editPhotos.length} / 5
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {editPhotos.map((photoUrl, idx) => (
-            <div
-              key={idx}
-              onClick={() => setActiveLightboxImg(photoUrl)}
-              className="relative aspect-square rounded-2xl overflow-hidden border border-cyan-500/30 group shadow-lg bg-black cursor-pointer hover:border-cyan-400 transition-all hover:scale-[1.02]"
-            >
-              <img src={photoUrl} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-              
-              {/* Overlay en hover */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <Maximize2 size={18} className="text-white" />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemovePhoto(idx);
-                  }}
-                  className="p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white transition"
-                  title="Eliminar foto"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-
-              {idx === 0 && (
-                <span className="absolute top-2 left-2 bg-cyan-500 text-black text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase shadow-md">
-                  Principal
-                </span>
+        {/* Feedback visual en vivo durante compresión y recorte */}
+        {isProcessingMedia && (
+          <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-400/30 flex items-center gap-3 animate-pulse">
+            <Loader2 className="animate-spin text-sky-400 shrink-0" size={20} />
+            <div className="flex-1">
+              <span className="text-xs font-bold text-white block">{mediaProgressMsg}</span>
+              {mediaProgressPercent > 0 && (
+                <div className="w-full bg-black/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-sky-400 to-indigo-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${mediaProgressPercent}%` }}
+                  />
+                </div>
               )}
             </div>
-          ))}
+          </div>
+        )}
 
-          {editPhotos.length < 6 && (
-            <label className="aspect-square rounded-2xl border-2 border-dashed border-cyan-500/30 hover:border-cyan-400 bg-cyan-500/5 hover:bg-cyan-500/10 transition flex flex-col items-center justify-center cursor-pointer text-cyan-400 gap-1.5 group">
-              <input type="file" accept="image/*" hidden onChange={handleAddPhoto} />
-              <div className="p-3 rounded-full bg-cyan-500/10 group-hover:scale-110 transition-transform">
-                <Plus size={24} />
+        {/* ── BLOQUE A: MINI VIDEO DE PRESENTACIÓN (MÁX 5 SEGUNDOS) ── */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Video size={14} /> Mini Video de Presentación (5s máx)
+            </span>
+            <span className="text-[10px] text-slate-400">Se reproduce primero en el carrusel de Citas</span>
+          </div>
+
+          {editVideoUrl ? (
+            <div className="relative rounded-2xl overflow-hidden border border-sky-500/40 bg-black group shadow-xl max-w-sm mx-auto">
+              <video
+                src={editVideoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-56 sm:h-64 object-cover"
+              />
+              
+              {/* Badge superior */}
+              <div className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase flex items-center gap-1 shadow-md">
+                <Play size={10} className="fill-sky-300" /> Mini Video 5s
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider">Añadir Foto</span>
+
+              {/* Botón de eliminación y reemplazo en hover */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                <label className="p-2.5 bg-sky-500 hover:bg-sky-400 rounded-full text-black transition cursor-pointer shadow-lg" title="Cambiar video">
+                  <input type="file" accept="video/*" hidden onChange={handleAddVideo} />
+                  <UploadCloud size={16} />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRemoveVideo}
+                  className="p-2.5 bg-rose-500 hover:bg-rose-600 rounded-full text-white transition shadow-lg"
+                  title="Eliminar video"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label className="p-6 rounded-2xl border-2 border-dashed border-sky-500/30 hover:border-sky-400 bg-sky-500/[0.03] hover:bg-sky-500/[0.07] transition flex flex-col items-center justify-center cursor-pointer text-center group">
+              <input type="file" accept="video/*" hidden onChange={handleAddVideo} />
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform mb-2">
+                <Video size={24} />
+              </div>
+              <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                Subir Mini Video (5s máx)
+              </span>
+              <p className="text-[11px] text-slate-400 max-w-xs mt-1">
+                Puedes seleccionar cualquier video: el sistema recortará automáticamente los primeros 5.0 segundos y optimizará su compresión para R2.
+              </p>
             </label>
           )}
         </div>
+
+        {/* ── BLOQUE B: GALERÍA DE 5 FOTOGRAFÍAS (WEBP) ── */}
+        <div className="space-y-2.5 pt-2 border-t border-white/[0.08]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ImageIcon size={14} /> Fotografías ({editPhotos.length}/5)
+            </span>
+            <span className="text-[10px] text-slate-400">Compresión WebP automática</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {editPhotos.map((photoUrl, idx) => (
+              <div
+                key={idx}
+                onClick={() => setActiveLightboxImg(photoUrl)}
+                className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 group shadow-lg bg-black cursor-pointer hover:border-purple-400 transition-all hover:scale-[1.02]"
+              >
+                <img src={photoUrl} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                
+                {/* Overlay en hover */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <Maximize2 size={18} className="text-white" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemovePhoto(idx);
+                    }}
+                    className="p-1.5 bg-rose-500/80 hover:bg-rose-600 rounded-full text-white transition"
+                    title="Eliminar foto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {idx === 0 && (
+                  <span className="absolute top-2 left-2 bg-sky-500 text-black text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase shadow-md">
+                    Principal
+                  </span>
+                )}
+              </div>
+            ))}
+
+            {editPhotos.length < 5 && (
+              <label className="aspect-square rounded-2xl border-2 border-dashed border-purple-500/30 hover:border-purple-400 bg-purple-500/5 hover:bg-purple-500/10 transition flex flex-col items-center justify-center cursor-pointer text-purple-300 gap-1.5 group">
+                <input type="file" accept="image/*" hidden onChange={handleAddPhoto} />
+                <div className="p-3 rounded-full bg-purple-500/10 group-hover:scale-110 transition-transform">
+                  <Plus size={22} />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Añadir Foto</span>
+                <span className="text-[9px] text-slate-500">({editPhotos.length}/5)</span>
+              </label>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* ── 4. MAPA DE NUMEROLOGÍA COMPLETO (INSPIRADO EN LA APP) ── */}
