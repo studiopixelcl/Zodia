@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { calculateAstralProfile } from '../../../lib/astrology';
+import { sendWelcomeEmail } from '../../../lib/resend';
 
 export const runtime = 'edge';
 
@@ -100,6 +101,7 @@ export async function POST(request) {
   const userEmail = token.email ? token.email.toLowerCase().trim() : `${userId}@zodia.eter`;
 
   let actualUserId = userId;
+  let wasWithoutDob = false;
 
   if (db) {
     try {
@@ -109,7 +111,11 @@ export async function POST(request) {
 
       if (existingUser) {
         actualUserId = existingUser.id;
+        if (!existingUser.fecha_nacimiento) {
+          wasWithoutDob = true;
+        }
       } else {
+        wasWithoutDob = true;
         await db.prepare(`
           INSERT INTO users (id, email, name, nombre_actual, fecha_nacimiento, image, status)
           VALUES (?, ?, ?, ?, ?, ?, 'active')
@@ -206,6 +212,21 @@ export async function POST(request) {
         ).run();
       } catch (pErr) {
         console.error('[POST /api/profile] Error al persistir astral_profiles con dob:', pErr);
+      }
+    }
+
+    // Si es su primer registro de fecha de nacimiento y tiene correo real, enviar correo de bienvenida
+    if (wasWithoutDob && userEmail.includes('@') && !userEmail.endsWith('@zodia.eter')) {
+      try {
+        await sendWelcomeEmail({
+          to: userEmail,
+          name: name || userName,
+          sign: astralProfile.sign,
+          element: astralProfile.element,
+          lifePath: astralProfile.lifePath
+        });
+      } catch (mailErr) {
+        console.warn('[Resend Welcome Email Error]:', mailErr.message);
       }
     }
 

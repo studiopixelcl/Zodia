@@ -1,4 +1,5 @@
 import { hashPassword } from '../../../../lib/auth-edge';
+import { sendPasswordResetEmail } from '../../../../lib/resend';
 
 export const runtime = 'edge';
 
@@ -44,6 +45,8 @@ export async function POST(request) {
       const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
       const resetExpires = Date.now() + 15 * 60 * 1000; // 15 minutos
 
+      let userName = rawEmail.split('@')[0];
+
       if (db) {
         try {
           await db.prepare("ALTER TABLE users ADD COLUMN reset_code TEXT").run().catch(() => {});
@@ -60,6 +63,8 @@ export async function POST(request) {
             }), { status: 404, headers: { 'Content-Type': 'application/json' } });
           }
 
+          if (user.name) userName = user.name;
+
           await db.prepare(`
             UPDATE users 
             SET reset_code = ?, reset_expires = ?
@@ -71,10 +76,23 @@ export async function POST(request) {
         }
       }
 
+      // Enviar correo transaccional vía Resend si es un correo válido
+      if (rawEmail.includes('@') && !rawEmail.endsWith('@zodia.eter')) {
+        try {
+          await sendPasswordResetEmail({
+            to: rawEmail,
+            name: userName,
+            resetCode,
+            expiresInMinutes: 15
+          });
+        } catch (mailErr) {
+          console.warn('[Resend Password Reset Error]:', mailErr.message);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
-        message: 'Código cósmico de recuperación generado con éxito.',
-        // Se envía el PIN para que la UI pueda autocompletarlo o mostrarlo si no hay SMTP configurado
+        message: 'Código cósmico de recuperación enviado a tu correo.',
         code: resetCode,
         expiresInMinutes: 15
       }), {

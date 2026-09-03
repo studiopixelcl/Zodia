@@ -1,5 +1,6 @@
 import { calculateAstralProfile } from '../../../../lib/astrology';
 import { hashPassword, verifyPassword } from '../../../../lib/auth-edge';
+import { sendWelcomeEmail } from '../../../../lib/resend';
 
 export const runtime = 'edge';
 
@@ -133,6 +134,20 @@ export async function POST(request) {
             'Citas y Pareja'
           ).run();
 
+          // Enviar correo cósmico de bienvenida vía Resend
+          if (userEmail.includes('@') && !userEmail.endsWith('@zodia.eter')) {
+            try {
+              await sendWelcomeEmail({
+                to: userEmail,
+                name: trimmedName,
+                sign: astral.sign,
+                element: astral.element,
+                lifePath: astral.lifePath
+              });
+            } catch (mailErr) {
+              console.warn('[Resend Welcome Error]:', mailErr.message);
+            }
+          }
         } catch (dbErr) {
           console.warn('[POST /api/auth/login - Register] Warning D1:', dbErr.message);
         }
