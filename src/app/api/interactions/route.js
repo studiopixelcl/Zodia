@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
 import { DATING_CANDIDATES } from '../../../lib/dating';
+import { sendNotification } from '../../../lib/push-notifications';
 
 export const runtime = 'edge';
 
@@ -115,6 +116,30 @@ export async function POST(request) {
               VALUES (?, ?, ?)
             `).bind(myId, targetUserId, type === 'superlike' ? 98 : 88).run();
           }
+
+          // Emitir notificaciones de Match Cósmico
+          const meUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(myId).first().catch(() => null);
+          const targetUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(targetUserId).first().catch(() => null);
+          const myName = meUser?.name || token.name || 'Alguien';
+          const targetName = targetUser?.name || candidate?.name || 'Tu match';
+
+          await sendNotification({
+            db,
+            userId: targetUserId,
+            title: '¡Nueva Resonancia Cósmica! ✨',
+            body: `${myName} ha sintonizado contigo en el Éter. ¡Hicieron Match!`,
+            url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
+            type: 'match'
+          });
+
+          await sendNotification({
+            db,
+            userId: myId,
+            title: '¡Nueva Resonancia Cósmica! ✨',
+            body: `Has conectado con ${targetName} en Zodia.`,
+            url: `/zodia/dashboard?tab=vinculos&userId=${targetUserId}`,
+            type: 'match'
+          });
         }
       }
     } catch (err) {

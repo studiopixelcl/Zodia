@@ -11,6 +11,7 @@ import { TabVinculos } from '../../components/astral/TabVinculos';
 import { TabJuegos }   from '../../components/astral/TabJuegos';
 import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
+import { NotificationManager } from '../../components/ui/NotificationManager';
 import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
 import { calculateAstralProfile } from '../../lib/astrology';
@@ -228,6 +229,14 @@ export default function Dashboard() {
           <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
         </footer>
       )}
+
+      {/* Gestor de Notificaciones Móviles y Toasts en Tiempo Real */}
+      <NotificationManager
+        onNavigateToChat={(targetUserId) => {
+          setSelectedUserId(targetUserId);
+          setActiveTab('vinculos');
+        }}
+      />
     </div>
   );
 }

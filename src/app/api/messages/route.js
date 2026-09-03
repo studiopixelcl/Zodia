@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId } from '../../../lib/auth-edge';
+import { sendNotification } from '../../../lib/push-notifications';
 
 export const runtime = 'edge';
 
@@ -172,6 +173,21 @@ export async function POST(request) {
         INSERT INTO messages (sender_id, receiver_id, content)
         VALUES (?, ?, ?)
       `).bind(receiverId, myId, replyText).run();
+    } else {
+      // 3. Si es mensaje entre dos usuarios reales, emitir notificación al destinatario
+      const isAudio = cleanContent.includes('"type":"audio"');
+      const preview = isAudio ? '🎤 Te envió una nota de voz cósmica' : (cleanContent.length > 50 ? cleanContent.slice(0, 50) + '...' : cleanContent);
+      const senderUser = await db.prepare("SELECT name FROM users WHERE id = ?").bind(myId).first().catch(() => null);
+      const senderName = senderUser?.name || token.name || 'Alguien';
+
+      await sendNotification({
+        db,
+        userId: receiverId,
+        title: `${senderName} te envió un mensaje 💬`,
+        body: preview,
+        url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
+        type: 'message'
+      });
     }
 
     return NextResponse.json({
