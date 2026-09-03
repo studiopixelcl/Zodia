@@ -92,19 +92,28 @@ export default function LandingPage() {
         return;
       }
 
-      // 2. Establecer sesión directamente mediante POST a callback/credentials
+      // 2. Establecer sesión directamente mediante POST a /api/auth/login
       const dobToUse = checkData.user?.birth_date || formData.dob || '1998-07-15';
       
-      const authRes = await apiFetch('/api/auth/callback/credentials', {
+      let authRes = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: inputName, dob: dobToUse })
       });
 
+      if (!authRes.ok) {
+        authRes = await apiFetch('/api/auth/callback/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: inputName, dob: dobToUse })
+        });
+      }
+
       if (authRes.ok) {
         window.location.href = '/zodia/dashboard';
       } else {
-        setErrorMsg('Error al conectar la sintonía. Intenta de nuevo.');
+        const errJson = await authRes.json().catch(() => null);
+        setErrorMsg(errJson?.error || 'Error al conectar la sintonía. Intenta de nuevo.');
       }
     } catch {
       setErrorMsg('Fallo de conexión mística con el servidor.');
@@ -129,15 +138,23 @@ export default function LandingPage() {
     const inputName = formData.name.trim();
 
     try {
-      // 1. Establecer sesión
-      const authRes = await apiFetch('/api/auth/callback/credentials', {
+      // 1. Establecer sesión y crear perfil en el endpoint directo
+      let authRes = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: inputName, dob: formData.dob })
       });
 
+      if (!authRes.ok) {
+        authRes = await apiFetch('/api/auth/callback/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: inputName, dob: formData.dob })
+        });
+      }
+
       if (authRes.ok) {
-        // 2. Guardar perfil astral en D1
+        // 2. Guardar perfil astral en D1 (asegurar persistencia)
         try {
           await apiFetch('/api/profile', {
             method: 'POST',
@@ -167,7 +184,7 @@ export default function LandingPage() {
   const handleGuestAccess = async () => {
     setIsSaving(true);
     try {
-      await apiFetch('/api/auth/callback/credentials', {
+      await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'Sintonizador Cósmico', dob: '1998-07-15' })
