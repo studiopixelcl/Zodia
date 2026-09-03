@@ -138,17 +138,23 @@ export default function LandingPage() {
 
       if (authRes.ok) {
         // 2. Guardar perfil astral en D1
-        await apiFetch('/api/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: inputName, dob: formData.dob, isManual: true }),
-        });
+        try {
+          await apiFetch('/api/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: inputName, dob: formData.dob, isManual: true }),
+          });
+        } catch (profileErr) {
+          console.warn('[handleRegister] Warning al guardar perfil:', profileErr);
+        }
 
         window.location.href = '/zodia/welcome';
       } else {
-        setErrorMsg('No se pudo registrar tu perfil astral.');
+        const errData = await authRes.json().catch(() => null);
+        setErrorMsg(errData?.error || 'No se pudo registrar tu perfil astral.');
       }
-    } catch {
+    } catch (err) {
+      console.error('[handleRegister] Exception:', err);
       setErrorMsg('Fallo de conexión al manifestar tu perfil.');
     } finally {
       setIsSaving(false);
