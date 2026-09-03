@@ -36,8 +36,75 @@ export default function Dashboard() {
   const [profile,        setProfile]        = useState(null);
   const [profileError,   setProfileError]   = useState(null);
   const [avatarSrc,      setAvatarSrc]      = useState(null);
-  const [activeTab,      setActiveTab]      = useState('eter');
+  // La pantalla principal predeterminada al ingresar o actualizar es siempre el Perfil ('espejo')
+  const [activeTab,      setActiveTab]      = useState('espejo');
   const [selectedUserId, setSelectedUserId] = useState(null);
+
+  // ── Sincronización de URL inicial y control de retroceso en móviles ────────
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      const userParam = params.get('userId');
+
+      if (tabParam && ['espejo', 'eter', 'vinculos', 'oraculo', 'juegos'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      } else {
+        setActiveTab('espejo');
+      }
+
+      if (userParam) {
+        setSelectedUserId(userParam);
+      }
+
+      // Establecer estado inicial en el historial
+      if (!window.history.state) {
+        window.history.replaceState({ tab: tabParam || 'espejo', userId: userParam || null }, '', window.location.href);
+      }
+    }
+  }, []);
+
+  // Manejar el botón 'Atrás' del móvil (físico o por gestos)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = (event) => {
+      const state = event.state;
+      if (state && state.userId) {
+        setSelectedUserId(state.userId);
+        setActiveTab('vinculos');
+      } else if (state && state.tab) {
+        setSelectedUserId(null);
+        setActiveTab(state.tab);
+      } else {
+        // Al retroceder sin subestado, volver siempre a la página principal: el perfil ('espejo')
+        setSelectedUserId(null);
+        setActiveTab('espejo');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Cambiar pestaña actualizando el historial para permitir retroceso suave
+  const handleSwitchTab = (newTab) => {
+    if (newTab === activeTab && !selectedUserId) return;
+    setSelectedUserId(null);
+    setActiveTab(newTab);
+    if (typeof window !== 'undefined') {
+      const targetUrl = newTab === 'espejo' ? '/zodia/dashboard' : `/zodia/dashboard?tab=${newTab}`;
+      window.history.pushState({ tab: newTab }, '', targetUrl);
+    }
+  };
+
+  const handleSelectUser = (userId) => {
+    setSelectedUserId(userId);
+    setActiveTab('vinculos');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ tab: 'vinculos', userId }, '', `/zodia/dashboard?tab=vinculos&userId=${userId}`);
+    }
+  };
 
   useEffect(() => {
     let activeUser = session?.user;
@@ -126,8 +193,7 @@ export default function Dashboard() {
 
   // ── Sincronizar desde Éter ───────────────────────────────────────────────────
   const handleSyncUserFromEter = (userId) => {
-    setSelectedUserId(userId);
-    setActiveTab('vinculos');
+    handleSelectUser(userId);
   };
 
   const handleSignOut = () => {
@@ -197,7 +263,7 @@ export default function Dashboard() {
             user={currentUser}
             avatarSrc={avatarSrc ?? currentUser?.image}
             onAvatarChange={handleAvatarChange}
-            onNavigateTab={setActiveTab}
+            onNavigateTab={handleSwitchTab}
             onProfileUpdated={(updatedProfile) => {
               setProfile(updatedProfile);
               if (updatedProfile.user_image) setAvatarSrc(updatedProfile.user_image);
@@ -215,7 +281,12 @@ export default function Dashboard() {
         {activeTab === 'vinculos' && (
           <TabVinculos
             selectedUserId={selectedUserId}
-            onClearSelection={() => setSelectedUserId(null)}
+            onClearSelection={() => {
+              setSelectedUserId(null);
+              if (typeof window !== 'undefined') {
+                window.history.pushState({ tab: 'vinculos' }, '', '/zodia/dashboard?tab=vinculos');
+              }
+            }}
             profile={profile}
             currentUser={currentUser}
           />
@@ -226,15 +297,14 @@ export default function Dashboard() {
       {/* Nav Inferior en su propio espacio (NUNCA tapa ni invade el contenido) */}
       {!isGameActive && (
         <footer className="shrink-0 w-full px-2 pt-1.5 pb-2 sm:pb-3 z-30 bg-[#030308]/95 backdrop-blur-2xl border-t border-white/5">
-          <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+          <BottomNav activeTab={activeTab} setActiveTab={handleSwitchTab} />
         </footer>
       )}
 
       {/* Gestor de Notificaciones Móviles y Toasts en Tiempo Real */}
       <NotificationManager
         onNavigateToChat={(targetUserId) => {
-          setSelectedUserId(targetUserId);
-          setActiveTab('vinculos');
+          handleSelectUser(targetUserId);
         }}
       />
     </div>
