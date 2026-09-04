@@ -254,30 +254,37 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   // Candidato actual en el modo Swipe
   const currentCandidate = candidates[currentIndex];
 
-  // Lista multimedia: Si contiene video_url, va de primero (índice 0), luego las fotos
+  // Lista multimedia: Prioridad 1 = Video de presentación; Prioridad 2 = Fotos subidas a la galería
   const mediaList = useMemo(() => {
     if (!currentCandidate) return [];
     const fallbackPhoto = getCandidateFallbackPhoto(currentCandidate);
     const items = [];
+
+    // 1. PRIORIDAD MÁXIMA: Mini Video de presentación (si tiene uno subido)
     if (currentCandidate.video_url) {
       items.push({ type: 'video', url: currentCandidate.video_url });
     }
-    const rawPhotos = (currentCandidate.photos?.length 
-      ? currentCandidate.photos 
-      : [currentCandidate.image]
-    ).filter(Boolean).map(url => {
-      if (typeof url === 'string') {
-        if (url.includes('ui-avatars.com') || url.includes('photo-1518709268805') || url.trim() === '') {
-          return fallbackPhoto;
+
+    // 2. PRIORIDAD DE FOTOS: Las imágenes que suba el usuario a su galería de citas son las primeras en verse
+    const uploadedPhotos = (Array.isArray(currentCandidate.photos) && currentCandidate.photos.length > 0)
+      ? currentCandidate.photos
+      : (currentCandidate.image ? [currentCandidate.image] : []);
+
+    const cleanPhotos = uploadedPhotos
+      .filter(Boolean)
+      .map(url => {
+        if (typeof url === 'string') {
+          if (url.includes('ui-avatars.com') || url.includes('photo-1518709268805') || url.trim() === '') {
+            return fallbackPhoto;
+          }
+          if (url.includes('images.unsplash.com') && url.includes('w=')) {
+            return url.replace(/w=\d+/, 'w=1200').replace(/q=\d+/, 'q=85');
+          }
         }
-        if (url.includes('images.unsplash.com') && url.includes('w=')) {
-          return url.replace(/w=\d+/, 'w=1200').replace(/q=\d+/, 'q=85');
-        }
-      }
-      return url;
-    });
-    
-    rawPhotos.slice(0, 5).forEach(photoUrl => {
+        return url;
+      });
+
+    cleanPhotos.forEach(photoUrl => {
       items.push({ type: 'image', url: photoUrl });
     });
 
@@ -643,46 +650,78 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                   </div>
 
                   {/* Información del Candidato (Inferior) */}
-                  <div className="absolute bottom-0 inset-x-0 p-3 sm:p-5 z-20 space-y-1 sm:space-y-2 pointer-events-none bg-gradient-to-t from-black/95 via-black/75 to-transparent pt-10">
-                    {/* Nombre, Edad e Insignia Zodiacal */}
-                    <div className="flex items-end justify-between gap-1.5">
-                      <div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                          <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight">
-                            {currentCandidate.name}
-                          </h2>
-                          {currentCandidate.is_verified && (
-                            <span className="inline-flex items-center text-cyan-400" title="Perfil Cósmico Verificado (Estrella Azul)">
-                              <CheckCircle2 size={18} className="fill-cyan-500 text-black drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-                            </span>
-                          )}
-                          {currentCandidate.age && (
-                            <span className="text-base sm:text-xl font-light text-gray-200">
-                              {currentCandidate.age}
-                            </span>
-                          )}
-                          <ZodiacBadge sign={currentCandidate.sign} size="xs" className="shadow-md sm:hidden" />
-                          <ZodiacBadge sign={currentCandidate.sign} size="sm" className="shadow-md hidden sm:block" />
+                  <div className="absolute bottom-0 inset-x-0 p-3.5 sm:p-5 z-20 space-y-2 pointer-events-none bg-gradient-to-t from-black/95 via-black/80 to-transparent pt-12">
+                    {/* Fila principal: Avatar circular al principio del nombre + Datos + Botonera */}
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        {/* ── CÍRCULO DE FOTO DE PERFIL (BUEN TAMAÑO Y NÍTIDO) ── */}
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCandidate(currentCandidate);
+                          }}
+                          className="relative shrink-0 cursor-pointer group/avatar transition-transform active:scale-95 pointer-events-auto"
+                          title="Ver perfil cósmico completo"
+                        >
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-sky-300 to-purple-500 shadow-[0_0_20px_rgba(6,182,212,0.6)] group-hover/avatar:shadow-[0_0_30px_rgba(6,182,212,0.9)] group-hover/avatar:scale-105 transition-all">
+                            <div className="w-full h-full rounded-full overflow-hidden bg-black border border-black/80">
+                              <img
+                                src={
+                                  (currentCandidate.image && !currentCandidate.image.includes('ui-avatars.com') && !currentCandidate.image.includes('photo-1518709268805'))
+                                    ? currentCandidate.image.replace(/w=\d+/, 'w=1200')
+                                    : (currentCandidate.photos?.[0] && !currentCandidate.photos[0].includes('ui-avatars.com') && !currentCandidate.photos[0].includes('photo-1518709268805'))
+                                      ? currentCandidate.photos[0].replace(/w=\d+/, 'w=1200')
+                                      : getCandidateFallbackPhoto(currentCandidate)
+                                }
+                                alt={currentCandidate.name}
+                                onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(currentCandidate); }}
+                                className="w-full h-full object-cover object-[center_18%]"
+                              />
+                            </div>
+                          </div>
+                          {/* Insignia zodiacal anclada al avatar */}
+                          <div className="absolute -bottom-1 -right-1">
+                            <ZodiacBadge sign={currentCandidate.sign} size="xs" className="border border-black shadow-md" />
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-300 mt-0.5 font-light">
-                          <span className="text-cyan-400 font-semibold">{currentCandidate.sign}</span>
-                          <span>•</span>
-                          <span className="text-amber-400 font-semibold">{currentCandidate.element}</span>
-                          {currentCandidate.location && (
-                            <>
-                              <span>•</span>
-                              <span className="inline-flex items-center gap-0.5 text-gray-300">
-                                <MapPin size={10} className="text-cyan-400" />
-                                {currentCandidate.location.split('(')[0].trim()}
-                                <span className="text-cyan-300 font-semibold ml-0.5">({currentCandidate.distanceKm || 3} km)</span>
+                        {/* ── DATOS DEL CANDIDATO ── */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight truncate">
+                              {currentCandidate.name}
+                            </h2>
+                            {currentCandidate.is_verified && (
+                              <span className="inline-flex items-center text-cyan-400 shrink-0" title="Perfil Cósmico Verificado">
+                                <CheckCircle2 size={17} className="fill-cyan-500 text-black drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
                               </span>
-                            </>
-                          )}
+                            )}
+                            {currentCandidate.age && (
+                              <span className="text-base sm:text-xl font-light text-gray-200 shrink-0">
+                                {currentCandidate.age}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-300 mt-0.5 font-light flex-wrap">
+                            <span className="text-cyan-400 font-semibold">{currentCandidate.sign}</span>
+                            <span>•</span>
+                            <span className="text-amber-400 font-semibold">{currentCandidate.element}</span>
+                            {currentCandidate.location && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-0.5 text-gray-300 truncate">
+                                  <MapPin size={10} className="text-cyan-400 shrink-0" />
+                                  <span>{currentCandidate.location.split('(')[0].trim()}</span>
+                                  <span className="text-cyan-300 font-semibold ml-0.5">({currentCandidate.distanceKm || 3} km)</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Botonera de herramientas sobre la tarjeta */}
+                      {/* ── BOTONERA DE HERRAMIENTAS ── */}
                       <div className="flex items-center gap-1.5 shrink-0 pointer-events-auto">
                         {/* Botón Sinastría Profunda */}
                         <button
@@ -690,11 +729,11 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                             e.stopPropagation();
                             setSynastryCandidate(currentCandidate);
                           }}
-                          className="px-2.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-600/90 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-300/40 transition shadow-md flex items-center gap-1 text-[10px] sm:text-xs font-bold"
-                          title="Calcular Sinastría Profunda (Elementos, Numerología, Consejos de Cita)"
+                          className="px-2.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-600/90 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-300/40 transition shadow-md flex items-center gap-1 text-[10px] sm:text-xs font-bold active:scale-95"
+                          title="Calcular Sinastría Profunda"
                         >
                           <Sparkles size={12} className="text-amber-300" />
-                          <span>Sinastría</span>
+                          <span className="hidden xs:inline">Sinastría</span>
                         </button>
 
                         {/* Botón de inspeccionar información */}
@@ -703,7 +742,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                             e.stopPropagation();
                             setSelectedCandidate(currentCandidate);
                           }}
-                          className="p-2 sm:p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/20 transition shadow-lg shrink-0"
+                          className="p-2 sm:p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/20 transition shadow-lg shrink-0 active:scale-95"
                           title="Ver perfil completo"
                         >
                           <Info size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -1001,6 +1040,13 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                         {c.distanceKm ? `a ${c.distanceKm} km` : 'Cerca'}
                       </div>
 
+                      {/* Badge Mini Video si tiene video subido */}
+                      {c.video_url && (
+                        <div className="absolute top-9 left-3 px-2 py-0.5 rounded-full bg-black/75 border border-sky-400/50 backdrop-blur-md text-sky-300 text-[9px] font-bold flex items-center gap-1 shadow-md">
+                          <Play size={9} className="fill-sky-300" /> Video
+                        </div>
+                      )}
+
                       {/* Badge Afinidad Interactivo (Sinastría) */}
                       <button
                         type="button"
@@ -1015,12 +1061,35 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                         <span>{c.affinity}</span>
                       </button>
 
-                      {/* Badge Signo */}
-                      <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                        <ZodiacBadge sign={c.sign} size="xs" />
-                        <span className="text-xs font-bold text-white drop-shadow">
-                          {c.name}{c.age ? `, ${c.age}` : ''}
-                        </span>
+                      {/* Badge Perfil: Avatar Circular de buen tamaño al principio del nombre */}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
+                        <div className="w-11 h-11 rounded-full p-[1.5px] bg-gradient-to-tr from-cyan-400 via-sky-300 to-purple-500 shadow-lg shrink-0">
+                          <div className="w-full h-full rounded-full overflow-hidden bg-black">
+                            <img
+                              src={
+                                (c.image && !c.image.includes('ui-avatars.com') && !c.image.includes('photo-1518709268805'))
+                                  ? c.image.replace(/w=\d+/, 'w=1200')
+                                  : (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com') && !c.photos[0].includes('photo-1518709268805'))
+                                    ? c.photos[0].replace(/w=\d+/, 'w=1200')
+                                    : getCandidateFallbackPhoto(c)
+                              }
+                              alt={c.name}
+                              onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(c); }}
+                              className="w-full h-full object-cover object-[center_18%]"
+                            />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs sm:text-sm font-extrabold text-white drop-shadow truncate">
+                              {c.name}{c.age ? `, ${c.age}` : ''}
+                            </span>
+                            <ZodiacBadge sign={c.sign} size="xs" />
+                          </div>
+                          <p className="text-[10px] text-cyan-300 font-medium drop-shadow truncate">
+                            {c.sign} • Elemento {c.element}
+                          </p>
+                        </div>
                       </div>
                     </div>
 

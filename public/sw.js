@@ -1,5 +1,5 @@
 // Service Worker Cósmico de Zodia para Web Push Notifications y PWA Offline
-const CACHE_NAME = 'zodia-cache-v5';
+const CACHE_NAME = 'zodia-cache-v6';
 const STATIC_ASSETS = [
   '/zodia/manifest.json',
   '/zodia/assets/logo.png',

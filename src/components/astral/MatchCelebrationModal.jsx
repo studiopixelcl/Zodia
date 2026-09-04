@@ -66,9 +66,9 @@ export const MatchCelebrationModal = ({
           <div className="relative group">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-cyan-400 p-1 shadow-[0_0_30px_rgba(6,182,212,0.6)] bg-black">
               <img
-                src={userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300'}
+                src={typeof userAvatar === 'string' ? userAvatar.replace(/w=\d+/, 'w=1200') : (userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200')}
                 alt="Tú"
-                className="w-full h-full object-cover rounded-full"
+                className="w-full h-full object-cover object-[center_18%] rounded-full"
               />
             </div>
             <div className="absolute -bottom-2 -left-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white w-8 h-8 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs shadow-md">
@@ -91,9 +91,9 @@ export const MatchCelebrationModal = ({
           <div className="relative group">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-pink-500 p-1 shadow-[0_0_30px_rgba(236,72,153,0.6)] bg-black">
               <img
-                src={candidate.image}
+                src={candidate.image ? candidate.image.replace(/w=\d+/, 'w=1200') : (candidate.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200')}
                 alt={candidate.name}
-                className="w-full h-full object-cover rounded-full"
+                className="w-full h-full object-cover object-[center_18%] rounded-full"
               />
             </div>
             <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white w-8 h-8 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs shadow-md">
