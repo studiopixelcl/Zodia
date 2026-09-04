@@ -27,6 +27,8 @@ export async function ensureDatabaseSchema(db) {
     "ALTER TABLE users ADD COLUMN password_hash TEXT",
     "ALTER TABLE users ADD COLUMN reset_pin TEXT",
     "ALTER TABLE users ADD COLUMN reset_expires INTEGER",
+    "ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN is_ghost_mode INTEGER DEFAULT 0",
 
     // 2. Tabla astral_profiles base y columnas extendidas
     `CREATE TABLE IF NOT EXISTS astral_profiles (
@@ -48,6 +50,8 @@ export async function ensureDatabaseSchema(db) {
     "ALTER TABLE astral_profiles ADD COLUMN video_url TEXT",
     "ALTER TABLE astral_profiles ADD COLUMN photos TEXT",
     "ALTER TABLE astral_profiles ADD COLUMN interests TEXT",
+    "ALTER TABLE astral_profiles ADD COLUMN is_verified INTEGER DEFAULT 0",
+    "ALTER TABLE astral_profiles ADD COLUMN is_ghost_mode INTEGER DEFAULT 0",
 
     // 3. Tabla resonances
     `CREATE TABLE IF NOT EXISTS resonances (
@@ -125,6 +129,32 @@ export async function ensureDatabaseSchema(db) {
       author_sign TEXT,
       content TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // 8. Historias Efímeras Cósmicas (Stories 24h)
+    `CREATE TABLE IF NOT EXISTS astral_stories (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_image TEXT,
+      author_sign TEXT,
+      media_url TEXT NOT NULL,
+      caption TEXT,
+      vibe_tag TEXT DEFAULT '✨ Energía del Día',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NOT NULL
+    )`,
+
+    // 9. Citas a Ciegas Cósmicas (Speed Dating Astral)
+    `CREATE TABLE IF NOT EXISTS blind_dates (
+      id TEXT PRIMARY KEY,
+      user_a_id TEXT NOT NULL,
+      user_b_id TEXT NOT NULL,
+      user_a_revealed INTEGER DEFAULT 0,
+      user_b_revealed INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NOT NULL
     )`
   ];
 

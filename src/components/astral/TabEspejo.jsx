@@ -8,13 +8,15 @@ import {
   Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, 
   MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, 
   Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon,
-  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle, ChevronRight, LogOut
+  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle, ChevronRight, LogOut,
+  CheckCircle2, EyeOff, ShieldCheck
 } from 'lucide-react';
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
 import { MediaCropperModal } from '../ui/MediaCropperModal';
 import { VideoCropperModal } from '../ui/VideoCropperModal';
 import { MandalaAstral } from './MandalaAstral';
+import { playMatchCelebrationSound, playSwipeLikeSound, playSwipePassSound } from '../../lib/sound-effects';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onSignOut, onProfileUpdated }) => {
   const userSign = profile?.sign ?? 'Capricornio';
@@ -102,6 +104,17 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
     file: null
   });
 
+  // Estados para Verificación Cósmica y Modo Fantasma
+  const [isVerified, setIsVerified] = useState(Boolean(profile?.is_verified));
+  const [isGhostMode, setIsGhostMode] = useState(Boolean(profile?.is_ghost_mode));
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [isTogglingGhost, setIsTogglingGhost] = useState(false);
+  const [selfieFile, setSelfieFile] = useState(null);
+  const [selfiePreview, setSelfiePreview] = useState(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(0);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setEditName(profile.user_name ?? user?.name ?? '');
@@ -112,8 +125,76 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
       setEditVideoUrl(profile.video_url ?? null);
       setEditDob(profile.birth_date ?? profile.dob ?? '');
       setEditInterests(initialInterests());
+      setIsVerified(Boolean(profile.is_verified));
+      setIsGhostMode(Boolean(profile.is_ghost_mode));
     }
   }, [profile, user]);
+
+  const handleToggleGhostMode = async () => {
+    try {
+      setIsTogglingGhost(true);
+      const nextGhost = !isGhostMode;
+      const res = await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_ghost_mode: nextGhost })
+      });
+      if (res && !res.error) {
+        setIsGhostMode(nextGhost);
+        if (nextGhost) {
+          playSwipePassSound();
+        } else {
+          playSwipeLikeSound();
+        }
+        onProfileUpdated?.();
+      }
+    } catch (err) {
+      console.error('Error toggling ghost mode:', err);
+    } finally {
+      setIsTogglingGhost(false);
+    }
+  };
+
+  const handleSelfieSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelfieFile(file);
+    const url = URL.createObjectURL(file);
+    setSelfiePreview(url);
+    setVerificationStep(0);
+    setVerificationSuccess(false);
+  };
+
+  const handleStartVerification = async () => {
+    if (!selfiePreview) return;
+    setIsVerifying(true);
+    setVerificationStep(1); // "Analizando geometría facial..."
+    
+    await new Promise(r => setTimeout(r, 1100));
+    setVerificationStep(2); // "Sintonizando con tu signatura solar..."
+    
+    await new Promise(r => setTimeout(r, 1300));
+    setVerificationStep(3); // "Generando certificado cósmico..."
+    
+    try {
+      const res = await apiFetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_verified: true })
+      });
+      
+      await new Promise(r => setTimeout(r, 800));
+      setIsVerifying(false);
+      setVerificationSuccess(true);
+      setIsVerified(true);
+      playMatchCelebrationSound();
+      onProfileUpdated?.();
+    } catch (err) {
+      console.error('Error verifying profile:', err);
+      setIsVerifying(false);
+      alert('Hubo un problema al validar tu perfil estelar. Intenta de nuevo.');
+    }
+  };
 
   // Cálculo de mapa de numerología completo
   const numerologyData = calculateFullNumerology(
@@ -402,12 +483,29 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           </div>
 
           {/* Nombre y Título del Usuario */}
-          <h3 className="text-2xl sm:text-3xl font-extrabold mystic-font text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-purple-200 tracking-wider mb-1.5">
-            {editName || user?.name || 'Sintonizador'}
-          </h3>
+          <div className="flex items-center justify-center gap-1.5 mb-1.5 flex-wrap">
+            <h3 className="text-2xl sm:text-3xl font-extrabold mystic-font text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-purple-200 tracking-wider">
+              {editName || user?.name || 'Sintonizador'}
+            </h3>
+            {isVerified && (
+              <span className="inline-flex items-center justify-center text-cyan-400" title="Perfil Cósmico Verificado (Estrella Azul)">
+                <CheckCircle2 size={22} className="fill-cyan-500 text-black drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+              </span>
+            )}
+          </div>
 
           {/* Badges de Citas e Identidad */}
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs mb-4 sm:mb-6">
+            {isVerified && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-bold uppercase tracking-wider shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+                <Sparkles size={11} className="text-cyan-400 animate-spin-slow" /> Verificado
+              </span>
+            )}
+            {isGhostMode && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-purple-500/20 border border-purple-400/50 text-purple-300 font-bold uppercase tracking-wider shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+                <EyeOff size={11} className="text-purple-400" /> Modo Fantasma
+              </span>
+            )}
             {editLocation && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 font-medium">
                 <MapPin size={11} className="text-cyan-400" /> {editLocation}
@@ -937,6 +1035,136 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         </div>
       </div>
 
+      {/* ── 8. SECCIÓN DE SEGURIDAD & PRIVACIDAD ASTRAL (VERIFICACIÓN & MODO FANTASMA) ── */}
+      <div className="glass-panel p-5 sm:p-6 border border-white/10 bg-gradient-to-br from-slate-950/80 via-black to-purple-950/20 space-y-4 rounded-3xl">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <h4 className="mystic-font text-base sm:text-lg text-white font-bold">
+                Seguridad & Privacidad Astral
+              </h4>
+              <p className="text-[11px] text-gray-400">
+                Control de visibilidad en el radar y autenticidad cósmica
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+          {/* Card 1: Verificación de Perfil Cósmico (Estrella Azul) */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isVerified 
+              ? 'bg-cyan-950/30 border-cyan-400/40 shadow-[0_0_25px_rgba(6,182,212,0.15)]' 
+              : 'bg-black/50 border-white/10 hover:border-purple-500/40'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                    {isVerified ? (
+                      <>
+                        <CheckCircle2 size={16} className="fill-cyan-500 text-black" />
+                        Perfil Verificado
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} className="text-cyan-400" />
+                        Verificación Cósmica
+                      </>
+                    )}
+                  </span>
+                  {isVerified && (
+                    <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-500 text-black uppercase tracking-wider">
+                      Oficial
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed font-light">
+                  {isVerified 
+                    ? 'Tu identidad estelar ha sido validada biométricamente. Cuentas con la Estrella Azul y prioridad cósmica en el radar.'
+                    : 'Valida tu identidad con una selfie rápida. Obtén la Estrella Azul para generar máxima confianza y 3x más resonancias.'}
+                </p>
+              </div>
+            </div>
+
+            {!isVerified ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelfiePreview(null);
+                  setSelfieFile(null);
+                  setVerificationSuccess(false);
+                  setIsVerificationModalOpen(true);
+                }}
+                className="mt-3.5 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] transition active:scale-98 cursor-pointer"
+              >
+                <Camera size={15} />
+                Verificar Perfil con Selfie
+              </button>
+            ) : (
+              <div className="mt-3 pt-2.5 border-t border-cyan-500/20 flex items-center justify-between text-[11px] text-cyan-300">
+                <span className="flex items-center gap-1 font-medium">
+                  <Sparkles size={13} className="text-cyan-400" /> Insignia Estrella Azul Activa
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono">ID: {user?.id?.slice(0, 8) || 'ZODIA-VERIFIED'}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: Modo Fantasma (Pausa Astral) */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isGhostMode 
+              ? 'bg-purple-950/40 border-purple-500/50 shadow-[0_0_25px_rgba(168,85,247,0.2)]' 
+              : 'bg-black/50 border-white/10 hover:border-cyan-500/30'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <EyeOff size={16} className={isGhostMode ? 'text-purple-400' : 'text-gray-400'} />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Modo Fantasma (Pausa)
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed font-light">
+                  {isGhostMode
+                    ? 'Tu carta está oculta en el Radar de Citas y en Resonancias. Tus matches actuales pueden seguir conversando contigo.'
+                    : 'Oculta temporalmente tu carta de personas nuevas en el radar sin perder tus conexiones y chats existentes.'}
+                </p>
+              </div>
+
+              {/* Switch Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleGhostMode}
+                disabled={isTogglingGhost}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isGhostMode ? 'bg-purple-600 shadow-[0_0_12px_rgba(168,85,247,0.5)]' : 'bg-white/20'
+                } ${isTogglingGhost ? 'opacity-50 cursor-wait' : ''}`}
+                role="switch"
+                aria-checked={isGhostMode}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    isGhostMode ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px]">
+              <span className={`font-semibold ${isGhostMode ? 'text-purple-300' : 'text-gray-400'}`}>
+                {isGhostMode ? '● Oculto del radar cósmico' : '○ Visible para nuevas resonancias'}
+              </span>
+              <span className="text-[10px] text-gray-500">Pausa reversible</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── 5. SECCIÓN DE CIERRE DE SESIÓN AL FINAL DEL PERFIL ── */}
       <div className="pt-3 pb-8 text-center">
         <button
@@ -1447,6 +1675,158 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
 
           <div className="max-w-2xl w-full mx-auto py-4 my-auto">
             <MandalaAstral profile={profile} />
+          </div>
+        </div>
+      )}
+      {/* Modal de Verificación Cósmica con Selfie */}
+      {isVerificationModalOpen && (
+        <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-4 animate-fadeIn">
+          <div className="w-full max-w-md bg-gradient-to-b from-slate-900 via-black to-[#0b0816] border border-cyan-500/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.25)] relative overflow-hidden">
+            
+            {/* Botón Cerrar */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isVerifying) setIsVerificationModalOpen(false);
+              }}
+              disabled={isVerifying}
+              className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Encabezado */}
+            <div className="text-center mb-5">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-black shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                <CheckCircle2 size={26} />
+              </div>
+              <h3 className="mystic-font text-xl font-bold text-white">
+                Verificación Estelar de Identidad
+              </h3>
+              <p className="text-xs text-gray-300 font-light mt-1 max-w-xs mx-auto">
+                Tómate una selfie mirando de frente para validar tu identidad astral y obtener la insignia oficial de Estrella Azul.
+              </p>
+            </div>
+
+            {/* Vista previa o captura de selfie */}
+            <div className="relative aspect-[3/4] max-h-72 mx-auto rounded-2xl overflow-hidden border-2 border-dashed border-cyan-500/40 bg-black/60 flex items-center justify-center mb-5 group">
+              {selfiePreview ? (
+                <>
+                  <img
+                    src={selfiePreview}
+                    alt="Selfie de verificación"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Animación de escaneo biométrico láser */}
+                  {isVerifying && (
+                    <div className="absolute inset-0 bg-cyan-500/10 pointer-events-none">
+                      <div className="w-full h-1 bg-cyan-400 shadow-[0_0_15px_#22d3ee] animate-[bounce_2s_infinite]" />
+                      <div className="absolute inset-0 border-2 border-cyan-400/50 animate-pulse" />
+                    </div>
+                  )}
+                  {!isVerifying && !verificationSuccess && (
+                    <label className="absolute bottom-3 right-3 py-1.5 px-3 rounded-xl bg-black/80 hover:bg-black text-cyan-300 text-xs font-bold border border-cyan-400/40 flex items-center gap-1.5 cursor-pointer shadow-lg backdrop-blur-md">
+                      <Camera size={13} />
+                      <span>Cambiar</span>
+                      <input type="file" accept="image/*" capture="user" hidden onChange={handleSelfieSelect} />
+                    </label>
+                  )}
+                </>
+              ) : (
+                <label className="flex flex-col items-center justify-center cursor-pointer p-6 text-center text-cyan-300 gap-2 hover:opacity-90 transition">
+                  <div className="p-4 rounded-full bg-cyan-500/10 border border-cyan-500/30 group-hover:scale-110 transition-transform">
+                    <Camera size={30} className="text-cyan-400" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-white">
+                    Tomar o Elegir Selfie
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-light">
+                    Asegúrate de tener buena luz y el rostro despejado
+                  </span>
+                  <input type="file" accept="image/*" capture="user" hidden onChange={handleSelfieSelect} />
+                </label>
+              )}
+            </div>
+
+            {/* Mensajes de progreso de verificación */}
+            {isVerifying && (
+              <div className="space-y-2 mb-5 p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-center">
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-cyan-300">
+                  <Loader2 size={16} className="animate-spin text-cyan-400" />
+                  {verificationStep === 1 && 'Escaneando geometría facial...'}
+                  {verificationStep === 2 && `Sintonizando con tu carta (${userSign})...`}
+                  {verificationStep === 3 && 'Validando certificado estelar de autenticidad...'}
+                </div>
+                <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-cyan-400 h-full transition-all duration-700"
+                    style={{ width: `${(verificationStep / 3) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Éxito de verificación */}
+            {verificationSuccess && (
+              <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-center space-y-2 mb-5">
+                <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+                  <Check size={22} />
+                </div>
+                <h4 className="mystic-font text-base font-bold text-white">
+                  ¡Identidad Cósmica Verificada!
+                </h4>
+                <p className="text-xs text-gray-300">
+                  Ahora luces la insignia oficial de Estrella Azul en tu perfil y resonancias.
+                </p>
+              </div>
+            )}
+
+            {/* Botones de acción */}
+            <div className="flex items-center gap-3">
+              {verificationSuccess ? (
+                <button
+                  type="button"
+                  onClick={() => setIsVerificationModalOpen(false)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-bold text-xs uppercase tracking-wider shadow-lg cursor-pointer"
+                >
+                  Continuar
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsVerificationModalOpen(false)}
+                    disabled={isVerifying}
+                    className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-semibold text-xs transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartVerification}
+                    disabled={!selfiePreview || isVerifying}
+                    className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer ${
+                      !selfiePreview || isVerifying
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)] active:scale-98'
+                    }`}
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Validando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} />
+                        Validar Perfil
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+
           </div>
         </div>
       )}

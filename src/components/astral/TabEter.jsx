@@ -4,7 +4,7 @@ import {
   Sparkles, Flame, Mountain, Wind, Droplets, Filter, ArrowRight, 
   MapPin, Heart, MessageCircle, X, Star, Shield, RotateCcw, 
   Zap, Search, ChevronRight, Check, Compass, SlidersHorizontal, Info, Eye,
-  Play, Video
+  Play, Video, CheckCircle2
 } from 'lucide-react';
 import { getZodiacSymbol } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers, DATING_INTERESTS } from '../../lib/dating';
@@ -13,6 +13,7 @@ import { ZodiacBadge } from './ZodiacBadge';
 import { MatchCelebrationModal } from './MatchCelebrationModal';
 import { AstralPortalModal } from './AstralPortalModal';
 import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
+import { BlindDateModal } from './BlindDateModal';
 import { playSwipeLikeSound, playSwipePassSound, playSuperlikeSound } from '../../lib/sound-effects';
 
 export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
@@ -51,6 +52,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   const [selectedCandidate, setSelectedCandidate] = useState(null); // Perfil completo
   const [matchData, setMatchData] = useState(null); // Modal de celebración de match
   const [icebreakerModalCandidate, setIcebreakerModalCandidate] = useState(null); // Modal de rompehielos rápido
+  const [isBlindDateOpen, setIsBlindDateOpen] = useState(false); // Modal de Cita a Ciegas Cósmica
 
   // Cargar candidatos desde la API
   const fetchCandidates = async () => {
@@ -376,6 +378,38 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
         </div>
       )}
 
+      {/* ── BANNER DESTACADO: CITAS A CIEGAS CÓSMICAS (BLIND DATING) ── */}
+      <div className="max-w-sm sm:max-w-md mx-auto w-full mb-3">
+        <button
+          type="button"
+          onClick={() => setIsBlindDateOpen(true)}
+          className="w-full p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-[#120c26] to-cyan-950/80 border border-purple-500/40 hover:border-cyan-400/60 transition-all flex items-center justify-between gap-3 shadow-[0_0_25px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] group active:scale-98 cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-400 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform shadow-md">
+              <Sparkles size={20} className="animate-spin-slow" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white mystic-font uppercase tracking-wider">
+                  Cita a Ciegas Astral
+                </span>
+                <span className="px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 text-[9px] font-extrabold tracking-wider border border-cyan-400/30">
+                  5 MIN
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-300 font-light">
+                Conecta por energía y sinastría antes de revelar la foto
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 flex items-center gap-1 text-cyan-300 group-hover:text-white transition">
+            <span className="text-xs font-bold hidden sm:inline">Entrar</span>
+            <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
+      </div>
+
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* MODO A: TARJETAS DESLIZABLES (SWIPE / DATING DECK)                    */}
       {/* ────────────────────────────────────────────────────────────────────── */}
@@ -582,6 +616,11 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                         <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight">
                           {currentCandidate.name}
                         </h2>
+                        {currentCandidate.is_verified && (
+                          <span className="inline-flex items-center text-cyan-400" title="Perfil Cósmico Verificado (Estrella Azul)">
+                            <CheckCircle2 size={18} className="fill-cyan-500 text-black drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                          </span>
+                        )}
                         {currentCandidate.age && (
                           <span className="text-base sm:text-xl font-light text-gray-200">
                             {currentCandidate.age}
@@ -1153,6 +1192,19 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           }}
         />
       )}
+
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      {/* MODAL: CITA A CIEGAS CÓSMICA (5 MIN BLIND SPEED DATING)                */}
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      <BlindDateModal
+        isOpen={isBlindDateOpen}
+        onClose={() => setIsBlindDateOpen(false)}
+        onConnectPartner={(partner) => {
+          setIsBlindDateOpen(false);
+          if (onSyncUser) onSyncUser(partner.id);
+        }}
+        userProfile={profile}
+      />
     </div>
   );
 };

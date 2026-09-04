@@ -79,7 +79,8 @@ export async function GET(request) {
           COALESCE(p.location, 'Santiago, Chile') as location,
           COALESCE(p.photos, '[]') as photos,
           p.video_url,
-          COALESCE(p.interests, '["Astrología", "Música indie"]') as interests
+          COALESCE(p.interests, '["Astrología", "Música indie"]') as interests,
+          COALESCE(u.is_verified, p.is_verified, 0) as is_verified
         FROM users u
         LEFT JOIN astral_profiles p ON (
           p.user_id = u.id 
@@ -94,6 +95,7 @@ export async function GET(request) {
           AND (u.email IS NULL OR u.email NOT LIKE '%@zodia.eter')
           AND u.id != 'tuner_bot_spam'
           AND COALESCE(u.status, 'active') = 'active'
+          AND COALESCE(u.is_ghost_mode, p.is_ghost_mode, 0) = 0
         ORDER BY COALESCE(u.created_at, u.rowid) DESC
         LIMIT 60
       `).bind(activeMyId, rawMyId, myEmail).all();
@@ -138,6 +140,7 @@ export async function GET(request) {
           photos: photoList,
           video_url: o.video_url || null,
           interests: interestsList,
+          is_verified: o.is_verified === 1 || o.is_verified === true,
           isRealUser: true
         };
       });
@@ -174,6 +177,7 @@ export async function GET(request) {
         video_url: candidate.video_url || null,
         interests: candidate.interests || ['Astrología', 'Música indie'],
         likesYou: candidate.likesYou ?? false,
+        is_verified: candidate.is_verified ?? true,
         isRealUser: false
       });
     }

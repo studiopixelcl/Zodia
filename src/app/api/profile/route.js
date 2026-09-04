@@ -189,7 +189,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Payload inválido.' }, { status: 400 });
   }
 
-  const { dob, name, image, bio, intent, location, photos, video_url, interests } = body;
+  const { dob, name, image, bio, intent, location, photos, video_url, interests, is_verified, is_ghost_mode } = body;
   const rawId     = resolveUserId(token);
   const userName  = name ?? token.name ?? 'Sintonizador';
   const userEmail = token.email ? token.email.toLowerCase().trim() : `${rawId}@zodia.eter`;
@@ -368,12 +368,14 @@ export async function POST(request) {
     });
   }
 
-  // 3. Si es una actualización de detalles sin cambiar dob (bio, intent, location, photos, video_url, interests, name, image)
-  if (name !== undefined || bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || video_url !== undefined || interests !== undefined || image !== undefined) {
+  // 3. Si es una actualización de detalles sin cambiar dob (bio, intent, location, photos, video_url, interests, name, image, is_verified, is_ghost_mode)
+  if (name !== undefined || bio !== undefined || intent !== undefined || location !== undefined || photos !== undefined || video_url !== undefined || interests !== undefined || image !== undefined || is_verified !== undefined || is_ghost_mode !== undefined) {
     if (db) {
       try {
         const firstPhoto = Array.isArray(photos) && photos.length > 0 ? photos[0] : (typeof photos === 'string' && photos.startsWith('[') ? JSON.parse(photos)[0] : null);
         const resolvedImage = image || firstPhoto || null;
+        const verifiedVal = is_verified !== undefined ? (is_verified ? 1 : 0) : null;
+        const ghostVal = is_ghost_mode !== undefined ? (is_ghost_mode ? 1 : 0) : null;
 
         await db.prepare(`
           UPDATE users 
@@ -381,16 +383,18 @@ export async function POST(request) {
               nombre_actual = COALESCE(?, nombre_actual),
               nombre_completo = COALESCE(?, nombre_completo),
               image = COALESCE(?, image),
-              avatar_url = COALESCE(?, avatar_url)
+              avatar_url = COALESCE(?, avatar_url),
+              is_verified = COALESCE(?, is_verified),
+              is_ghost_mode = COALESCE(?, is_ghost_mode)
           WHERE id = ? OR (email IS NOT NULL AND LOWER(email) = LOWER(?))
-        `).bind(name ?? null, name ?? null, name ?? null, resolvedImage, resolvedImage, actualUserId, userEmail).run();
+        `).bind(name ?? null, name ?? null, name ?? null, resolvedImage, resolvedImage, verifiedVal, ghostVal, actualUserId, userEmail).run();
 
         const photosStr = typeof photos === 'string' ? photos : JSON.stringify(photos || []);
         const interestsStr = typeof interests === 'string' ? interests : JSON.stringify(interests || []);
 
         // Comprobar si ya existe el registro en astral_profiles
         const existingAstral = await db.prepare(
-          "SELECT user_id, birth_date FROM astral_profiles WHERE user_id = ? OR user_id = ?"
+          "SELECT user_id, birth_date, is_verified, is_ghost_mode FROM astral_profiles WHERE user_id = ? OR user_id = ?"
         ).bind(actualUserId, userEmail).first();
 
         if (existingAstral) {
@@ -401,7 +405,9 @@ export async function POST(request) {
                 location = COALESCE(?, location),
                 photos = COALESCE(?, photos),
                 video_url = COALESCE(?, video_url),
-                interests = COALESCE(?, interests)
+                interests = COALESCE(?, interests),
+                is_verified = COALESCE(?, is_verified),
+                is_ghost_mode = COALESCE(?, is_ghost_mode)
             WHERE user_id = ?
           `).bind(
             bio ?? null,
@@ -410,6 +416,8 @@ export async function POST(request) {
             photos !== undefined ? photosStr : null,
             video_url !== undefined ? video_url : null,
             interests !== undefined ? interestsStr : null,
+            verifiedVal,
+            ghostVal,
             existingAstral.user_id
           ).run();
         } else {
@@ -420,8 +428,8 @@ export async function POST(request) {
 
           await db.prepare(`
             INSERT INTO astral_profiles (
-              user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, video_url, interests
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              user_id, birth_date, sign, element, life_path_number, archetype, luz, sombra, bio, intent, location, photos, video_url, interests, is_verified, is_ghost_mode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(
             actualUserId,
             birthDate,
@@ -436,7 +444,9 @@ export async function POST(request) {
             location ?? 'Santiago, Chile',
             photosStr,
             video_url ?? null,
-            interestsStr
+            interestsStr,
+            verifiedVal ?? 0,
+            ghostVal ?? 0
           ).run();
         }
       } catch (err) {
@@ -455,7 +465,9 @@ export async function POST(request) {
         location: location ?? '',
         photos: photos !== undefined ? (typeof photos === 'string' ? photos : JSON.stringify(photos)) : '[]',
         video_url: video_url ?? null,
-        interests: interests !== undefined ? (typeof interests === 'string' ? interests : JSON.stringify(interests)) : '[]'
+        interests: interests !== undefined ? (typeof interests === 'string' ? interests : JSON.stringify(interests)) : '[]',
+        is_verified: is_verified !== undefined ? (is_verified ? 1 : 0) : 0,
+        is_ghost_mode: is_ghost_mode !== undefined ? (is_ghost_mode ? 1 : 0) : 0
       }
     });
   }
