@@ -74,7 +74,7 @@ export async function GET(request) {
           m.id, 
           m.sender_id, 
           m.receiver_id, 
-          m.content, 
+          COALESCE(m.content, m.contenido) as content, 
           m.created_at,
           COALESCE(NULLIF(u_sender.nombre_actual, ''), NULLIF(u_sender.nombre_completo, ''), NULLIF(u_sender.name, ''), u_sender.email, m.sender_id) as sender_name,
           COALESCE(u_sender.avatar_url, u_sender.image) as sender_image

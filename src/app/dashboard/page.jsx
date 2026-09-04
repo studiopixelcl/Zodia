@@ -110,8 +110,14 @@ export default function Dashboard() {
     let activeUser = session?.user;
     if (!activeUser && typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem('zodia_session');
+        const stored = sessionStorage.getItem('zodia_session') || localStorage.getItem('zodia_session');
         if (stored) activeUser = JSON.parse(stored);
+      } catch {}
+    }
+
+    if (activeUser && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('zodia_session', JSON.stringify(activeUser));
       } catch {}
     }
 
@@ -220,13 +226,14 @@ export default function Dashboard() {
 
   const handleSignOut = () => {
     try {
+      sessionStorage.removeItem('zodia_session');
       localStorage.removeItem('zodia_session');
       document.cookie = 'next-auth.session-token=; path=/; max-age=0; SameSite=Lax';
     } catch {}
     signOut({ callbackUrl: '/zodia' });
   };
 
-  const currentUser = session?.user || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('zodia_session') || 'null'));
+  const currentUser = session?.user || (typeof window !== 'undefined' && JSON.parse(sessionStorage.getItem('zodia_session') || localStorage.getItem('zodia_session') || 'null'));
 
   // ── Guardas de renderizado ─────────────────────────────────────────────────
   if (

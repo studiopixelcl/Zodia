@@ -162,7 +162,7 @@ export async function GET(request) {
             const otherIdToMatch = other.id || otherId;
 
             const lastMsg = await db.prepare(`
-              SELECT content, created_at, sender_id
+              SELECT COALESCE(content, contenido) AS content, created_at, sender_id, is_read
               FROM messages
               WHERE (sender_id IN (?, ?) AND receiver_id IN (?, ?)) 
                  OR (sender_id IN (?, ?) AND receiver_id IN (?, ?))
@@ -187,6 +187,7 @@ export async function GET(request) {
               affinity: `${affinityScore}%`,
               lastMessage: lastMsg ? lastMsg.content : null,
               lastMessageDate: lastMsg ? lastMsg.created_at : null,
+              lastMessageIsRead: lastMsg ? !!lastMsg.is_read : true,
               isSelfSender: lastMsg ? (lastMsg.sender_id === myCanonicalId || lastMsg.sender_id === myRawId) : false,
               isNewMatch: !lastMsg
             };

@@ -12,10 +12,10 @@ export function getApiUrl(endpoint) {
 export function apiFetch(endpoint, options = {}) {
   const headers = new Headers(options.headers || {});
 
-  // Adjuntar sesión activa como encabezado para asegurar autenticación en móviles/PWAs donde las cookies son bloqueadas
+  // Adjuntar sesión activa como encabezado para asegurar autenticación en móviles/PWAs y soporte multi-pestaña
   if (typeof window !== 'undefined') {
     try {
-      const stored = localStorage.getItem('zodia_session');
+      const stored = sessionStorage.getItem('zodia_session') || localStorage.getItem('zodia_session');
       if (stored && !headers.has('x-zodia-user')) {
         headers.set('x-zodia-user', encodeURIComponent(stored));
       }

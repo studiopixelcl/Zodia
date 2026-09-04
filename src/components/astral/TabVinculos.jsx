@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageCircle, Send, ArrowLeft, Sparkles, UserCheck, Bot, Heart, Zap, MapPin,
-  Mic, MicOff, Square, Play, Pause, Trash2, CheckCheck, Loader2, Volume2
+  Mic, MicOff, Square, Play, Pause, Trash2, Check, CheckCheck, Loader2, Volume2, AlertCircle
 } from 'lucide-react';
 import { getZodiacSymbol } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers } from '../../lib/dating';
@@ -96,6 +96,34 @@ function AudioMessagePlayer({ audioUrl, duration = 8, isMine }) {
   );
 }
 
+// Tono cósmico sutil para mensajes entrantes (Web Audio API)
+function playIncomingChime() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {}
+}
+
 export const TabVinculos = ({ selectedUserId, onClearSelection, profile, currentUser }) => {
   const [vinculos, setVinculos]       = useState([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -157,32 +185,72 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
     }
   }, [selectedUserId, vinculos]);
 
-  const fetchMessages = async (userId) => {
+  const fetchMessages = async (userId, silent = false) => {
     if (!userId) return;
     try {
+      if (!silent) setLoadingChat(true);
       const res = await apiFetch(`/api/messages?with=${encodeURIComponent(userId)}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(Array.isArray(data) ? data : []);
+        if (Array.isArray(data)) {
+          setMessages(prev => {
+            // Sonar tono cósmico si llegó un mensaje entrante nuevo del interlocutor
+            const prevIds = new Set(prev.map(m => m.id));
+            const newIncoming = data.filter(m => !prevIds.has(m.id) && m.sender_id === userId);
+            if (newIncoming.length > 0 && prev.length > 0) {
+              playIncomingChime();
+            }
+            return data;
+          });
+        }
       }
     } catch {
       // Silencioso
     } finally {
-      setLoadingChat(false);
+      if (!silent) setLoadingChat(false);
     }
   };
 
+  // Sincronización en tiempo real durante el chat activo
   useEffect(() => {
     if (!activeUser) return;
     setLoadingChat(true);
-    fetchMessages(activeUser.id);
+    fetchMessages(activeUser.id, false);
 
+    // 1. Polling de alta frecuencia cada 1.5s durante el chat activo
     const interval = setInterval(() => {
-      fetchMessages(activeUser.id);
-    }, 3000);
+      fetchMessages(activeUser.id, true);
+    }, 1500);
 
-    return () => clearInterval(interval);
-  }, [activeUser]);
+    // 2. Sincronización inmediata al cambiar de ventana o volver a la pestaña
+    const handleFocusOrVisible = () => {
+      fetchMessages(activeUser.id, true);
+      fetchVinculos();
+    };
+    window.addEventListener('focus', handleFocusOrVisible);
+    document.addEventListener('visibilitychange', handleFocusOrVisible);
+
+    // 3. Sincronización instantánea entre pestañas del mismo navegador (BroadcastChannel)
+    let channel = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        channel = new BroadcastChannel('zodia_chat_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'message_sent') {
+            fetchMessages(activeUser.id, true);
+            fetchVinculos();
+          }
+        };
+      } catch {}
+    }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleFocusOrVisible);
+      if (channel) channel.close();
+    };
+  }, [activeUser?.id]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -291,12 +359,14 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
     if (!textToSend) setInputText('');
     setSending(true);
 
+    const tempId = 'temp_' + Date.now();
     // Añadir mensaje optimista del usuario
     const optimisticMsg = {
-      id: Date.now(),
+      id: tempId,
       sender_id: 'me',
       receiver_id: activeUser.id,
       content,
+      is_read: 0,
       created_at: new Date().toISOString()
     };
     setMessages(prev => [...prev, optimisticMsg]);
@@ -314,16 +384,35 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
       });
 
       if (res.ok) {
+        // Notificar en tiempo real a otras pestañas activas
+        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+          try {
+            const bc = new BroadcastChannel('zodia_chat_sync');
+            bc.postMessage({ type: 'message_sent', receiverId: activeUser.id });
+            bc.close();
+          } catch {}
+        }
+
         setTimeout(async () => {
-          await fetchMessages(activeUser.id);
+          await fetchMessages(activeUser.id, true);
           setIsBotTyping(false);
           fetchVinculos();
-        }, isSimulated ? 1300 : 300);
+        }, isSimulated ? 1300 : 200);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Error entregando mensaje en API:', errData);
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setInputText(content);
+        alert('No se pudo entregar el mensaje en el éter. Por favor intenta nuevamente.');
       }
-    } catch {
-      setIsBotTyping(false);
+    } catch (err) {
+      console.error('Fallo de red al enviar mensaje:', err);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInputText(content);
+      alert('Error de conexión cósmica al transmitir el mensaje.');
     } finally {
       setSending(false);
+      setIsBotTyping(false);
     }
   };
 
@@ -429,7 +518,11 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
             </div>
           ) : (
             messages.map((msg, idx) => {
-              const isMine = msg.sender_id === 'me' || (msg.sender_id !== activeUser.id && msg.sender_id !== 'zodia_bot');
+              const isMine = 
+                msg.sender_id === 'me' || 
+                (currentUser?.id && (msg.sender_id === currentUser.id || msg.sender_id === currentUser.raw_id)) ||
+                (currentUser?.email && msg.sender_id.toLowerCase() === currentUser.email.toLowerCase()) ||
+                (msg.sender_id !== activeUser.id && msg.sender_id !== 'zodia_bot');
               const audioData = parseAudio(msg.content);
               const formattedTime = msg.created_at
                 ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -459,7 +552,15 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
 
                     <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-cyan-200/80' : 'text-gray-400'}`}>
                       {formattedTime && <span className="text-[9px]">{formattedTime}</span>}
-                      {isMine && <CheckCheck size={11} className="text-cyan-300" />}
+                      {isMine && (
+                        <span title={msg.is_read ? 'Leído' : 'Entregado'}>
+                          {msg.is_read ? (
+                            <CheckCheck size={12} className="text-cyan-300 font-bold" />
+                          ) : (
+                            <Check size={12} className="text-cyan-200/70" />
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -664,11 +765,14 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
 
                   <div>
                     <h4 className="text-white font-bold text-xs group-hover:text-cyan-400 transition-colors flex items-center gap-1.5">
-                      {u.name}
+                      <span>{u.name}</span>
+                      {!u.lastMessageIsRead && !u.isSelfSender && (
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#06b6d4] shrink-0" title="Mensaje sin leer" />
+                      )}
                     </h4>
                     <p className="text-[11px] text-gray-300 truncate max-w-[180px] sm:max-w-[280px] font-light mt-0.5">
                       {u.isSelfSender ? <span className="text-cyan-400 font-semibold">Tú: </span> : ''}
-                      {u.lastMessage}
+                      {u.lastMessage && typeof u.lastMessage === 'string' && u.lastMessage.startsWith('{"type":"audio"') ? '🎤 Nota de voz' : u.lastMessage}
                     </p>
                   </div>
                 </div>

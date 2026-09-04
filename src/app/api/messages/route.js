@@ -113,9 +113,16 @@ export async function GET(request) {
 
     if (otherUser?.id) otherCanonicalId = otherUser.id;
 
+    // Marcar como leídos los mensajes recibidos del remitente
+    await db.prepare(`
+      UPDATE messages 
+      SET is_read = 1 
+      WHERE receiver_id IN (?, ?) AND sender_id IN (?, ?) AND is_read = 0
+    `).bind(myCanonicalId, myRawId, otherCanonicalId, withUserId).run().catch(() => {});
+
     const messages = await db.prepare(`
       SELECT 
-        id, sender_id, receiver_id, content, created_at
+        id, sender_id, receiver_id, COALESCE(content, contenido) AS content, is_read, created_at
       FROM messages
       WHERE (sender_id IN (?, ?) AND receiver_id IN (?, ?)) 
          OR (sender_id IN (?, ?) AND receiver_id IN (?, ?))
@@ -216,17 +223,17 @@ export async function POST(request) {
   try {
     // 1. Guardar mensaje del usuario
     const result = await db.prepare(`
-      INSERT INTO messages (sender_id, receiver_id, content)
-      VALUES (?, ?, ?)
-    `).bind(myId, actualReceiverId, cleanContent).run();
+      INSERT INTO messages (sender_id, receiver_id, content, contenido, is_read)
+      VALUES (?, ?, ?, ?, 0)
+    `).bind(myId, actualReceiverId, cleanContent, cleanContent).run();
 
     // 2. Si es guía/bot, guardar respuesta mística
     if (isGuideOrBot) {
       const replyText = generateGuideReply(actualReceiverId, cleanContent);
       await db.prepare(`
-        INSERT INTO messages (sender_id, receiver_id, content)
-        VALUES (?, ?, ?)
-      `).bind(actualReceiverId, myId, replyText).run();
+        INSERT INTO messages (sender_id, receiver_id, content, contenido, is_read)
+        VALUES (?, ?, ?, ?, 1)
+      `).bind(actualReceiverId, myId, replyText, replyText).run();
     } else {
       // 3. Garantizar que ambos usuarios estén vinculados en la tabla de resonancias
       try {
@@ -268,10 +275,11 @@ export async function POST(request) {
       sender_id: myId,
       receiver_id: actualReceiverId,
       content: cleanContent,
+      is_read: 0,
       created_at: new Date().toISOString()
     });
   } catch (err) {
     console.error("Error al enviar mensaje:", err);
-    return NextResponse.json({ error: "Fallo al transmitir el mensaje místico." }, { status: 500 });
+    return NextResponse.json({ error: "Fallo al transmitir el mensaje místico.", details: err.message }, { status: 500 });
   }
 }
