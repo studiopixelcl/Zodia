@@ -116,7 +116,12 @@ export async function GET(request) {
         } catch (e) {
           insertError = e.message;
         }
-        return new Response(JSON.stringify({ success: !insertError, error: insertError, testId }), {
+        return new Response(JSON.stringify({ 
+          deploy_version: "2026-09-03-v4-passhash",
+          success: !insertError, 
+          error: insertError, 
+          testId 
+        }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
