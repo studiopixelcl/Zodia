@@ -1,8 +1,11 @@
 export const runtime = 'edge';
 
+import { getRequestContext } from '@cloudflare/next-on-pages';
+import { ensureDatabaseSchema } from '../../../lib/db-init';
+import { calculateAstralProfile } from '../../../lib/astrology';
+
 async function getDB() {
   try {
-    const { getRequestContext } = await import('@cloudflare/next-on-pages');
     return getRequestContext()?.env?.DB ?? null;
   } catch {
     return null;
@@ -31,7 +34,6 @@ export async function GET(request) {
 
       if (db && syncEmail) {
         try {
-          const { ensureDatabaseSchema } = await import('../../../lib/db-init');
           await ensureDatabaseSchema(db);
 
           const defaultHash = 'oauth_' + Date.now() + '_' + Math.random().toString(36).slice(2);
@@ -61,7 +63,6 @@ export async function GET(request) {
             `).bind(syncName, syncName, syncImage || null, syncImage || null, syncEmail).run();
           }
 
-          const { calculateAstralProfile } = await import('../../../lib/astrology');
           const astral = calculateAstralProfile(syncDob);
 
           await db.prepare(`
