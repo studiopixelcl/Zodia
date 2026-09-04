@@ -439,7 +439,11 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
             <div className="relative shrink-0">
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black border-2 border-cyan-400/50 overflow-hidden flex items-center justify-center shadow-inner">
                 {activeUser.image && activeUser.image !== '/assets/default-avatar.png' ? (
-                  <img src={activeUser.image} alt={activeUser.name} className="w-full h-full object-cover" />
+                  <img
+                    src={typeof activeUser.image === 'string' ? activeUser.image.replace(/w=\d+/, 'w=1200') : activeUser.image}
+                    alt={activeUser.name}
+                    className="w-full h-full object-cover object-[center_18%]"
+                  />
                 ) : (
                   <Bot className="text-cyan-400" size={20} />
                 )}
@@ -688,7 +692,11 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
               >
                 <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-cyan-400 via-pink-500 to-purple-500 shadow-[0_0_15px_rgba(236,72,153,0.5)] group-hover:scale-105 transition-transform duration-300">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-black border border-black">
-                    <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                    <img
+                      src={typeof m.image === 'string' ? m.image.replace(/w=\d+/, 'w=1200') : m.image}
+                      alt={m.name}
+                      className="w-full h-full object-cover object-[center_18%]"
+                    />
                   </div>
                   <div className="absolute -bottom-1 -right-1 bg-black/80 border border-cyan-400 rounded-full px-1 py-0.2 text-[9px] text-cyan-300 font-extrabold shadow">
                     {m.affinity || '95%'}
@@ -733,7 +741,11 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
                   <div className="relative">
                     <div className="w-12 h-12 rounded-full bg-black border border-cyan-500/30 overflow-hidden flex items-center justify-center shadow-inner">
                       {u.image && u.image !== '/assets/default-avatar.png' ? (
-                        <img src={u.image} alt={u.name} className="w-full h-full object-cover" />
+                        <img
+                          src={typeof u.image === 'string' ? u.image.replace(/w=\d+/, 'w=1200') : u.image}
+                          alt={u.name}
+                          className="w-full h-full object-cover object-[center_18%]"
+                        />
                       ) : (
                         <Bot className="text-cyan-400" size={24} />
                       )}

@@ -124,11 +124,32 @@ export async function GET(request) {
           }
         }
 
+        const HIGHRES_ELEMENT_PORTRAITS = {
+          Fuego: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85",
+          Tierra: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&auto=format&fit=crop&q=85",
+          Aire: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&auto=format&fit=crop&q=85",
+          Agua: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200&auto=format&fit=crop&q=85",
+          Éter: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&auto=format&fit=crop&q=85",
+          Default: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&auto=format&fit=crop&q=85"
+        };
+        const fallback = HIGHRES_ELEMENT_PORTRAITS[o.element] || HIGHRES_ELEMENT_PORTRAITS.Default;
+        let resolvedImage = o.image;
+        if (!resolvedImage || resolvedImage.includes('ui-avatars.com')) {
+          resolvedImage = (photoList.length > 0 && !photoList[0].includes('ui-avatars.com')) ? photoList[0] : fallback;
+        }
+
+        const cleanPhotos = photoList
+          .map(p => (typeof p === 'string' && p.includes('ui-avatars.com') ? fallback : p))
+          .filter(Boolean);
+        if (cleanPhotos.length === 0) {
+          cleanPhotos.push(resolvedImage);
+        }
+
         return {
           id: o.user_id,
           name: o.name,
           age,
-          image: o.image || (photoList.length > 0 ? photoList[0] : `https://ui-avatars.com/api/?name=${encodeURIComponent(o.name || 'Z')}&background=06b6d4&color=fff`),
+          image: resolvedImage,
           sign: o.sign,
           element: o.element,
           path: o.life_path_number,
@@ -137,7 +158,7 @@ export async function GET(request) {
           intent: o.intent ?? 'Citas y Pareja',
           location: o.location ?? 'Santiago, Chile',
           distanceKm: 3.5,
-          photos: photoList,
+          photos: cleanPhotos,
           video_url: o.video_url || null,
           interests: interestsList,
           is_verified: o.is_verified === 1 || o.is_verified === true,

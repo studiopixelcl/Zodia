@@ -18,7 +18,7 @@ const DEFAULT_VINCULOS_GUIDES = [
   {
     id: "candidate_valeria",
     name: "Valeria Ríos",
-    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85",
     sign: "Leo",
     element: "Fuego",
     path: "1",
@@ -31,7 +31,7 @@ const DEFAULT_VINCULOS_GUIDES = [
   {
     id: "candidate_camila",
     name: "Camila Beltrán",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200&auto=format&fit=crop&q=85",
     sign: "Géminis",
     element: "Aire",
     path: "5",
@@ -44,7 +44,7 @@ const DEFAULT_VINCULOS_GUIDES = [
   {
     id: "candidate_sofia",
     name: "Sofía Navarro",
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
+    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&auto=format&fit=crop&q=85",
     sign: "Escorpio",
     element: "Agua",
     path: "11",
@@ -57,7 +57,7 @@ const DEFAULT_VINCULOS_GUIDES = [
   {
     id: "zodia_bot",
     name: "ZODIA | Guía de Citas Astrales",
-    image: "https://ui-avatars.com/api/?name=Zodia+Bot&background=06b6d4&color=fff&bold=true",
+    image: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=85",
     sign: "Firmamento",
     element: "Éter",
     path: "∞",
@@ -234,7 +234,7 @@ export async function GET(request) {
         resultVinculos.push({
           id: otherId,
           name: cand?.name || otherId.replace('tuner_', '').replace(/_/g, ' '),
-          image: cand?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherId)}&background=06b6d4&color=fff`,
+          image: cand?.image || cand?.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85',
           sign: cand?.sign || 'Cosmos',
           element: cand?.element || 'Éter',
           path: cand?.life_path_number || '∞',

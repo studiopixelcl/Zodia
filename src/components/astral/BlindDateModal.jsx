@@ -284,9 +284,9 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
                 {/* Marco de foto con Astral Blur */}
                 <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-purple-500/40 shadow-lg">
                   <img
-                    src={session.partner.image}
+                    src={typeof session.partner.image === 'string' ? session.partner.image.replace(/w=\d+/, 'w=1200') : session.partner.image}
                     alt="Cita a ciegas"
-                    className={`w-full h-full object-cover transition-all duration-1000 ${
+                    className={`w-full h-full object-cover object-[center_18%] transition-all duration-1000 ${
                       isRevealed 
                         ? 'filter-none scale-100' 
                         : 'blur-2xl scale-125 opacity-70 contrast-125'

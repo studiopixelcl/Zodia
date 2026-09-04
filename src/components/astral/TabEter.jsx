@@ -57,18 +57,21 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   const [isBlindDateOpen, setIsBlindDateOpen] = useState(false); // Modal de Cita a Ciegas Cósmica
   const [synastryCandidate, setSynastryCandidate] = useState(null); // Modal de Sinastría Cósmica Profunda
 
-  // Fotos de respaldo cósmico de alta fidelidad según elemento astral
+  // Fotos de respaldo cósmico de alta fidelidad según elemento astral (1200px Retina)
   const DEFAULT_COSMIC_PHOTOS = {
-    Fuego: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80",
-    Tierra: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=80",
-    Aire: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80",
-    Agua: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80",
-    Default: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80"
+    Fuego: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85",
+    Tierra: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&auto=format&fit=crop&q=85",
+    Aire: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&auto=format&fit=crop&q=85",
+    Agua: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200&auto=format&fit=crop&q=85",
+    Éter: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&auto=format&fit=crop&q=85",
+    Cosmos: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&auto=format&fit=crop&q=85",
+    Default: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1200&auto=format&fit=crop&q=85"
   };
 
   const getCandidateFallbackPhoto = (candidate) => {
     if (!candidate) return DEFAULT_COSMIC_PHOTOS.Default;
-    return DEFAULT_COSMIC_PHOTOS[candidate.element] || DEFAULT_COSMIC_PHOTOS.Default;
+    const key = candidate.element || candidate.sign;
+    return DEFAULT_COSMIC_PHOTOS[key] || DEFAULT_COSMIC_PHOTOS.Default;
   };
 
   // Cargar candidatos desde la API
@@ -263,8 +266,13 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       ? currentCandidate.photos 
       : [currentCandidate.image]
     ).filter(Boolean).map(url => {
-      if (typeof url === 'string' && (url.includes('ui-avatars.com') || url.trim() === '')) {
-        return fallbackPhoto;
+      if (typeof url === 'string') {
+        if (url.includes('ui-avatars.com') || url.trim() === '') {
+          return fallbackPhoto;
+        }
+        if (url.includes('images.unsplash.com') && url.includes('w=')) {
+          return url.replace(/w=\d+/, 'w=1200').replace(/q=\d+/, 'q=85');
+        }
       }
       return url;
     });
@@ -460,8 +468,8 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
             </div>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col justify-between items-center w-full select-none">
-              {/* Contenedor del Mazo de Tarjetas (Stacking Deck) */}
-              <div className="relative w-full flex-1 min-h-[380px] max-h-[580px] sm:max-h-[640px] h-[58vh] sm:h-[64vh]">
+              {/* Contenedor del Mazo de Tarjetas (Stacking Deck con Proporción Retrato) */}
+              <div className="relative w-full flex-1 aspect-[3/4] sm:aspect-[4/5] min-h-[380px] max-h-[580px] sm:max-h-[640px] h-[58vh] sm:h-[64vh]">
                 
                 {/* 1. Tarjeta Subyacente en el Mazo (Siguiente Candidato) */}
                 {candidates[currentIndex + 1] && (
@@ -475,14 +483,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     <img
                       src={
                         (candidates[currentIndex + 1].photos?.[0] && !candidates[currentIndex + 1].photos[0].includes('ui-avatars.com'))
-                          ? candidates[currentIndex + 1].photos[0]
+                          ? candidates[currentIndex + 1].photos[0].replace(/w=\d+/, 'w=1200')
                           : (candidates[currentIndex + 1].image && !candidates[currentIndex + 1].image.includes('ui-avatars.com'))
-                            ? candidates[currentIndex + 1].image
+                            ? candidates[currentIndex + 1].image.replace(/w=\d+/, 'w=1200')
                             : getCandidateFallbackPhoto(candidates[currentIndex + 1])
                       }
                       alt={candidates[currentIndex + 1].name}
                       onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(candidates[currentIndex + 1]); }}
-                      className="w-full h-full object-cover filter brightness-75"
+                      className="w-full h-full object-cover object-[center_18%] filter brightness-75 select-none"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                   </div>
@@ -524,14 +533,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                       loop
                       muted
                       playsInline
-                      className="w-full h-full object-cover pointer-events-none"
+                      className="w-full h-full object-cover object-[center_18%] pointer-events-none"
                     />
                   ) : (
                     <img
                       src={mediaList[mediaIndex]?.url || currentCandidate.image}
                       alt={currentCandidate.name}
                       onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(currentCandidate); }}
-                      className="w-full h-full object-cover pointer-events-none"
+                      className="w-full h-full object-cover object-[center_18%] pointer-events-none select-none transition-all duration-300"
+                      loading="eager"
                     />
                   )}
 
@@ -959,25 +969,29 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {candidates.map((c) => {
-                const candidateImage = (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com'))
+                const rawCandidateImg = (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com'))
                   ? c.photos[0]
                   : (c.image && !c.image.includes('ui-avatars.com'))
                     ? c.image
                     : getCandidateFallbackPhoto(c);
+                const candidateImage = (typeof rawCandidateImg === 'string' && rawCandidateImg.includes('unsplash.com'))
+                  ? rawCandidateImg.replace(/w=\d+/, 'w=1200')
+                  : rawCandidateImg;
 
                 return (
                   <div
                     key={c.id}
                     onClick={() => setSelectedCandidate(c)}
-                    className="glass-panel overflow-hidden border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer group flex flex-col justify-between"
+                    className="glass-panel overflow-hidden border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer group flex flex-col justify-between rounded-2xl shadow-lg"
                   >
                     {/* Imagen y badges */}
-                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+                    <div className="relative aspect-[3/4] sm:aspect-[4/5] w-full overflow-hidden bg-black">
                       <img
                         src={candidateImage}
                         alt={c.name}
                         onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(c); }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover object-[center_18%] group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e19] via-transparent to-transparent" />
                       
@@ -1101,9 +1115,16 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
             <div className="text-center space-y-2">
               <div className="relative inline-block">
                 <img
-                  src={selectedCandidate.image}
+                  src={
+                    (selectedCandidate.photos?.[0] && !selectedCandidate.photos[0].includes('ui-avatars.com'))
+                      ? selectedCandidate.photos[0].replace(/w=\d+/, 'w=1200')
+                      : (selectedCandidate.image && !selectedCandidate.image.includes('ui-avatars.com'))
+                        ? selectedCandidate.image.replace(/w=\d+/, 'w=1200')
+                        : getCandidateFallbackPhoto(selectedCandidate)
+                  }
                   alt={selectedCandidate.name}
-                  className="w-24 h-24 rounded-full border-2 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.4)] object-cover bg-black mx-auto"
+                  onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(selectedCandidate); }}
+                  className="w-24 h-24 rounded-full border-2 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.4)] object-cover object-[center_18%] bg-black mx-auto"
                 />
                 <ZodiacBadge sign={selectedCandidate.sign} size="md" className="absolute -bottom-1 -right-1 border-2 border-black" />
               </div>
@@ -1150,14 +1171,18 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                 )}
                 {selectedCandidate.photos && selectedCandidate.photos.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {selectedCandidate.photos.map((photo, i) => (
-                      <img
-                        key={i}
-                        src={photo}
-                        alt={`Foto ${i + 1}`}
-                        className="w-full aspect-square object-cover rounded-xl border border-white/10 bg-black/40"
-                      />
-                    ))}
+                    {selectedCandidate.photos.map((photo, i) => {
+                      const photoUrl = typeof photo === 'string' ? photo.replace(/w=\d+/, 'w=1200') : photo;
+                      return (
+                        <img
+                          key={i}
+                          src={photoUrl}
+                          alt={`Foto ${i + 1}`}
+                          onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(selectedCandidate); }}
+                          className="w-full aspect-square object-cover object-[center_18%] rounded-xl border border-white/10 bg-black/40 hover:opacity-90 transition cursor-pointer"
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </div>
