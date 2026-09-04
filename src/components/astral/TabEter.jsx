@@ -267,7 +267,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       : [currentCandidate.image]
     ).filter(Boolean).map(url => {
       if (typeof url === 'string') {
-        if (url.includes('ui-avatars.com') || url.trim() === '') {
+        if (url.includes('ui-avatars.com') || url.includes('photo-1518709268805') || url.trim() === '') {
           return fallbackPhoto;
         }
         if (url.includes('images.unsplash.com') && url.includes('w=')) {
@@ -482,9 +482,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                   >
                     <img
                       src={
-                        (candidates[currentIndex + 1].photos?.[0] && !candidates[currentIndex + 1].photos[0].includes('ui-avatars.com'))
+                        (candidates[currentIndex + 1].photos?.[0] && !candidates[currentIndex + 1].photos[0].includes('ui-avatars.com') && !candidates[currentIndex + 1].photos[0].includes('photo-1518709268805'))
                           ? candidates[currentIndex + 1].photos[0].replace(/w=\d+/, 'w=1200')
-                          : (candidates[currentIndex + 1].image && !candidates[currentIndex + 1].image.includes('ui-avatars.com'))
+                          : (candidates[currentIndex + 1].image && !candidates[currentIndex + 1].image.includes('ui-avatars.com') && !candidates[currentIndex + 1].image.includes('photo-1518709268805'))
                             ? candidates[currentIndex + 1].image.replace(/w=\d+/, 'w=1200')
                             : getCandidateFallbackPhoto(candidates[currentIndex + 1])
                       }
@@ -969,9 +969,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {candidates.map((c) => {
-                const rawCandidateImg = (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com'))
+                const rawCandidateImg = (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com') && !c.photos[0].includes('photo-1518709268805'))
                   ? c.photos[0]
-                  : (c.image && !c.image.includes('ui-avatars.com'))
+                  : (c.image && !c.image.includes('ui-avatars.com') && !c.image.includes('photo-1518709268805'))
                     ? c.image
                     : getCandidateFallbackPhoto(c);
                 const candidateImage = (typeof rawCandidateImg === 'string' && rawCandidateImg.includes('unsplash.com'))
@@ -1116,9 +1116,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
               <div className="relative inline-block">
                 <img
                   src={
-                    (selectedCandidate.photos?.[0] && !selectedCandidate.photos[0].includes('ui-avatars.com'))
+                    (selectedCandidate.photos?.[0] && !selectedCandidate.photos[0].includes('ui-avatars.com') && !selectedCandidate.photos[0].includes('photo-1518709268805'))
                       ? selectedCandidate.photos[0].replace(/w=\d+/, 'w=1200')
-                      : (selectedCandidate.image && !selectedCandidate.image.includes('ui-avatars.com'))
+                      : (selectedCandidate.image && !selectedCandidate.image.includes('ui-avatars.com') && !selectedCandidate.image.includes('photo-1518709268805'))
                         ? selectedCandidate.image.replace(/w=\d+/, 'w=1200')
                         : getCandidateFallbackPhoto(selectedCandidate)
                   }

@@ -134,12 +134,12 @@ export async function GET(request) {
         };
         const fallback = HIGHRES_ELEMENT_PORTRAITS[o.element] || HIGHRES_ELEMENT_PORTRAITS.Default;
         let resolvedImage = o.image;
-        if (!resolvedImage || resolvedImage.includes('ui-avatars.com')) {
-          resolvedImage = (photoList.length > 0 && !photoList[0].includes('ui-avatars.com')) ? photoList[0] : fallback;
+        if (!resolvedImage || resolvedImage.includes('ui-avatars.com') || resolvedImage.includes('photo-1518709268805')) {
+          resolvedImage = (photoList.length > 0 && !photoList[0].includes('ui-avatars.com') && !photoList[0].includes('photo-1518709268805')) ? photoList[0] : fallback;
         }
 
         const cleanPhotos = photoList
-          .map(p => (typeof p === 'string' && p.includes('ui-avatars.com') ? fallback : p))
+          .map(p => (typeof p === 'string' && (p.includes('ui-avatars.com') || p.includes('photo-1518709268805')) ? fallback : p))
           .filter(Boolean);
         if (cleanPhotos.length === 0) {
           cleanPhotos.push(resolvedImage);
