@@ -213,6 +213,7 @@ export async function POST(request) {
       } else {
         wasWithoutDob = true;
         const fallbackHash = 'oauth_' + actualUserId;
+        const effectiveDob = dob || '1998-07-15';
         try {
           await db.prepare(`
             INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status, password_hash)
@@ -224,7 +225,7 @@ export async function POST(request) {
               image = COALESCE(users.image, excluded.image),
               avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
               status = 'active'
-          `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null, fallbackHash).run();
+          `).bind(actualUserId, userEmail, userName, userName, userName, effectiveDob, image || null, image || null, fallbackHash).run();
         } catch (insErr) {
           // Si el conflicto fue por correo duplicado con otro ID, re-vincular a dicho ID
           const reCheck = await db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").bind(userEmail).first();
@@ -232,7 +233,7 @@ export async function POST(request) {
             actualUserId = reCheck.id;
           } else {
             try {
-              await db.prepare("INSERT INTO users (id, email, name, image, password_hash) VALUES (?, ?, ?, ?, ?)").bind(actualUserId, userEmail, userName, image || null, fallbackHash).run();
+              await db.prepare("INSERT INTO users (id, email, name, image, password_hash, fecha_nacimiento) VALUES (?, ?, ?, ?, ?, ?)").bind(actualUserId, userEmail, userName, image || null, fallbackHash, effectiveDob).run();
             } catch {}
           }
         }

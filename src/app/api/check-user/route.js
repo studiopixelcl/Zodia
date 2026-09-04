@@ -111,13 +111,13 @@ export async function GET(request) {
         try {
           await db.prepare(`
             INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status, password_hash)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active', ?)
+            VALUES (?, ?, ?, ?, ?, '1998-07-15', ?, ?, 'active', ?)
           `).bind(testId, testEmail, 'Test User', 'Test User', 'Test User', 'https://example.com/pic.jpg', 'https://example.com/pic.jpg', 'hash_test_123').run();
         } catch (e) {
           insertError = e.message;
         }
         return new Response(JSON.stringify({ 
-          deploy_version: "2026-09-03-v4-passhash",
+          deploy_version: "2026-09-03-v5-dobfix",
           success: !insertError, 
           error: insertError, 
           testId 
@@ -135,8 +135,8 @@ export async function GET(request) {
         const allAstral = await db.prepare("SELECT user_id, birth_date, sign, element FROM astral_profiles").all();
         return new Response(JSON.stringify({
           tables: (tables.results || []).map(t => t.name),
-          usersColumns: (usersCols.results || []).map(c => c.name),
-          astralColumns: (astralCols.results || []).map(c => c.name),
+          usersColumns: usersCols.results || [],
+          astralColumns: astralCols.results || [],
           users: allUsers.results || [],
           astralProfiles: allAstral.results || []
         }), {
