@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { LogOut, Bell } from 'lucide-react';
 
 import { TabEspejo }   from '../../components/astral/TabEspejo';
 import { TabEter }     from '../../components/astral/TabEter';
@@ -12,6 +12,7 @@ import { TabJuegos }   from '../../components/astral/TabJuegos';
 import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
 import { NotificationManager } from '../../components/ui/NotificationManager';
+import { NotificationCenterDrawer } from '../../components/ui/NotificationCenterDrawer';
 import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
 import { calculateAstralProfile } from '../../lib/astrology';
@@ -39,6 +40,11 @@ export default function Dashboard() {
   // La pantalla principal predeterminada al ingresar o actualizar es siempre el Perfil ('espejo')
   const [activeTab,      setActiveTab]      = useState('espejo');
   const [selectedUserId, setSelectedUserId] = useState(null);
+
+  // Estados de Notificaciones Cósmicas In-App
+  const [notifications,    setNotifications]    = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
 
   // ── Sincronización de URL inicial y control de retroceso en móviles ────────
   useEffect(() => {
@@ -254,6 +260,25 @@ export default function Dashboard() {
 
   if (!currentUser) return <Sincronizando />;
 
+  const handleNavigateFromNotif = (url, notif) => {
+    if (!url) return;
+    if (url.includes('tab=vinculos') && url.includes('userId=')) {
+      const match = url.match(/userId=([^&]+)/);
+      if (match && match[1]) {
+        handleSelectUser(match[1]);
+        return;
+      }
+    }
+    if (url.includes('tab=')) {
+      const match = url.match(/tab=([^&]+)/);
+      if (match && match[1]) {
+        handleSwitchTab(match[1]);
+        return;
+      }
+    }
+    window.location.href = url;
+  };
+
   // ── Render principal ───────────────────────────────────────────────────────
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full max-w-xl mx-auto flex flex-col justify-between overflow-hidden relative selection:bg-cyan-500 selection:text-black">
@@ -272,12 +297,30 @@ export default function Dashboard() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-gray-400 hover:text-cyan-400 transition flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-widest px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
-        >
-          <LogOut size={13} /> Desconectar
-        </button>
+
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Campanita de Notificaciones Cósmicas In-App */}
+          <button
+            type="button"
+            onClick={() => setIsNotifDrawerOpen(true)}
+            className="relative p-2 rounded-xl text-slate-300 hover:text-cyan-300 hover:bg-white/5 border border-white/10 hover:border-cyan-500/40 transition shadow-sm"
+            title="Señales Cósmicas"
+          >
+            <Bell size={16} />
+            {unreadNotifCount > 0 && (
+              <span className="absolute -top-1 -right-1 px-1 min-w-[17px] h-[17px] rounded-full bg-cyan-500 text-black text-[9px] font-black flex items-center justify-center shadow-[0_0_10px_#06b6d4] animate-pulse">
+                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            className="text-gray-400 hover:text-cyan-400 transition flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-widest px-2.5 py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
+          >
+            <LogOut size={13} /> Desconectar
+          </button>
+        </div>
       </header>
 
       {/* Contenido Principal con Scroll Interno Independiente */}
@@ -331,6 +374,29 @@ export default function Dashboard() {
         onNavigateToChat={(targetUserId) => {
           handleSelectUser(targetUserId);
         }}
+        onNotificationsUpdate={(notifs, count) => {
+          setNotifications(notifs);
+          setUnreadNotifCount(count);
+        }}
+      />
+
+      {/* Centro de Notificaciones In-App Cósmico */}
+      <NotificationCenterDrawer
+        isOpen={isNotifDrawerOpen}
+        onClose={() => setIsNotifDrawerOpen(false)}
+        notifications={notifications}
+        unreadCount={unreadNotifCount}
+        onRefresh={async () => {
+          try {
+            const res = await apiFetch('/api/notifications');
+            if (res.ok) {
+              const data = await res.json();
+              setNotifications(data.notifications || []);
+              setUnreadNotifCount(data.unreadCount || 0);
+            }
+          } catch {}
+        }}
+        onNavigate={handleNavigateFromNotif}
       />
     </div>
   );

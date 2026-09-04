@@ -42,24 +42,42 @@ export async function GET(request) {
   try {
     await ensureNotificationTables(db);
 
-    const rows = await db.prepare(`
-      SELECT id, title, body, url, type, is_read, created_at
-      FROM notifications
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 15
-    `).bind(userId).all();
-
-    const notifications = rows?.results || [];
-    const unreadCount = notifications.filter(n => !n.is_read).length;
-
-    // Si se pasa ?mark_read=true, marcarlas como leídas
     const { searchParams } = new URL(request.url);
-    if (searchParams.get('mark_read') === 'true') {
-      await db.prepare(`
-        UPDATE notifications SET is_read = 1 WHERE user_id = ?
-      `).bind(userId).run().catch(() => {});
+    const markReadId = searchParams.get('id');
+    const markAllRead = searchParams.get('mark_read') === 'true';
+
+    if (markReadId) {
+      await db.prepare(`UPDATE notifications SET is_read = 1 WHERE user_id = ? AND id = ?`).bind(userId, markReadId).run().catch(() => {});
+      await db.prepare(`UPDATE notifications SET read = 1 WHERE user_id = ? AND id = ?`).bind(userId, markReadId).run().catch(() => {});
+    } else if (markAllRead) {
+      await db.prepare(`UPDATE notifications SET is_read = 1 WHERE user_id = ?`).bind(userId).run().catch(() => {});
+      await db.prepare(`UPDATE notifications SET read = 1 WHERE user_id = ?`).bind(userId).run().catch(() => {});
     }
+
+    let notifications = [];
+    try {
+      const rows = await db.prepare(`
+        SELECT id, title, body, url, type, COALESCE(is_read, 0) AS is_read, created_at
+        FROM notifications
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 30
+      `).bind(userId).all();
+      notifications = rows?.results || [];
+    } catch {
+      try {
+        const fallbackRows = await db.prepare(`
+          SELECT id, title, body, url, type, COALESCE(read, 0) AS is_read, created_at
+          FROM notifications
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT 30
+        `).bind(userId).all();
+        notifications = fallbackRows?.results || [];
+      } catch {}
+    }
+
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     return NextResponse.json({ notifications, unreadCount });
   } catch (err) {

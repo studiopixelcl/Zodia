@@ -1,14 +1,40 @@
 {
-  "name": "ZODIA | Citas Astrales",
+  "name": "ZODIA | Citas Astrales & Compatibilidad Cósmica",
   "short_name": "Zodia",
-  "description": "Encuentra tu conexión predestinada según tu sintonía zodiacal y numerología.",
+  "id": "/zodia/",
+  "description": "Encuentra tu conexión predestinada según tu sintonía zodiacal, sinastría y numerología.",
   "start_url": "/zodia/dashboard",
   "scope": "/zodia/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#030308",
   "theme_color": "#06b6d4",
   "orientation": "portrait-primary",
+  "lang": "es-CL",
   "categories": ["dating", "lifestyle", "social"],
+  "shortcuts": [
+    {
+      "name": "Radar del Éter",
+      "short_name": "Éter",
+      "description": "Explora candidatos compatibles en el Radar Astral",
+      "url": "/zodia/dashboard?tab=eter",
+      "icons": [{ "src": "/zodia/assets/ico.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mensajes & Vínculos",
+      "short_name": "Mensajes",
+      "description": "Abre tus conversaciones activas y matches",
+      "url": "/zodia/dashboard?tab=vinculos",
+      "icons": [{ "src": "/zodia/assets/ico.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Oráculo & Carta Astral",
+      "short_name": "Oráculo",
+      "description": "Consulta tus tránsitos diarios y mandala astral",
+      "url": "/zodia/dashboard?tab=oraculo",
+      "icons": [{ "src": "/zodia/assets/ico.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/zodia/assets/logo.png",

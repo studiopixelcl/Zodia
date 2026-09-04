@@ -155,6 +155,21 @@ export async function POST(request) {
             url: `/zodia/dashboard?tab=vinculos&userId=${actualTargetId}`,
             type: 'match'
           });
+        } else {
+          // Si aún no es match mutuo, avisar al destinatario del nuevo Like o Superlike
+          const meUser = await db.prepare("SELECT name, nombre_actual FROM users WHERE id = ?").bind(myId).first().catch(() => null);
+          const myName = meUser?.nombre_actual || meUser?.name || token.name || 'Alguien';
+
+          await sendNotification({
+            db,
+            userId: actualTargetId,
+            title: type === 'superlike' ? '¡Superlike Cósmico! ⭐' : '¡Nueva Sintonía Astral! ✨',
+            body: type === 'superlike'
+              ? `${myName} te ha enviado un Superlike desde el Éter.`
+              : `A un sintonizador le ha gustado tu energía cósmica en el Éter.`,
+            url: `/zodia/dashboard?tab=eter`,
+            type: 'like'
+          });
         }
       }
     } catch (err) {

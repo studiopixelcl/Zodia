@@ -1,19 +1,75 @@
-// Service Worker Cósmico de Zodia para Web Push Notifications y Offline PWA
+// Service Worker Cósmico de Zodia para Web Push Notifications y PWA Offline
+const CACHE_NAME = 'zodia-cache-v2';
+const STATIC_ASSETS = [
+  '/zodia/manifest.json',
+  '/zodia/assets/logo.png',
+  '/zodia/assets/ico.png',
+  '/zodia/assets/icon.svg'
+];
+
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS).catch(() => {});
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
-// Receptor de notificaciones Push del servidor
+// Interceptor de peticiones para soporte PWA rápido (bypassea APIs)
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Ignorar peticiones API, NextAuth o WebSocket para no interferir con datos en tiempo real
+  if (url.pathname.includes('/api/') || request.method !== 'GET') {
+    return;
+  }
+
+  // Cache First para imágenes y assets estáticos
+  if (
+    url.pathname.includes('/assets/') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.woff2')
+  ) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
+          return networkResponse;
+        }).catch(() => cachedResponse);
+      })
+    );
+  }
+});
+
+// Receptor de notificaciones Web Push del servidor
 self.addEventListener('push', (event) => {
   let data = {
     title: 'Zodia • Conexión Cósmica',
     body: 'Tienes una nueva actualización en tu matriz astral.',
-    icon: '/zodia/logo.png',
-    badge: '/zodia/ico.png',
+    icon: '/zodia/assets/logo.png',
+    badge: '/zodia/assets/ico.png',
     url: '/zodia/dashboard'
   };
 
@@ -27,9 +83,11 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/zodia/logo.png',
-    badge: data.badge || '/zodia/ico.png',
+    icon: data.icon || '/zodia/assets/logo.png',
+    badge: data.badge || '/zodia/assets/ico.png',
     vibrate: [150, 80, 150],
+    tag: 'zodia-cosmic-notif',
+    renotify: true,
     data: {
       url: data.url || '/zodia/dashboard',
       dateOfArrival: Date.now()

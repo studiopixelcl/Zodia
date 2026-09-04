@@ -10,6 +10,8 @@ import {
   TREE_OF_LIFE_SEFIROT, getTemporalForecast, calculateAstralProfile
 } from '../../lib/astrology';
 import { ZodiacBadge } from './ZodiacBadge';
+import { MandalaAstral } from './MandalaAstral';
+import { DailyTransits } from './DailyTransits';
 
 // Coordenadas SVG precisas de las Sefirot del Árbol de la Vida (viewBox: 0 0 400 540)
 const SEFIROT_COORDS = [
@@ -53,8 +55,8 @@ const TREE_PATHS = [
 ];
 
 export const TabOraculo = ({ profile }) => {
-  // Pestaña principal: 'pronostico' | 'signo' | 'arbol'
-  const [mainSection, setMainSection] = useState('pronostico');
+  // Pestaña principal: 'transitos' | 'mandala' | 'pronostico' | 'signo' | 'arbol'
+  const [mainSection, setMainSection] = useState('transitos');
 
   // Período de pronóstico: 'diario' | 'semanal' | 'mensual' | 'anual'
   const [forecastPeriod, setForecastPeriod] = useState('diario');
@@ -82,27 +84,49 @@ export const TabOraculo = ({ profile }) => {
   const sefiraData = TREE_OF_LIFE_SEFIROT[inspectedSefira] || TREE_OF_LIFE_SEFIROT[1];
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-20 px-3 sm:px-4 max-w-2xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 animate-fadeIn pb-20 px-2 sm:px-4 max-w-2xl mx-auto">
       
       {/* ── CABECERA EDITORIAL Y SELECTOR DE SECCIÓN SOBRIA ── */}
-      <div className="card-clean p-4 sm:p-5 text-center">
+      <div className="card-clean p-3 sm:p-5 text-center">
         <span className="text-[10px] font-bold text-sky-400 uppercase tracking-widest block mb-1">
           Bitácora de Autoconocimiento
         </span>
         <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-          Lecturas & Sabiduría
+          Oráculo & Sabiduría Astral
         </h2>
         <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
-          Guía reflexiva sobre tu signo, ciclos temporales y correspondencia numerológica en el Árbol de la Vida.
+          Tránsitos planetarios en vivo, mandala natal interactivo, sinastría y correspondencia cabalística.
         </p>
 
-        {/* Pestañas de navegación interna */}
-        <div className="flex rounded-xl bg-black/40 p-1 border border-white/[0.08] mt-4 max-w-md mx-auto">
+        {/* Pestañas de navegación interna con scroll horizontal fluido */}
+        <div className="flex rounded-2xl bg-black/50 p-1 border border-white/[0.08] mt-3.5 max-w-xl mx-auto overflow-x-auto no-scrollbar gap-1">
+          <button
+            onClick={() => setMainSection('transitos')}
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'transitos' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Compass size={13} />
+            Tránsitos
+          </button>
+          <button
+            onClick={() => setMainSection('mandala')}
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'mandala' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Eye size={13} />
+            Mandala
+          </button>
           <button
             onClick={() => setMainSection('pronostico')}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               mainSection === 'pronostico' 
-                ? 'bg-sky-500 text-black font-bold shadow-sm' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -111,9 +135,9 @@ export const TabOraculo = ({ profile }) => {
           </button>
           <button
             onClick={() => setMainSection('signo')}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               mainSection === 'signo' 
-                ? 'bg-sky-500 text-black font-bold shadow-sm' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -122,17 +146,31 @@ export const TabOraculo = ({ profile }) => {
           </button>
           <button
             onClick={() => setMainSection('arbol')}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               mainSection === 'arbol' 
-                ? 'bg-sky-500 text-black font-bold shadow-sm' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <BookOpen size={13} />
-            Árbol de la Vida
+            Árbol
           </button>
         </div>
       </div>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN A: TRÁNSITOS DIARIOS PERSONALIZADOS (HOY)        ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'transitos' && (
+        <DailyTransits profile={profile} />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN B: MANDALA / RUEDA ASTRAL SVG INTERACTIVA        ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'mandala' && (
+        <MandalaAstral profile={profile} />
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ── 1. SECCIÓN: PRONÓSTICO TEMPORAL (DIARIO / SEMANAL / MES / AÑO) ── */}

@@ -16,7 +16,7 @@ function urlB64ToUint8Array(base64String) {
   return outputArray;
 }
 
-export const NotificationManager = ({ onNavigateToChat }) => {
+export const NotificationManager = ({ onNavigateToChat, onNotificationsUpdate }) => {
   const [permissionState, setPermissionState] = useState('default');
   const [showPrompt, setShowPrompt]           = useState(false);
   const [isSubscribing, setIsSubscribing]     = useState(false);
@@ -56,6 +56,10 @@ export const NotificationManager = ({ onNavigateToChat }) => {
           const data = await res.json();
           const unreadList = data.notifications?.filter(n => !n.is_read) || [];
 
+          if (onNotificationsUpdate) {
+            onNotificationsUpdate(data.notifications || [], data.unreadCount || unreadList.length);
+          }
+
           if (unreadList.length > 0) {
             const latest = unreadList[0];
             if (latest.id !== lastSeenNotificationId) {
@@ -75,7 +79,7 @@ export const NotificationManager = ({ onNavigateToChat }) => {
     checkNotifications();
     const interval = setInterval(checkNotifications, 8000);
     return () => clearInterval(interval);
-  }, [lastSeenNotificationId]);
+  }, [lastSeenNotificationId, onNotificationsUpdate]);
 
   // 4. Solicitar permiso y registrar suscripción Web Push
   const handleEnableNotifications = async () => {

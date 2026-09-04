@@ -8,12 +8,13 @@ import {
   Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, 
   MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, 
   Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon,
-  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle
+  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle, ChevronRight
 } from 'lucide-react';
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
 import { MediaCropperModal } from '../ui/MediaCropperModal';
 import { VideoCropperModal } from '../ui/VideoCropperModal';
+import { MandalaAstral } from './MandalaAstral';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onProfileUpdated }) => {
   const userSign = profile?.sign ?? 'Capricornio';
@@ -42,6 +43,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
   const [activeKnowledgeModal, setActiveKnowledgeModal] = activeKnowledgeModalState;
   const [isPublicPreviewOpen, setIsPublicPreviewOpen]   = useState(false);
   const [activeLightboxImg, setActiveLightboxImg]       = useState(null);
+  const [isMandalaOpen, setIsMandalaOpen]               = useState(false);
 
   // Estados de edición del perfil social
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -462,6 +464,30 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
             </div>
 
           </div>
+
+          {/* Botón Acceso Rápido al Mandala Astral Interactivo */}
+          <button
+            type="button"
+            onClick={() => setIsMandalaOpen(true)}
+            className="w-full mt-3.5 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-purple-950/30 to-black/60 border border-cyan-500/30 hover:border-cyan-400/60 transition-all flex items-center justify-between group shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300 group-hover:scale-105 transition-transform">
+                <Compass size={16} className="animate-spin" />
+              </div>
+              <div className="text-left">
+                <h5 className="text-xs font-bold text-white group-hover:text-cyan-300 transition">
+                  Ver mi Mandala Astral & Casas
+                </h5>
+                <p className="text-[10px] text-slate-400 font-light">
+                  Rueda interactiva con planetas, casas y aspectos sagrados
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-cyan-400 flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Explorar <ChevronRight size={14} />
+            </span>
+          </button>
 
         </div>
       </div>
@@ -1377,6 +1403,38 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         onVideoComplete={handleVideoCropComplete}
         onClose={() => setVideoCropperState({ isOpen: false, file: null })}
       />
+
+      {/* Modal de Mandala Astral & Carta Natal en Pantalla Completa */}
+      {isMandalaOpen && (
+        <div className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-2xl flex flex-col p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="max-w-2xl w-full mx-auto flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300">
+                <Compass size={16} />
+              </div>
+              <div>
+                <h3 className="mystic-font text-sm sm:text-base font-bold text-white">
+                  Mandala Astral Natal
+                </h3>
+                <p className="text-[10px] text-slate-400 font-light">
+                  Rueda cósmica personalizada • {userSign}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMandalaOpen(false)}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="max-w-2xl w-full mx-auto py-4 my-auto">
+            <MandalaAstral profile={profile} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

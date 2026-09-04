@@ -148,35 +148,62 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
     setMediaProgress(0);
   };
 
-  // Gestos táctiles y ratón para arrastrar tarjeta (Swipe)
+  // Gestos táctiles y ratón para arrastrar tarjeta (Swipe nativo estilo Tinder)
   const handleTouchStart = (e) => {
     const touch = e.touches ? e.touches[0] : e;
-    dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+    dragStartRef.current = { 
+      x: touch.clientX, 
+      y: touch.clientY, 
+      time: Date.now() 
+    };
     setIsDragging(true);
   };
 
   const handleTouchMove = (e) => {
-    if (!isDragging) return;
+    if (!isDragging || !dragStartRef.current) return;
     const touch = e.touches ? e.touches[0] : e;
     const deltaX = touch.clientX - dragStartRef.current.x;
     const deltaY = touch.clientY - dragStartRef.current.y;
     setDragOffset({ x: deltaX, y: deltaY });
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e) => {
     if (!isDragging) return;
     setIsDragging(false);
     setIsHoldingMedia(false);
 
-    // Umbral para confirmar like / pass / superlike
-    const threshold = 100;
-    if (dragOffset.x > threshold) {
+    const touch = e.changedTouches ? e.changedTouches[0] : e;
+    const totalDist = Math.hypot(dragOffset.x, dragOffset.y);
+    const duration = Date.now() - (dragStartRef.current?.time || Date.now());
+
+    // 1. Si fue un toque corto y sin desplazamiento (< 8px y < 250ms), es cambio de multimedia (Story)
+    if (totalDist < 8 && duration < 250 && mediaList.length > 1) {
+      const cardRect = e.currentTarget?.getBoundingClientRect?.() || { left: 0, width: window.innerWidth };
+      const clickX = (touch?.clientX || 0) - cardRect.left;
+      const isLeft = clickX < cardRect.width * 0.35;
+
+      if (isLeft) {
+        setMediaIndex(prev => (prev - 1 + mediaList.length) % mediaList.length);
+      } else {
+        setMediaIndex(prev => (prev + 1) % mediaList.length);
+      }
+      setMediaProgress(0);
+      setDragOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    // 2. Umbral de confirmación de swipe rápido (80px horizontal o -70px vertical)
+    const thresholdX = 80;
+    const thresholdY = -70;
+
+    if (dragOffset.x > thresholdX) {
       handleInteraction('like');
-    } else if (dragOffset.x < -threshold) {
+    } else if (dragOffset.x < -thresholdX) {
       handleInteraction('pass');
-    } else if (dragOffset.y < -threshold) {
+    } else if (dragOffset.y < thresholdY && Math.abs(dragOffset.x) < 60) {
       handleInteraction('superlike');
     } else {
+      // Regreso elástico mediante física de resorte (spring-back)
       setDragOffset({ x: 0, y: 0 });
     }
   };
@@ -297,115 +324,148 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
             </div>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col justify-between items-center w-full select-none">
-              {/* Tarjeta Principal */}
-              <div
-                className={`relative w-full flex-1 min-h-[220px] max-h-[460px] rounded-2xl sm:rounded-3xl overflow-hidden select-none touch-pan-y cursor-grab active:cursor-grabbing shadow-[0_15px_45px_rgba(0,0,0,0.85)] border border-white/15 transition-transform duration-200 ${
-                  swipeDirection === 'right' ? 'translate-x-[120%] rotate-12 opacity-0' :
-                  swipeDirection === 'left' ? '-translate-x-[120%] -rotate-12 opacity-0' :
-                  swipeDirection === 'up' ? '-translate-y-[120%] opacity-0' : ''
-                }`}
-                style={{
-                  transform: isDragging
-                    ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.08}deg)`
-                    : undefined
-                }}
-                onMouseDown={handleTouchStart}
-                onMouseMove={handleTouchMove}
-                onMouseUp={handleTouchEnd}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                {/* Contenido Multimedia (Video prioritario o Fotos en rotación) */}
-                {mediaList[mediaIndex]?.type === 'video' ? (
-                  <video
-                    key={mediaList[mediaIndex]?.url}
-                    src={mediaList[mediaIndex]?.url}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover pointer-events-none"
-                  />
-                ) : (
-                  <img
-                    src={mediaList[mediaIndex]?.url || currentCandidate.image}
-                    alt={currentCandidate.name}
-                    className="w-full h-full object-cover pointer-events-none"
-                  />
-                )}
-
-                {/* Badge flotante de Mini Video */}
-                {mediaList[mediaIndex]?.type === 'video' && (
-                  <div className="absolute top-6 left-3 sm:left-4 z-20">
-                    <span className="px-2.5 py-1 rounded-full bg-black/75 border border-sky-400/60 backdrop-blur-md text-sky-300 font-extrabold text-[10px] flex items-center gap-1 shadow-md animate-pulse">
-                      <Play size={10} className="fill-sky-300" /> Mini Video 5s
-                    </span>
+              {/* Contenedor del Mazo de Tarjetas (Stacking Deck) */}
+              <div className="relative w-full flex-1 min-h-[230px] max-h-[460px]">
+                
+                {/* 1. Tarjeta Subyacente en el Mazo (Siguiente Candidato) */}
+                {candidates[currentIndex + 1] && (
+                  <div
+                    className="absolute inset-0 rounded-2xl sm:rounded-3xl overflow-hidden pointer-events-none border border-white/10 shadow-2xl transition-all duration-300"
+                    style={{
+                      transform: `scale(${0.94 + Math.min(0.06, Math.abs(dragOffset.x) / 700)}) translateY(${Math.max(0, 10 - Math.abs(dragOffset.x) * 0.05)}px)`,
+                      opacity: 0.55 + Math.min(0.45, Math.abs(dragOffset.x) / 200)
+                    }}
+                  >
+                    <img
+                      src={candidates[currentIndex + 1].photos?.[0] || candidates[currentIndex + 1].image}
+                      alt={candidates[currentIndex + 1].name}
+                      className="w-full h-full object-cover filter brightness-75"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                   </div>
                 )}
 
-                {/* Degradados de fondo para legibilidad */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent pointer-events-none h-20" />
-
-                {/* Badges de Swipe dinámicos (LIKE / NOPE / SUPERLIKE) */}
-                {isDragging && dragOffset.x > 40 && (
-                  <div className="absolute top-6 left-6 border-4 border-emerald-400 text-emerald-400 font-extrabold text-xl sm:text-2xl uppercase px-3 py-0.5 sm:px-4 sm:py-1 rounded-2xl rotate-[-15deg] shadow-[0_0_30px_rgba(52,211,153,0.8)] pointer-events-none animate-pulse z-30">
-                    LIKE 💚
-                  </div>
-                )}
-                {isDragging && dragOffset.x < -40 && (
-                  <div className="absolute top-6 right-6 border-4 border-rose-500 text-rose-500 font-extrabold text-xl sm:text-2xl uppercase px-3 py-0.5 sm:px-4 sm:py-1 rounded-2xl rotate-[15deg] shadow-[0_0_30px_rgba(244,63,94,0.8)] pointer-events-none animate-pulse z-30">
-                    PASAR ❌
-                  </div>
-                )}
-                {isDragging && dragOffset.y < -40 && Math.abs(dragOffset.x) < 40 && (
-                  <div className="absolute top-10 left-1/2 -translate-x-1/2 border-4 border-purple-400 text-purple-300 font-extrabold text-xl sm:text-2xl uppercase px-3 py-0.5 sm:px-4 sm:py-1 rounded-2xl shadow-[0_0_30px_rgba(192,132,252,0.8)] pointer-events-none animate-pulse z-30">
-                    SUPERLIKE ⭐
-                  </div>
-                )}
-
-                {/* Barras de progreso superiores (estilo Instagram Stories, cada 5 segundos) */}
-                {mediaList.length > 1 && (
-                  <div className="absolute top-2.5 inset-x-3 sm:inset-x-4 flex gap-1.5 z-30">
-                    {mediaList.map((item, idx) => {
-                      const isPast = idx < mediaIndex;
-                      const isCurrent = idx === mediaIndex;
-                      return (
-                        <div key={idx} className="h-1 flex-1 rounded-full bg-white/25 overflow-hidden backdrop-blur-sm">
-                          <div
-                            className="h-full bg-white rounded-full transition-all duration-75 ease-linear shadow-[0_0_8px_#ffffff]"
-                            style={{
-                              width: isPast ? '100%' : isCurrent ? `${mediaProgress}%` : '0%'
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Zonas de toque para cambiar fotos y mantener presionado para pausar */}
+                {/* 2. Tarjeta Superior Activa (Gesto Táctil Swipe Nativo) */}
                 <div
-                  onClick={(e) => handlePrevMedia(e, mediaList.length)}
-                  onMouseDown={() => setIsHoldingMedia(true)}
-                  onMouseUp={() => setIsHoldingMedia(false)}
-                  onTouchStart={() => setIsHoldingMedia(true)}
-                  onTouchEnd={() => setIsHoldingMedia(false)}
-                  className="absolute left-0 top-0 bottom-1/3 w-1/3 z-10"
-                />
-                <div
-                  onClick={(e) => handleNextMedia(e, mediaList.length)}
-                  onMouseDown={() => setIsHoldingMedia(true)}
-                  onMouseUp={() => setIsHoldingMedia(false)}
-                  onTouchStart={() => setIsHoldingMedia(true)}
-                  onTouchEnd={() => setIsHoldingMedia(false)}
-                  className="absolute right-0 top-0 bottom-1/3 w-2/3 z-10"
-                />
+                  className="relative w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden select-none touch-none cursor-grab active:cursor-grabbing shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-white/15"
+                  style={{
+                    transform: swipeDirection === 'right'
+                      ? 'translate3d(140%, 0, 0) rotate(18deg)'
+                      : swipeDirection === 'left'
+                        ? 'translate3d(-140%, 0, 0) rotate(-18deg)'
+                        : swipeDirection === 'up'
+                          ? 'translate3d(0, -140%, 0) scale(1.05)'
+                          : isDragging
+                            ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.07}deg) scale(${1 - Math.min(0.04, (Math.abs(dragOffset.x) + Math.abs(dragOffset.y)) / 3000)})`
+                            : dragOffset.x !== 0 || dragOffset.y !== 0
+                              ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.07}deg)`
+                              : undefined,
+                    transition: isDragging
+                      ? 'none'
+                      : 'transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.28s ease',
+                    opacity: swipeDirection ? 0 : 1
+                  }}
+                  onMouseDown={handleTouchStart}
+                  onMouseMove={handleTouchMove}
+                  onMouseUp={handleTouchEnd}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {/* Contenido Multimedia (Video prioritario o Fotos en rotación) */}
+                  {mediaList[mediaIndex]?.type === 'video' ? (
+                    <video
+                      key={mediaList[mediaIndex]?.url}
+                      src={mediaList[mediaIndex]?.url}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover pointer-events-none"
+                    />
+                  ) : (
+                    <img
+                      src={mediaList[mediaIndex]?.url || currentCandidate.image}
+                      alt={currentCandidate.name}
+                      className="w-full h-full object-cover pointer-events-none"
+                    />
+                  )}
 
-                {/* Insignia Flotante Superior: % de Afinidad Cósmica */}
-                <div className="absolute top-5 right-3 sm:right-4 z-20">
-                  <div className="px-2.5 py-1 rounded-full bg-black/70 border border-cyan-400/60 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                  {/* Badge flotante de Mini Video */}
+                  {mediaList[mediaIndex]?.type === 'video' && (
+                    <div className="absolute top-6 left-3 sm:left-4 z-20">
+                      <span className="px-2.5 py-1 rounded-full bg-black/75 border border-sky-400/60 backdrop-blur-md text-sky-300 font-extrabold text-[10px] flex items-center gap-1 shadow-md animate-pulse">
+                        <Play size={10} className="fill-sky-300" /> Mini Video 5s
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Degradados de fondo para legibilidad */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent pointer-events-none h-20" />
+
+                  {/* Sello LIKE / CONEXIÓN dinámico con opacidad y escala progresiva */}
+                  {dragOffset.x > 15 && (
+                    <div 
+                      className="absolute top-8 left-8 border-4 border-emerald-400 text-emerald-400 font-black text-xl sm:text-2xl uppercase px-4 py-1 rounded-2xl rotate-[-15deg] shadow-[0_0_35px_rgba(52,211,153,0.9)] pointer-events-none z-30"
+                      style={{
+                        opacity: Math.min(1, Math.max(0, (dragOffset.x - 15) / 60)),
+                        transform: `rotate(-15deg) scale(${0.85 + Math.min(0.25, dragOffset.x / 200)})`
+                      }}
+                    >
+                      LIKE 💚
+                    </div>
+                  )}
+
+                  {/* Sello PASAR dinámico */}
+                  {dragOffset.x < -15 && (
+                    <div 
+                      className="absolute top-8 right-8 border-4 border-rose-500 text-rose-500 font-black text-xl sm:text-2xl uppercase px-4 py-1 rounded-2xl rotate-[15deg] shadow-[0_0_35px_rgba(244,63,94,0.9)] pointer-events-none z-30"
+                      style={{
+                        opacity: Math.min(1, Math.max(0, (-dragOffset.x - 15) / 60)),
+                        transform: `rotate(15deg) scale(${0.85 + Math.min(0.25, -dragOffset.x / 200)})`
+                      }}
+                    >
+                      PASAR ❌
+                    </div>
+                  )}
+
+                  {/* Sello SUPERLIKE dinámico */}
+                  {dragOffset.y < -15 && Math.abs(dragOffset.x) < 60 && (
+                    <div 
+                      className="absolute top-12 left-1/2 -translate-x-1/2 border-4 border-purple-400 text-purple-300 font-black text-xl sm:text-2xl uppercase px-4 py-1 rounded-2xl shadow-[0_0_35px_rgba(192,132,252,0.9)] pointer-events-none z-30"
+                      style={{
+                        opacity: Math.min(1, Math.max(0, (-dragOffset.y - 15) / 55)),
+                        transform: `translateX(-50%) scale(${0.85 + Math.min(0.25, -dragOffset.y / 180)})`
+                      }}
+                    >
+                      SUPERLIKE ⭐
+                    </div>
+                  )}
+
+                  {/* Barras de progreso superiores (estilo Instagram Stories, cada 5 segundos) */}
+                  {mediaList.length > 1 && (
+                    <div className="absolute top-2.5 inset-x-3 sm:inset-x-4 flex gap-1.5 z-30 pointer-events-none">
+                      {mediaList.map((item, idx) => {
+                        const isPast = idx < mediaIndex;
+                        const isCurrent = idx === mediaIndex;
+                        return (
+                          <div key={idx} className="h-1 flex-1 rounded-full bg-white/25 overflow-hidden backdrop-blur-sm">
+                            <div
+                              className="h-full bg-white rounded-full transition-all duration-75 ease-linear shadow-[0_0_8px_#ffffff]"
+                              style={{
+                                width: isPast ? '100%' : isCurrent ? `${mediaProgress}%` : '0%'
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Insignia Flotante Superior: % de Afinidad Cósmica */}
+                  <div className="absolute top-5 right-3 sm:right-4 z-20">
+                    <div className="px-2.5 py-1 rounded-full bg-black/70 border border-cyan-400/60 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
                     <Sparkles size={12} className="text-amber-400 animate-spin" />
                     {currentCandidate.affinity} Afinidad
                   </div>
@@ -493,8 +553,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* ── BOTONERA FLOTANTE DE INTERACCIONES DE CITAS ── */}
+            {/* ── BOTONERA FLOTANTE DE INTERACCIONES DE CITAS ── */}
               <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 pt-1.5 pb-0.5 w-full max-w-sm sm:max-w-md px-1 shrink-0 z-20">
                 {/* 1. Deshacer */}
                 <button
