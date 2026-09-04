@@ -199,7 +199,7 @@ export async function GET(request) {
       });
     }
   } catch (err) {
-    return new Response(JSON.stringify({ exists: false, error: err.message }), {
+    return new Response(JSON.stringify({ exists: false, error: err.message, stack: err.stack }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
