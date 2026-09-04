@@ -15,6 +15,7 @@ async function getDB() {
  */
 export async function GET(request) {
   try {
+    const db = await getDB();
     const { searchParams } = new URL(request.url);
     const nameQuery = searchParams.get('name')?.trim();
 
@@ -95,7 +96,6 @@ export async function GET(request) {
       });
     }
 
-    const db = await getDB();
     if (!db) {
       return new Response(JSON.stringify({ exists: true, mock: true }), {
         status: 200,
