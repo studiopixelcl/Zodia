@@ -33,10 +33,11 @@ export async function GET(request) {
           const { ensureDatabaseSchema } = await import('../../../lib/db-init');
           await ensureDatabaseSchema(db);
 
+          const defaultHash = 'oauth_' + Date.now() + '_' + Math.random().toString(36).slice(2);
           try {
             await db.prepare(`
-              INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+              INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status, password_hash)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
               ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 nombre_actual = excluded.nombre_actual,
@@ -45,7 +46,7 @@ export async function GET(request) {
                 image = COALESCE(excluded.image, users.image),
                 avatar_url = COALESCE(excluded.avatar_url, users.avatar_url),
                 status = 'active'
-            `).bind(syncId, syncEmail, syncName, syncName, syncName, syncDob, syncImage || null, syncImage || null).run();
+            `).bind(syncId, syncEmail, syncName, syncName, syncName, syncDob, syncImage || null, syncImage || null, defaultHash).run();
           } catch (insErr) {
             // Si el correo ya existía en otro ID, actualizar el existente
             await db.prepare(`
@@ -109,9 +110,9 @@ export async function GET(request) {
         let insertError = null;
         try {
           await db.prepare(`
-            INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active')
-          `).bind(testId, testEmail, 'Test User', 'Test User', 'Test User', 'https://example.com/pic.jpg', 'https://example.com/pic.jpg').run();
+            INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status, password_hash)
+            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active', ?)
+          `).bind(testId, testEmail, 'Test User', 'Test User', 'Test User', 'https://example.com/pic.jpg', 'https://example.com/pic.jpg', 'hash_test_123').run();
         } catch (e) {
           insertError = e.message;
         }

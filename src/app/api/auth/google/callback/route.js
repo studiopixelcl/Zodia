@@ -256,19 +256,20 @@ export async function GET(request) {
             console.warn('[Google Callback Update Warning]:', upErr.message);
           }
         } else {
-          // Usuario nuevo: registrarlo en D1 con fallback resiliente
+          // Usuario nuevo: registrarlo en D1 con fallback resiliente incluyendo password_hash obligatorio
           finalUserId = candidateId;
+          const defaultHash = 'oauth_google_' + cleanId;
           try {
             await db.prepare(`
-              INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status)
-              VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active')
-            `).bind(finalUserId, email, name, name, name, image, image).run();
+              INSERT INTO users (id, email, name, nombre_completo, nombre_actual, fecha_nacimiento, image, avatar_url, status, password_hash)
+              VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'active', ?)
+            `).bind(finalUserId, email, name, name, name, image, image, defaultHash).run();
           } catch (insFullErr) {
             console.warn('[Google Callback] Fallback a inserción básica de usuario:', insFullErr.message);
             await db.prepare(`
-              INSERT INTO users (id, email, name, image)
-              VALUES (?, ?, ?, ?)
-            `).bind(finalUserId, email, name, image).run();
+              INSERT INTO users (id, email, name, image, password_hash)
+              VALUES (?, ?, ?, ?, ?)
+            `).bind(finalUserId, email, name, image, defaultHash).run();
           }
         }
 

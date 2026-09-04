@@ -104,22 +104,23 @@ export async function GET(request) {
         const fallbackImage = token.picture || token.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=0284c7&color=fff&bold=true`;
         const fallbackDob = token.dob || '1998-07-15';
 
+        const fallbackHash = 'oauth_' + searchId;
         try {
           await db.prepare(`
-            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
             ON CONFLICT(id) DO UPDATE SET
               name = COALESCE(users.name, excluded.name),
               nombre_actual = COALESCE(users.nombre_actual, excluded.nombre_actual),
               image = COALESCE(users.image, excluded.image),
               avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
               status = 'active'
-          `).bind(searchId, fallbackEmail, fallbackName, fallbackName, fallbackName, fallbackDob, fallbackImage, fallbackImage).run();
+          `).bind(searchId, fallbackEmail, fallbackName, fallbackName, fallbackName, fallbackDob, fallbackImage, fallbackImage, fallbackHash).run();
         } catch (uInsErr) {
           try {
             await db.prepare(`
-              INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)
-            `).bind(searchId, fallbackEmail, fallbackName, fallbackImage).run();
+              INSERT INTO users (id, email, name, image, password_hash) VALUES (?, ?, ?, ?, ?)
+            `).bind(searchId, fallbackEmail, fallbackName, fallbackImage, fallbackHash).run();
           } catch {}
         }
 
@@ -211,10 +212,11 @@ export async function POST(request) {
         }
       } else {
         wasWithoutDob = true;
+        const fallbackHash = 'oauth_' + actualUserId;
         try {
           await db.prepare(`
-            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+            INSERT INTO users (id, email, name, nombre_actual, nombre_completo, fecha_nacimiento, image, avatar_url, status, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
             ON CONFLICT(id) DO UPDATE SET
               name = COALESCE(users.name, excluded.name),
               nombre_actual = COALESCE(users.nombre_actual, excluded.nombre_actual),
@@ -222,7 +224,7 @@ export async function POST(request) {
               image = COALESCE(users.image, excluded.image),
               avatar_url = COALESCE(users.avatar_url, excluded.avatar_url),
               status = 'active'
-          `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null).run();
+          `).bind(actualUserId, userEmail, userName, userName, userName, dob || null, image || null, image || null, fallbackHash).run();
         } catch (insErr) {
           // Si el conflicto fue por correo duplicado con otro ID, re-vincular a dicho ID
           const reCheck = await db.prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)").bind(userEmail).first();
@@ -230,7 +232,7 @@ export async function POST(request) {
             actualUserId = reCheck.id;
           } else {
             try {
-              await db.prepare("INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)").bind(actualUserId, userEmail, userName, image || null).run();
+              await db.prepare("INSERT INTO users (id, email, name, image, password_hash) VALUES (?, ?, ?, ?, ?)").bind(actualUserId, userEmail, userName, image || null, fallbackHash).run();
             } catch {}
           }
         }
