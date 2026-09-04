@@ -11,12 +11,16 @@ import { playMessageSentSound, playSwipeLikeSound } from '../../lib/sound-effect
 function formatTimeAgo(dateStr) {
   if (!dateStr) return '24h';
   try {
-    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const time = new Date(dateStr).getTime();
+    if (isNaN(time) || time < 1000000000000) return 'hace 2h';
+    const diffMs = Date.now() - time;
+    if (diffMs < 0) return 'hace 1m';
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     if (diffHours <= 0) {
       const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
       return `hace ${diffMins}m`;
     }
+    if (diffHours > 24) return 'hace 2h';
     return `hace ${diffHours}h`;
   } catch {
     return '24h';
