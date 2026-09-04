@@ -1,9 +1,14 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, Camera, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Sparkles, Plus, Camera, Image as ImageIcon, X, Loader2, 
+  RefreshCw, Trash2, ArrowLeft, Link as LinkIcon, Check 
+} from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { playSwipeLikeSound } from '../../lib/sound-effects';
 import { AstralStoriesViewerModal } from './AstralStoriesViewerModal';
+import { AstralPortalModal } from './AstralPortalModal';
+import { compressImage } from '../../lib/media-processor';
 
 // Historias garantizadas de la comunidad para que el carrusel nunca aparezca vacío
 const DEFAULT_COMMUNITY_STORIES = [
@@ -100,12 +105,29 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
   const [storyGroups, setStoryGroups] = useState(DEFAULT_COMMUNITY_STORIES);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeStoryGroupIdx, setActiveStoryGroupIdx] = useState(0);
+
+  // Estados de creación de historia
   const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
   const [newStoryMediaUrl, setNewStoryMediaUrl] = useState('');
   const [newStoryCaption, setNewStoryCaption] = useState('');
   const [newStoryVibe, setNewStoryVibe] = useState('✨ Reflexión');
   const [isPublishingStory, setIsPublishingStory] = useState(false);
+  const [publishStatusText, setPublishStatusText] = useState('');
+  const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [storyFilePreview, setStoryFilePreview] = useState(null);
+  const [storyFile, setStoryFile] = useState(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  // Estados de Cámara en vivo
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' (trasera) o 'user' (selfie)
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Referencias a inputs de archivos ocultos
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+
   const [seenStoryIds, setSeenStoryIds] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -132,6 +154,9 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
 
   useEffect(() => {
     fetchStories();
+    return () => {
+      stopLiveCamera();
+    };
   }, []);
 
   const handleStoryViewed = (storyId) => {
@@ -145,6 +170,123 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
     });
   };
 
+  // --- CONTROL DE CÁMARA EN VIVO ---
+  const startLiveCamera = async (facing = 'environment') => {
+    try {
+      stopLiveCamera();
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        // Dispositivo sin soporte de webcam en navegador: abrir cámara nativa del sistema
+        cameraInputRef.current?.click();
+        return;
+      }
+
+      const constraints = {
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1080 },
+          height: { ideal: 1920 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraFacing(facing);
+      setIsCameraActive(true);
+    } catch (err) {
+      console.warn('Cámara en vivo no disponible o denegada, usando selector nativo:', err);
+      setIsCameraActive(false);
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const flipCamera = () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    startLiveCamera(nextFacing);
+  };
+
+  const captureLivePhoto = () => {
+    if (!videoRef.current) return;
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      const w = video.videoWidth || 720;
+      const h = video.videoHeight || 1280;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      // Si es cámara frontal tipo selfie, espejar horizontalmente
+      if (cameraFacing === 'user') {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, w, h);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setStoryFilePreview(dataUrl);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `historia_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setStoryFile(file);
+        }
+      }, 'image/jpeg', 0.9);
+
+      stopLiveCamera();
+    } catch (err) {
+      console.error('Error al capturar foto desde cámara:', err);
+    }
+  };
+
+  // --- SELECCIÓN DE ARCHIVO (GALERÍA O CÁMARA NATIVA) ---
+  const handleStoryFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    stopLiveCamera();
+
+    try {
+      setIsOptimizingImage(true);
+      const compressed = await compressImage(file, 1536, 0.88);
+      setStoryFilePreview(compressed.previewUrl);
+      setStoryFile(compressed.file);
+    } catch (err) {
+      console.warn('Fallback compresión:', err);
+      setStoryFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setStoryFilePreview(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsOptimizingImage(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleCloseCreateStory = () => {
+    stopLiveCamera();
+    setIsCreateStoryOpen(false);
+    setStoryFilePreview(null);
+    setStoryFile(null);
+    setNewStoryMediaUrl('');
+    setNewStoryCaption('');
+    setShowUrlInput(false);
+  };
+
+  // --- PUBLICACIÓN DE LA HISTORIA ---
   const handleCreateStorySubmit = async (e) => {
     e.preventDefault();
     const mediaToUpload = storyFilePreview || newStoryMediaUrl;
@@ -152,11 +294,45 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
 
     try {
       setIsPublishingStory(true);
+      setPublishStatusText('Optimizando historia...');
+
+      let finalMediaUrl = newStoryMediaUrl;
+
+      // Si tenemos un archivo local seleccionado o capturado con la cámara
+      if (storyFile) {
+        setPublishStatusText('Guardando imagen en la nube cósmica...');
+        try {
+          const formData = new FormData();
+          formData.append('file', storyFile);
+          formData.append('type', 'photo');
+
+          const uploadRes = await apiFetch('/api/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData?.url) {
+              finalMediaUrl = uploadData.url;
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Fallback a imagen local base64:', uploadErr);
+          finalMediaUrl = storyFilePreview;
+        }
+      }
+
+      if (!finalMediaUrl && storyFilePreview) {
+        finalMediaUrl = storyFilePreview;
+      }
+
+      setPublishStatusText('Publicando en el éter...');
       const res = await apiFetch('/api/stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mediaUrl: mediaToUpload,
+          mediaUrl: finalMediaUrl,
           caption: newStoryCaption,
           vibeTag: newStoryVibe,
           authorName: profile?.nombre_actual || currentUser?.name || 'Sintonizador',
@@ -167,27 +343,15 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
 
       if (res.ok) {
         playSwipeLikeSound();
-        setIsCreateStoryOpen(false);
-        setStoryFilePreview(null);
-        setNewStoryMediaUrl('');
-        setNewStoryCaption('');
+        handleCloseCreateStory();
         fetchStories();
       }
     } catch (err) {
       console.error('Error publicando historia:', err);
     } finally {
       setIsPublishingStory(false);
+      setPublishStatusText('');
     }
-  };
-
-  const handleStoryFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setStoryFilePreview(event.target.result);
-    };
-    reader.readAsDataURL(file);
   };
 
   // Identificar las historias del usuario actual
@@ -316,150 +480,344 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
         onStoryViewed={handleStoryViewed}
       />
 
-      {/* Modal para Crear Nueva Historia Efímera */}
-      {isCreateStoryOpen && (
-        <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-2xl flex items-center justify-center p-4 animate-fadeIn">
-          <div className="w-full max-w-md bg-gradient-to-b from-slate-900 via-black to-[#0d0a1d] border border-cyan-500/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.25)] relative overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setIsCreateStoryOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-            >
-              <X size={20} />
-            </button>
+      {/* Modal Rediseñado para Subir Historia Cósmica (Renderizado en Document Body con Portal) */}
+      <AstralPortalModal
+        isOpen={isCreateStoryOpen}
+        onClose={handleCloseCreateStory}
+        maxWidth="max-w-md"
+        className="bg-gradient-to-b from-[#0e1225] via-[#070914] to-black border border-cyan-500/30 p-4 sm:p-6"
+      >
+        {/* Inputs de Archivo Ocultos */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleStoryFileSelect}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleStoryFileSelect}
+        />
 
-            <div className="text-center mb-5">
-              <div className="w-12 h-12 mx-auto mb-2.5 rounded-2xl bg-gradient-to-tr from-cyan-400 to-fuchsia-500 flex items-center justify-center text-black shadow-lg">
-                <Sparkles size={24} />
-              </div>
-              <h3 className="mystic-font text-lg sm:text-xl font-bold text-white">
-                Compartir Historia Cósmica
+        {/* Encabezado del Modal */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h3 className="mystic-font text-base sm:text-lg font-bold text-white tracking-wide">
+                Subir Historia Astral
               </h3>
-              <p className="text-xs text-gray-400 font-light mt-0.5">
-                Visible para toda la comunidad durante las próximas 24 horas
+              <p className="text-[11px] text-cyan-300/80 font-light">
+                Visible para la comunidad durante 24 horas
               </p>
             </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCloseCreateStory}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-            <form onSubmit={handleCreateStorySubmit} className="space-y-4">
-              {/* Selector de Foto o Previsualización */}
-              <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border-2 border-dashed border-cyan-500/40 bg-black/60 flex items-center justify-center">
-                {storyFilePreview || newStoryMediaUrl ? (
-                  <>
-                    <img
-                      src={storyFilePreview || newStoryMediaUrl}
-                      alt="Preview Historia"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStoryFilePreview(null);
-                        setNewStoryMediaUrl('');
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/80 text-white hover:bg-black cursor-pointer"
-                    >
-                      <X size={16} />
-                    </button>
-                  </>
-                ) : (
-                  <label className="flex flex-col items-center justify-center cursor-pointer p-6 text-center text-cyan-300 gap-2 hover:opacity-90 transition">
-                    <div className="p-3.5 rounded-full bg-cyan-500/10 border border-cyan-500/30">
-                      <Camera size={26} className="text-cyan-400" />
+        {/* CONTENIDO 1: MODO CÁMARA EN VIVO */}
+        {isCameraActive ? (
+          <div className="space-y-4">
+            <div className="relative aspect-[3/4] max-h-[360px] w-full rounded-2xl overflow-hidden border border-cyan-500/40 bg-black shadow-inner flex items-center justify-center">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${cameraFacing === 'user' ? '-scale-x-100' : ''}`}
+              />
+
+              {/* Botón para cambiar de cámara (frontal / trasera) */}
+              <button
+                type="button"
+                onClick={flipCamera}
+                className="absolute top-3 right-3 p-2.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 hover:bg-cyan-500 hover:text-black transition shadow-lg cursor-pointer"
+                title="Girar cámara"
+              >
+                <RefreshCw size={18} />
+              </button>
+
+              {/* Controles de Disparo en la parte inferior */}
+              <div className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-6">
+                <button
+                  type="button"
+                  onClick={stopLiveCamera}
+                  className="p-2.5 rounded-full bg-black/60 text-gray-300 hover:text-white border border-white/20 transition cursor-pointer"
+                  title="Cancelar"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+
+                {/* Obturador principal */}
+                <button
+                  type="button"
+                  onClick={captureLivePhoto}
+                  className="w-16 h-16 rounded-full bg-white border-4 border-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.8)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                  title="Tomar fotografía"
+                >
+                  <div className="w-12 h-12 rounded-full border-2 border-black bg-white" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="p-2.5 rounded-full bg-black/60 text-cyan-300 hover:text-white border border-cyan-500/30 transition cursor-pointer"
+                  title="Abrir app de cámara del sistema"
+                >
+                  <Camera size={18} />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-center text-[11px] text-gray-400">
+              Alinea tu encuadre cósmico y presiona el obturador blanco para capturar.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleCreateStorySubmit} className="space-y-4">
+            {/* CONTENIDO 2: PREVISUALIZACIÓN DE LA FOTO SELECCIONADA */}
+            {storyFilePreview || newStoryMediaUrl ? (
+              <div className="space-y-2.5">
+                <div className="relative aspect-[3/4] max-h-[300px] mx-auto w-full max-w-[260px] rounded-2xl overflow-hidden border-2 border-cyan-500/50 bg-black/80 shadow-[0_0_25px_rgba(6,182,212,0.2)]">
+                  <img
+                    src={storyFilePreview || newStoryMediaUrl}
+                    alt="Previsualización historia"
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Header simulado de historia */}
+                  <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between pointer-events-none">
+                    <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/10">
+                      <img
+                        src={profile?.user_image || currentUser?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Z')}&background=06b6d4&color=fff`}
+                        alt="Avatar"
+                        className="w-5 h-5 rounded-full object-cover border border-cyan-400"
+                      />
+                      <span className="text-[10px] font-bold text-white">
+                        {profile?.nombre_actual || currentUser?.name || 'Tú'}
+                      </span>
+                      <span className="text-[9px] text-cyan-300">24h</span>
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white">
-                      Subir Foto o Captura
+
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-900/80 text-purple-200 border border-purple-500/40 backdrop-blur-md">
+                      {newStoryVibe}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-light">
-                      JPG, PNG o WebP de tu día cósmico
+                  </div>
+
+                  {/* Leyenda en vivo en la foto */}
+                  {newStoryCaption && (
+                    <div className="absolute bottom-2 inset-x-2 p-2 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[11px] text-white text-center leading-snug">
+                      {newStoryCaption}
+                    </div>
+                  )}
+
+                  {/* Botón para quitar foto */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStoryFilePreview(null);
+                      setStoryFile(null);
+                      setNewStoryMediaUrl('');
+                    }}
+                    className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/75 hover:bg-rose-600 text-white transition shadow-md cursor-pointer pointer-events-auto"
+                    title="Quitar foto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                {/* Acciones para cambiar o tomar otra foto */}
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startLiveCamera('environment')}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-cyan-300 text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Camera size={13} /> Tomar otra
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-purple-300 text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <ImageIcon size={13} /> Cambiar foto
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* CONTENIDO 3: SELECTOR PRINCIPAL (CÁMARA vs GALERÍA) */
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Opción 1: Usar Cámara en vivo */}
+                  <button
+                    type="button"
+                    onClick={() => startLiveCamera('environment')}
+                    className="group relative p-4 rounded-2xl bg-gradient-to-b from-cyan-950/40 via-cyan-900/20 to-black border border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.35)] transition-all flex flex-col items-center text-center cursor-pointer active:scale-98"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 mb-3 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-all shadow-inner">
+                      <Camera size={28} />
+                    </div>
+                    <span className="text-sm font-bold text-white group-hover:text-cyan-200">
+                      Tomar Foto
                     </span>
-                    <input type="file" accept="image/*" hidden onChange={handleStoryFileSelect} />
-                  </label>
+                    <span className="text-[11px] text-gray-400 mt-1 leading-tight">
+                      Usa la cámara en vivo de tu dispositivo
+                    </span>
+                    <span className="mt-2.5 text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      Cámara
+                    </span>
+                  </button>
+
+                  {/* Opción 2: Elegir de Galería */}
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="group relative p-4 rounded-2xl bg-gradient-to-b from-purple-950/40 via-purple-900/20 to-black border border-purple-500/40 hover:border-purple-400 hover:shadow-[0_0_25px_rgba(168,85,247,0.35)] transition-all flex flex-col items-center text-center cursor-pointer active:scale-98"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 mb-3 group-hover:scale-110 group-hover:bg-purple-500/30 transition-all shadow-inner">
+                      <ImageIcon size={28} />
+                    </div>
+                    <span className="text-sm font-bold text-white group-hover:text-purple-200">
+                      Subir de Galería
+                    </span>
+                    <span className="text-[11px] text-gray-400 mt-1 leading-tight">
+                      Sube fotos desde tu álbum o carrete
+                    </span>
+                    <span className="mt-2.5 text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Galería
+                    </span>
+                  </button>
+                </div>
+
+                {/* Accesos secundarios: Cámara nativa directa y Enlace Web */}
+                <div className="flex items-center justify-center gap-3 pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="text-[11px] text-cyan-400/80 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition"
+                  >
+                    <Camera size={12} /> Abrir app de cámara nativa
+                  </button>
+                  <span className="text-gray-600">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="text-[11px] text-gray-400 hover:text-white flex items-center gap-1 cursor-pointer transition"
+                  >
+                    <LinkIcon size={12} /> Pegar URL web
+                  </button>
+                </div>
+
+                {/* Input opcional de URL */}
+                {showUrlInput && (
+                  <div className="pt-2 animate-fadeIn">
+                    <input
+                      type="url"
+                      value={newStoryMediaUrl}
+                      onChange={(e) => setNewStoryMediaUrl(e.target.value)}
+                      placeholder="Pega un enlace directo de imagen (https://...)"
+                      className="w-full bg-black/60 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400"
+                    />
+                  </div>
                 )}
               </div>
+            )}
 
-              {/* Opcional: URL de imagen */}
-              {!storyFilePreview && (
-                <div>
-                  <input
-                    type="url"
-                    value={newStoryMediaUrl}
-                    onChange={(e) => setNewStoryMediaUrl(e.target.value)}
-                    placeholder="O pega una URL de imagen..."
-                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400"
-                  />
-                </div>
-              )}
-
-              {/* Selector de Vibra de la Historia */}
-              <div>
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1.5">
-                  Vibra Cósmica
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    '🔥 Energía Solar',
-                    '🎨 Creatividad',
-                    '🌊 Calma y Melodía',
-                    '✨ Reflexión',
-                    '💖 Conexión',
-                    '☕ Momento Diario'
-                  ].map((vibe) => (
-                    <button
-                      key={vibe}
-                      type="button"
-                      onClick={() => setNewStoryVibe(vibe)}
-                      className={`text-[10px] px-2.5 py-1 rounded-full border transition cursor-pointer ${
-                        newStoryVibe === vibe
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 font-bold'
-                          : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {vibe}
-                    </button>
-                  ))}
-                </div>
+            {/* Selector de Vibra Cósmica */}
+            <div>
+              <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1.5">
+                Vibra Cósmica
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  '✨ Reflexión',
+                  '🔥 Energía Solar',
+                  '💖 Amor Cósmico',
+                  '🎨 Creatividad',
+                  '🌊 Calma y Melodía',
+                  '☕ Momento Diario',
+                  '🌙 Mística',
+                  '🪐 Tránsito Astral'
+                ].map((vibe) => (
+                  <button
+                    key={vibe}
+                    type="button"
+                    onClick={() => setNewStoryVibe(vibe)}
+                    className={`text-[10px] px-2.5 py-1 rounded-full border transition cursor-pointer ${
+                      newStoryVibe === vibe
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                        : 'bg-black/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                    }`}
+                  >
+                    {vibe}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Texto o Reflexión */}
-              <div>
-                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1.5">
+            {/* Mensaje o Reflexión */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">
                   Mensaje o Leyenda
                 </span>
-                <textarea
-                  rows={2}
-                  value={newStoryCaption}
-                  onChange={(e) => setNewStoryCaption(e.target.value)}
-                  placeholder="Escribe algo sobre este momento estelar..."
-                  className="w-full bg-black/50 border border-white/10 rounded-2xl p-3 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400 resize-none leading-relaxed"
-                />
+                <span className="text-[10px] text-gray-500">
+                  {newStoryCaption.length}/180
+                </span>
               </div>
+              <textarea
+                rows={2}
+                maxLength={180}
+                value={newStoryCaption}
+                onChange={(e) => setNewStoryCaption(e.target.value)}
+                placeholder="Escribe una reflexión, pensamiento cósmico o estado del día..."
+                className="w-full bg-black/50 border border-white/10 rounded-2xl p-3 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400 resize-none leading-relaxed"
+              />
+            </div>
 
-              {/* Botón de Publicación */}
-              <button
-                type="submit"
-                disabled={(!storyFilePreview && !newStoryMediaUrl && !newStoryCaption) || isPublishingStory}
-                className={`w-full py-3 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer ${
-                  (!storyFilePreview && !newStoryMediaUrl && !newStoryCaption) || isPublishingStory
-                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 hover:opacity-90 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)] active:scale-98'
-                }`}
-              >
-                {isPublishingStory ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Publicando en el éter...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    Compartir Historia (24h)
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+            {/* Botón de Publicación con Gradiente Cósmico */}
+            <button
+              type="submit"
+              disabled={(!storyFilePreview && !newStoryMediaUrl && !newStoryCaption) || isPublishingStory || isOptimizingImage}
+              className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer ${
+                (!storyFilePreview && !newStoryMediaUrl && !newStoryCaption) || isPublishingStory || isOptimizingImage
+                  ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 hover:opacity-95 text-white shadow-[0_0_25px_rgba(6,182,212,0.4)] active:scale-98'
+              }`}
+            >
+              {isOptimizingImage ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Optimizando imagen...
+                </>
+              ) : isPublishingStory ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {publishStatusText || 'Publicando en el éter...'}
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  Compartir Historia Cósmica (24h)
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </AstralPortalModal>
     </div>
   );
 }

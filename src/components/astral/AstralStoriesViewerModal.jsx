@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, ChevronLeft, ChevronRight, Send, Heart, Sparkles, 
   Clock, Flame, MessageCircle, Check, Loader2 
@@ -27,6 +28,11 @@ export function AstralStoriesViewerModal({
   const timerRef = useRef(null);
   const STORY_DURATION_MS = 5000;
   const PROGRESS_INTERVAL_MS = 50;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setCurrentGroupIdx(initialGroupIndex);
@@ -164,10 +170,10 @@ export function AstralStoriesViewerModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, currentStoryIdx, currentGroupIdx, stories.length]);
 
-  if (!isOpen || !currentGroup || !currentStory) return null;
+  if (!isOpen || !currentGroup || !currentStory || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-2xl flex items-center justify-center animate-fadeIn select-none">
+  return createPortal(
+    <div className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-2xl flex items-center justify-center animate-fadeIn select-none" style={{ margin: 0 }}>
       
       {/* Contenedor central simulador de móvil de historias */}
       <div 
@@ -386,6 +392,7 @@ export function AstralStoriesViewerModal({
         </button>
       )}
 
-    </div>
+    </div>,
+    document.body
   );
 }
