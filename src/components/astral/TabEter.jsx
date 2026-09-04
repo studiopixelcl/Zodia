@@ -12,6 +12,8 @@ import { apiFetch } from '../../lib/api';
 import { ZodiacBadge } from './ZodiacBadge';
 import { MatchCelebrationModal } from './MatchCelebrationModal';
 import { AstralPortalModal } from './AstralPortalModal';
+import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
+import { playSwipeLikeSound, playSwipePassSound, playSuperlikeSound } from '../../lib/sound-effects';
 
 export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   // Modo de visualización: 'swipe' (Tarjetas deslizables) | 'radar' (Cuadrícula con filtros)
@@ -41,6 +43,9 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   const [selectedSign, setSelectedSign] = useState('Todos');
   const [selectedIntent, setSelectedIntent] = useState('Todos');
   const [minAffinity, setMinAffinity] = useState(0);
+  const [selectedDistance, setSelectedDistance] = useState('Todos'); // 'Todos' | '5' | '10' | '25' | '50'
+  const [selectedAgeRange, setSelectedAgeRange] = useState('Todos'); // 'Todos' | '18-24' | '25-30' | '31-40' | '40+'
+  const [showQuickFilters, setShowQuickFilters] = useState(false);
 
   // Modales
   const [selectedCandidate, setSelectedCandidate] = useState(null); // Perfil completo
@@ -58,6 +63,13 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       if (selectedIntent !== 'Todos') params.append('intent', selectedIntent);
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
       if (minAffinity > 0) params.append('minScore', minAffinity);
+      if (selectedDistance !== 'Todos') params.append('maxDist', selectedDistance);
+      if (selectedAgeRange !== 'Todos') {
+        if (selectedAgeRange === '18-24') { params.append('minAge', '18'); params.append('maxAge', '24'); }
+        else if (selectedAgeRange === '25-30') { params.append('minAge', '25'); params.append('maxAge', '30'); }
+        else if (selectedAgeRange === '31-40') { params.append('minAge', '31'); params.append('maxAge', '40'); }
+        else if (selectedAgeRange === '40+') { params.append('minAge', '40'); params.append('maxAge', '99'); }
+      }
 
       const res = await apiFetch(`/api/resonances?${params.toString()}`);
       if (!res.ok) {
@@ -77,12 +89,21 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
 
   useEffect(() => {
     fetchCandidates();
-  }, [selectedElement, selectedSign, selectedIntent, minAffinity]);
+  }, [selectedElement, selectedSign, selectedIntent, minAffinity, selectedDistance, selectedAgeRange]);
 
   // Manejar Like / Pass / Superlike
   const handleInteraction = async (type, candidateOverride = null) => {
     const targetCandidate = candidateOverride || candidates[currentIndex];
     if (!targetCandidate) return;
+
+    // Reproducir feedback sonoro sensorial inmediato
+    if (type === 'like') {
+      playSwipeLikeSound();
+    } else if (type === 'pass') {
+      playSwipePassSound();
+    } else if (type === 'superlike') {
+      playSuperlikeSound();
+    }
 
     // Animación de salida en Swipe
     if (!candidateOverride) {
@@ -280,7 +301,80 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
         >
           <Compass size={14} className="sm:w-4 sm:h-4" /> Radar con Filtros
         </button>
+        <button
+          onClick={() => setShowQuickFilters(prev => !prev)}
+          className={`px-2.5 py-1.5 sm:py-2 rounded-xl transition border text-xs flex items-center gap-1 shrink-0 ${
+            showQuickFilters || selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos'
+              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+              : 'bg-black/50 text-gray-400 hover:text-white border-white/10'
+          }`}
+          title="Filtros geográficos y edad"
+        >
+          <SlidersHorizontal size={14} />
+          {(selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos') && (
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          )}
+        </button>
       </div>
+
+      {/* ── PANEL DESPLEGABLE DE FILTROS RÁPIDOS (DISTANCIA & EDAD) ── */}
+      {showQuickFilters && (
+        <div className="glass-panel p-3 mb-2 rounded-2xl border border-cyan-500/30 space-y-2.5 max-w-sm sm:max-w-md mx-auto w-full animate-fadeIn shadow-2xl">
+          {/* Filtro por Distancia */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
+              <span className="flex items-center gap-1 text-cyan-300">
+                <MapPin size={12} className="text-cyan-400" /> Radio de Distancia:
+              </span>
+              <span className="text-cyan-400 font-mono text-[10px]">
+                {selectedDistance === 'Todos' ? 'Cualquier distancia' : `Hasta ${selectedDistance} km`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              {['Todos', '5', '10', '25', '50'].map(dist => (
+                <button
+                  key={dist}
+                  onClick={() => setSelectedDistance(dist)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition whitespace-nowrap ${
+                    selectedDistance === dist
+                      ? 'bg-cyan-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {dist === 'Todos' ? 'Sin límite' : `${dist} km`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filtro por Rango de Edad */}
+          <div className="space-y-1 pt-1 border-t border-white/5">
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
+              <span className="flex items-center gap-1 text-purple-300">
+                <Sparkles size={12} className="text-purple-400" /> Rango de Edad:
+              </span>
+              <span className="text-purple-400 font-mono text-[10px]">
+                {selectedAgeRange === 'Todos' ? 'Todas las edades' : `${selectedAgeRange} años`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              {['Todos', '18-24', '25-30', '31-40', '40+'].map(age => (
+                <button
+                  key={age}
+                  onClick={() => setSelectedAgeRange(age)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition whitespace-nowrap ${
+                    selectedAgeRange === age
+                      ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {age === 'Todos' ? 'Todas' : `${age}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* MODO A: TARJETAS DESLIZABLES (SWIPE / DATING DECK)                    */}
@@ -463,7 +557,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     </div>
                   )}
 
-                  {/* Insignia Flotante Superior: % de Afinidad Cósmica */}
+                  {/* Insignia Flotante Superior Izquierda: Distancia en Km */}
+                  <div className="absolute top-5 left-3 sm:left-4 z-20">
+                    <div className="px-2.5 py-1 rounded-full bg-black/70 border border-cyan-400/40 backdrop-blur-md text-cyan-200 text-[10px] sm:text-xs font-semibold flex items-center gap-1 shadow-md">
+                      <MapPin size={11} className="text-cyan-400" />
+                      <span>a {currentCandidate.distanceKm || 3} km</span>
+                    </div>
+                  </div>
+
+                  {/* Insignia Flotante Superior Derecha: % de Afinidad Cósmica */}
                   <div className="absolute top-5 right-3 sm:right-4 z-20">
                     <div className="px-2.5 py-1 rounded-full bg-black/70 border border-cyan-400/60 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
                     <Sparkles size={12} className="text-amber-400 animate-spin" />
@@ -498,7 +600,8 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                             <span>•</span>
                             <span className="inline-flex items-center gap-0.5 text-gray-300">
                               <MapPin size={10} className="text-cyan-400" />
-                              {currentCandidate.location.split(',')[0]}
+                              {currentCandidate.location.split('(')[0].trim()}
+                              <span className="text-cyan-300 font-semibold ml-0.5">({currentCandidate.distanceKm || 3} km)</span>
                             </span>
                           </>
                         )}
@@ -684,6 +787,46 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                 </button>
               ))}
             </div>
+
+            {/* Filtros por Distancia */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pr-1 flex items-center gap-1">
+                <MapPin size={11} className="text-cyan-400" /> Distancia:
+              </span>
+              {['Todos', '5', '10', '25', '50'].map((dist) => (
+                <button
+                  key={dist}
+                  onClick={() => setSelectedDistance(dist)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
+                    selectedDistance === dist
+                      ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {dist === 'Todos' ? 'Sin límite' : `${dist} km`}
+                </button>
+              ))}
+            </div>
+
+            {/* Filtros por Edad */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pr-1 flex items-center gap-1">
+                <Sparkles size={11} className="text-purple-400" /> Edad:
+              </span>
+              {['Todos', '18-24', '25-30', '31-40', '40+'].map((age) => (
+                <button
+                  key={age}
+                  onClick={() => setSelectedAgeRange(age)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
+                    selectedAgeRange === age
+                      ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {age === 'Todos' ? 'Todas' : age}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Listado en Cuadrícula (Grid) */}
@@ -713,6 +856,12 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e19] via-transparent to-transparent" />
                     
+                    {/* Badge Distancia */}
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-cyan-200 text-[10px] font-semibold flex items-center gap-1">
+                      <MapPin size={10} className="text-cyan-400" />
+                      {c.distanceKm ? `a ${c.distanceKm} km` : 'Cerca'}
+                    </div>
+
                     {/* Badge Afinidad */}
                     <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 border border-cyan-400/40 backdrop-blur-md text-cyan-300 font-extrabold text-[11px]">
                       {c.affinity}
@@ -730,14 +879,17 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                   {/* Cuerpo de la tarjeta */}
                   <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-1.5">
+                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-1.5 flex-wrap">
                         <span className="text-cyan-400">{c.sign}</span>
                         <span>•</span>
                         <span className="text-amber-400">{c.element}</span>
                         {c.location && (
                           <>
                             <span>•</span>
-                            <span className="truncate max-w-[120px]">{c.location}</span>
+                            <span className="truncate max-w-[130px] flex items-center gap-0.5">
+                              <MapPin size={10} className="text-cyan-400 shrink-0" />
+                              {c.location.split('(')[0].trim()}
+                            </span>
                           </>
                         )}
                       </div>
@@ -954,62 +1106,37 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       </AstralPortalModal>
 
       {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* MODAL: ROMPEHIELOS RÁPIDO (PORTAL CENTRADO AISLADO)                    */}
+      {/* MODAL: ORÁCULO DE SINASTRÍA & ROMPEHIELOS INTELIGENTE                 */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       <AstralPortalModal
         isOpen={Boolean(icebreakerModalCandidate)}
         onClose={() => setIcebreakerModalCandidate(null)}
-        maxWidth="max-w-sm"
+        maxWidth="max-w-md"
       >
         {icebreakerModalCandidate && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Zap size={16} className="text-amber-400" /> Rompehielos con {icebreakerModalCandidate.name.split(' ')[0]}
-              </h3>
-              <button onClick={() => setIcebreakerModalCandidate(null)} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/5">
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-300 font-light">
-              Toca una de estas preguntas astrológicas para romper el hielo e iniciar la conversación:
-            </p>
-
-            <div className="space-y-2">
-              {generateAstrologicalIcebreakers(
-                profile?.sign || 'Capricornio',
-                icebreakerModalCandidate.sign,
-                icebreakerModalCandidate.name
-              ).map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={async () => {
-                    const target = icebreakerModalCandidate;
-                    setIcebreakerModalCandidate(null);
-                    // Registrar resonancia
-                    try {
-                      await apiFetch('/api/resonances', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ targetUserId: target.id, score: 90 })
-                      });
-                      // Enviar el mensaje
-                      await apiFetch('/api/messages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ receiverId: target.id, content: prompt })
-                      });
-                    } catch { /* continuar */ }
-                    if (onSyncUser) onSyncUser(target.id);
-                  }}
-                  className="w-full text-left p-3 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-400/40 text-xs text-gray-200 hover:text-cyan-300 transition leading-relaxed"
-                >
-                  "{prompt}"
-                </button>
-              ))}
-            </div>
-          </div>
+          <AstralIcebreakerAssistant
+            myProfile={profile}
+            targetUser={icebreakerModalCandidate}
+            onClose={() => setIcebreakerModalCandidate(null)}
+            onSelectIcebreaker={async (prompt) => {
+              const target = icebreakerModalCandidate;
+              setIcebreakerModalCandidate(null);
+              // Registrar interacción y enviar mensaje con rompehielos
+              try {
+                await apiFetch('/api/resonances', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ targetUserId: target.id, score: 92 })
+                });
+                await apiFetch('/api/messages', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ receiverId: target.id, content: prompt })
+                });
+              } catch { /* continuar */ }
+              if (onSyncUser) onSyncUser(target.id);
+            }}
+          />
         )}
       </AstralPortalModal>
 

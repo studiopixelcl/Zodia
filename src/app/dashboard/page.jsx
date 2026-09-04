@@ -9,6 +9,7 @@ import { TabEter }     from '../../components/astral/TabEter';
 import { TabOraculo }  from '../../components/astral/TabOraculo';
 import { TabVinculos } from '../../components/astral/TabVinculos';
 import { TabJuegos }   from '../../components/astral/TabJuegos';
+import { TabResonanciasFeed } from '../../components/astral/TabResonanciasFeed';
 import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
 import { NotificationManager } from '../../components/ui/NotificationManager';
@@ -53,7 +54,7 @@ export default function Dashboard() {
       const tabParam = params.get('tab');
       const userParam = params.get('userId');
 
-      if (tabParam && ['espejo', 'eter', 'vinculos', 'oraculo', 'juegos'].includes(tabParam)) {
+      if (tabParam && ['espejo', 'eter', 'vinculos', 'oraculo', 'juegos', 'feed'].includes(tabParam)) {
         setActiveTab(tabParam);
       } else {
         setActiveTab('espejo');
@@ -351,6 +352,13 @@ export default function Dashboard() {
             }}
             profile={profile}
             currentUser={currentUser}
+          />
+        )}
+        {activeTab === 'feed' && (
+          <TabResonanciasFeed
+            profile={profile}
+            currentUser={currentUser}
+            onNavigateToUser={(targetId) => handleSelectUser(targetId)}
           />
         )}
         {activeTab === 'juegos'   && <TabJuegos profile={profile} onGameActiveChange={setIsGameActive} />}

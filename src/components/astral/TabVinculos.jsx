@@ -8,6 +8,9 @@ import { getZodiacSymbol } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers } from '../../lib/dating';
 import { apiFetch } from '../../lib/api';
 import { ZodiacBadge } from './ZodiacBadge';
+import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
+import { AstralPortalModal } from './AstralPortalModal';
+import { playMessageSentSound, playIncomingChimeSound } from '../../lib/sound-effects';
 
 /**
  * Reproductor Cósmico de Notas de Voz
@@ -96,33 +99,7 @@ function AudioMessagePlayer({ audioUrl, duration = 8, isMine }) {
   );
 }
 
-// Tono cósmico sutil para mensajes entrantes (Web Audio API)
-function playIncomingChime() {
-  if (typeof window === 'undefined') return;
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
-
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.35);
-  } catch {}
-}
 
 export const TabVinculos = ({ selectedUserId, onClearSelection, profile, currentUser }) => {
   const [vinculos, setVinculos]       = useState([]);
@@ -134,6 +111,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
   const [inputText, setInputText]     = useState('');
   const [sending, setSending]         = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [showOraculoModal, setShowOraculoModal] = useState(false);
 
   // ── Estados para Grabación de Notas de Voz ─────────────────────────────────
   const [isRecording, setIsRecording]         = useState(false);
@@ -198,7 +176,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
             const prevIds = new Set(prev.map(m => m.id));
             const newIncoming = data.filter(m => !prevIds.has(m.id) && m.sender_id === userId);
             if (newIncoming.length > 0 && prev.length > 0) {
-              playIncomingChime();
+              playIncomingChimeSound();
             }
             return data;
           });
@@ -358,6 +336,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
 
     if (!textToSend) setInputText('');
     setSending(true);
+    playMessageSentSound();
 
     const tempId = 'temp_' + Date.now();
     // Añadir mensaje optimista del usuario
@@ -590,22 +569,19 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
         </div>
 
         {/* Barra de Rompehielos Cósmicos (Siempre Accesible Arriba del Input) */}
-        {messages.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
-            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider shrink-0 flex items-center gap-1">
-              <Sparkles size={11} className="text-amber-400" /> Rompehielos:
+        {activeUser && (
+          <div className="flex items-center justify-between pb-1 px-1">
+            <button
+              type="button"
+              onClick={() => setShowOraculoModal(true)}
+              className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-900/40 via-cyan-900/40 to-blue-900/40 hover:from-purple-900/60 hover:to-cyan-800/60 border border-cyan-400/40 text-[11px] text-cyan-200 hover:text-white transition flex items-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.3)] font-semibold"
+            >
+              <Sparkles size={13} className="text-amber-300 animate-spin" />
+              <span>Oráculo IA: Rompehielos & Sinastría ✨</span>
+            </button>
+            <span className="text-[10px] text-gray-400 font-light hidden sm:inline">
+              Sinastría {profile?.sign || 'Cosmos'} + {activeUser.sign || 'Cosmos'}
             </span>
-            {icebreakers.slice(0, 3).map((prompt, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setInputText(prompt)}
-                className="shrink-0 px-3 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/40 text-[11px] text-gray-300 hover:text-white transition whitespace-nowrap flex items-center gap-1"
-                title="Cargar en el mensaje"
-              >
-                <span>"{prompt.length > 35 ? prompt.slice(0, 35) + '...' : prompt}"</span>
-              </button>
-            ))}
           </div>
         )}
 
@@ -788,6 +764,25 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
           </div>
         )}
       </div>
+
+      {/* Modal del Asistente Oráculo IA & Rompehielos de Sinastría */}
+      <AstralPortalModal
+        isOpen={showOraculoModal && Boolean(activeUser)}
+        onClose={() => setShowOraculoModal(false)}
+        maxWidth="max-w-md"
+      >
+        {activeUser && (
+          <AstralIcebreakerAssistant
+            myProfile={profile}
+            targetUser={activeUser}
+            onSelectIcebreaker={(promptText) => {
+              setInputText(promptText);
+              setShowOraculoModal(false);
+            }}
+            onClose={() => setShowOraculoModal(false)}
+          />
+        )}
+      </AstralPortalModal>
     </div>
   );
 };

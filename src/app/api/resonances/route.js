@@ -27,6 +27,9 @@ export async function GET(request) {
   const signFilter = searchParams.get('sign')?.toLowerCase() || 'todos';
   const intentFilter = searchParams.get('intent')?.toLowerCase() || 'todos';
   const minScore = parseInt(searchParams.get('minScore') || '0', 10);
+  const maxDistParam = searchParams.get('maxDist')?.toLowerCase() || 'todos';
+  const minAge = parseInt(searchParams.get('minAge') || '18', 10);
+  const maxAge = parseInt(searchParams.get('maxAge') || '99', 10);
 
   const db = await getDB();
   const rawMyId = resolveUserId(token);
@@ -131,6 +134,7 @@ export async function GET(request) {
           bio: o.bio ?? '',
           intent: o.intent ?? 'Citas y Pareja',
           location: o.location ?? 'Santiago, Chile',
+          distanceKm: 3.5,
           photos: photoList,
           video_url: o.video_url || null,
           interests: interestsList,
@@ -165,6 +169,7 @@ export async function GET(request) {
         bio: candidate.bio,
         intent: candidate.intent || 'Citas y Pareja',
         location: candidate.location || 'Santiago, Chile',
+        distanceKm: candidate.distanceKm || 4,
         photos: candidate.photos || [candidate.image],
         video_url: candidate.video_url || null,
         interests: candidate.interests || ['Astrología', 'Música indie'],
@@ -234,6 +239,22 @@ export async function GET(request) {
 
   if (minScore > 0) {
     resonances = resonances.filter(r => r.affinityScore >= minScore);
+  }
+
+  // Filtro por Distancia Geográfica máxima (km)
+  if (maxDistParam && maxDistParam !== 'todos') {
+    const maxD = parseInt(maxDistParam, 10);
+    if (!isNaN(maxD) && maxD > 0) {
+      resonances = resonances.filter(r => (r.distanceKm ?? 4) <= maxD);
+    }
+  }
+
+  // Filtro por Rango de Edad
+  if (minAge > 18 || maxAge < 99) {
+    resonances = resonances.filter(r => {
+      const a = r.age ?? 26;
+      return a >= minAge && a <= maxAge;
+    });
   }
 
   // PRIORIDAD MÁXIMA: Los sintonizadores reales auténticos van siempre primero en la fila de Citas

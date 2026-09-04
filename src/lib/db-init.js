@@ -93,6 +93,38 @@ export async function ensureDatabaseSchema(db) {
       type TEXT,
       read INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // 7. Tablas del Muro Cósmico & Feed de Resonancias
+    `CREATE TABLE IF NOT EXISTS feed_posts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_image TEXT,
+      author_sign TEXT,
+      author_element TEXT,
+      content TEXT NOT NULL,
+      media_url TEXT,
+      vibe_tag TEXT DEFAULT 'Reflexión ✨',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS feed_reactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(post_id, user_id, type)
+    )`,
+    `CREATE TABLE IF NOT EXISTS feed_comments (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_image TEXT,
+      author_sign TEXT,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 

@@ -94,6 +94,24 @@ export function generateAstrologicalIcebreakers(mySign = 'Capricornio', targetSi
 }
 
 /**
+ * Calcula la distancia en kilómetros entre dos coordenadas geográficas (Fórmula de Haversine)
+ */
+export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371; // Radio de la Tierra en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
+/**
  * Catálogo enriquecido de perfiles de citas para Zodia
  * Fotos reales de alta calidad y optimizadas para visualización en apps de citas
  */
@@ -109,6 +127,9 @@ export const DATING_CANDIDATES = [
     bio: "Diseñadora de modas, amante de los atardeceres dorados y la música electrónica en vivo. Busco a alguien que no le tema a la intensidad ni a reírse a carcajadas en la primera cita.",
     intent: "Citas y Pareja",
     location: "Santiago, Chile (a 3 km)",
+    distanceKm: 3,
+    lat: -33.4489,
+    lon: -70.6693,
     image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
@@ -129,6 +150,9 @@ export const DATING_CANDIDATES = [
     bio: "Arquitecto de día, guitarrista aficionado de noche. Me encanta recorrer mercados de antigüedades, preparar café v60 y tener charlas que duren hasta la madrugada.",
     intent: "Conexión Casual",
     location: "Providencia, Chile (a 5 km)",
+    distanceKm: 5,
+    lat: -33.4314,
+    lon: -70.6093,
     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
@@ -148,6 +172,9 @@ export const DATING_CANDIDATES = [
     bio: "Periodista cultural y fotógrafa analógica. Si sabes de un bar escondido con buena acústica o una librería con encanto, ya tenemos tema de conversación.",
     intent: "Citas y Pareja",
     location: "Las Condes, Chile (a 7 km)",
+    distanceKm: 7,
+    lat: -33.4114,
+    lon: -70.5824,
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
@@ -169,6 +196,9 @@ export const DATING_CANDIDATES = [
     bio: "Cocinero apasionado y amante de la montaña. Mi plan perfecto de domingo incluye hornear pan de masa madre, escuchar vinilos y compartir un buen vino.",
     intent: "Citas y Pareja",
     location: "Ñuñoa, Chile (a 4 km)",
+    distanceKm: 4,
+    lat: -33.4542,
+    lon: -70.5985,
     image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80",
@@ -188,6 +218,9 @@ export const DATING_CANDIDATES = [
     bio: "Psicóloga e investigadora del inconsciente. Amo los viajes espontáneos, la poesía nocturna y las personas transparentes que saben lo que quieren.",
     intent: "Citas y Pareja",
     location: "Santiago Centro, Chile (a 2 km)",
+    distanceKm: 2,
+    lat: -33.4412,
+    lon: -70.6534,
     image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
@@ -207,6 +240,9 @@ export const DATING_CANDIDATES = [
     bio: "Desarrollador y escalador en roca. Siempre planeando la próxima escapada al sur. Busco una compañera de ruta con buena vibra y espíritu aventurero.",
     intent: "Citas y Pareja",
     location: "Vitacura, Chile (a 8 km)",
+    distanceKm: 8,
+    lat: -33.3985,
+    lon: -70.5742,
     image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80",
@@ -226,6 +262,9 @@ export const DATING_CANDIDATES = [
     bio: "Curadora de arte y ceramista. Me fascinan los espacios armoniosos, las galerías los sábados por la tarde y compartir un matcha latte mientras hablamos de la vida.",
     intent: "Amistad Cósmica",
     location: "Barrio Italia, Chile (a 3 km)",
+    distanceKm: 3,
+    lat: -33.4452,
+    lon: -70.6289,
     image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80",
@@ -245,6 +284,9 @@ export const DATING_CANDIDATES = [
     bio: "Productor musical y amante del running. Directo, apasionado y con poco gusto por la rutina. Si tienes buena energía y te gusta bailar hasta el amanecer, coincidiremos.",
     intent: "Citas y Pareja",
     location: "Providencia, Chile (a 4 km)",
+    distanceKm: 4,
+    lat: -33.4285,
+    lon: -70.6174,
     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80",
     photos: [
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80",

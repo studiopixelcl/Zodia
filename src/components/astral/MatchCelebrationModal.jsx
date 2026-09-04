@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Sparkles, MessageCircle, ArrowRight, Heart, Star, X } from 'lucide-react';
 import { ZodiacBadge } from './ZodiacBadge';
 import { getZodiacSymbol } from '../../lib/astrology';
+import { playMatchCelebrationSound } from '../../lib/sound-effects';
 
 export const MatchCelebrationModal = ({
   matchData, // { candidate, userProfile, userAvatar }
@@ -14,6 +15,7 @@ export const MatchCelebrationModal = ({
 
   useEffect(() => {
     setMounted(true);
+    playMatchCelebrationSound();
     // Respuesta háptica en dispositivos compatibles
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate([120, 60, 180]);
