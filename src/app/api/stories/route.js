@@ -13,7 +13,7 @@ async function getDB() {
   }
 }
 
-// Semilla inicial de historias de 24h para la comunidad
+// Semilla viva de historias de 24h de la comunidad Zodia
 const SEED_STORIES = [
   {
     userId: 'candidate_valeria',
@@ -32,7 +32,7 @@ const SEED_STORIES = [
       {
         id: 'story_valeria_2',
         mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=900&auto=format&fit=crop&q=80',
-        caption: 'Probando nuevos cortes de tela para la colección de verano 🪡💫',
+        caption: 'Probando nuevos cortes y colores para la colección de verano 🪡💫',
         vibeTag: '🎨 Creatividad',
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString()
       }
@@ -69,6 +69,38 @@ const SEED_STORIES = [
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString()
       }
     ]
+  },
+  {
+    userId: 'candidate_lucas',
+    authorName: 'Lucas Morales',
+    authorImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
+    authorSign: 'Aries',
+    hasUnseen: true,
+    stories: [
+      {
+        id: 'story_lucas_1',
+        mediaUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=900&auto=format&fit=crop&q=80',
+        caption: 'Cima alcanzada antes del amanecer. La vista no tiene precio 🏔️⚡',
+        vibeTag: '🔥 Aventura & Montaña',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
+      }
+    ]
+  },
+  {
+    userId: 'candidate_sofia',
+    authorName: 'Sofía Carranza',
+    authorImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
+    authorSign: 'Escorpio',
+    hasUnseen: true,
+    stories: [
+      {
+        id: 'story_sofia_1',
+        mediaUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900&auto=format&fit=crop&q=80',
+        caption: 'Cielo estrellado y noche de oráculo. Las cartas marcan transformación 🔮✨',
+        vibeTag: '🌙 Mística',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+      }
+    ]
   }
 ];
 
@@ -76,22 +108,22 @@ let devStories = [...SEED_STORIES];
 
 export async function GET(request) {
   const token = await getAuthUser(request);
-  if (!token) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
   const db = await getDB();
-  const rawId = resolveUserId(token);
+  const rawId = token ? resolveUserId(token) : null;
 
+  // Si no hay BD o no hay token aún, entregar las historias semilla de la comunidad
   if (!db) {
-    return NextResponse.json({ userStories: devStories });
+    return NextResponse.json({ 
+      stories: devStories,
+      userStories: devStories 
+    });
   }
 
   try {
     await ensureDatabaseSchema(db);
-    const myId = (await resolveCanonicalUserId(db, token)) || rawId;
+    const myId = token ? ((await resolveCanonicalUserId(db, token)) || rawId) : null;
 
-    // Buscar historias no expiradas
+    // Buscar historias no expiradas en D1
     const { results } = await db.prepare(`
       SELECT * FROM astral_stories 
       WHERE expires_at > CURRENT_TIMESTAMP
@@ -103,7 +135,7 @@ export async function GET(request) {
     // Agrupar por usuario
     const userMap = {};
 
-    // Primero integrar historias de la base de datos
+    // Primero integrar historias creadas en la base de datos
     for (const s of dbStories) {
       if (!userMap[s.user_id]) {
         userMap[s.user_id] = {
@@ -124,7 +156,7 @@ export async function GET(request) {
       });
     }
 
-    // Complementar con la semilla si hay pocos usuarios
+    // Complementar con la semilla para asegurar historias activas de la comunidad
     for (const seed of SEED_STORIES) {
       if (!userMap[seed.userId]) {
         userMap[seed.userId] = seed;
@@ -132,10 +164,16 @@ export async function GET(request) {
     }
 
     const userStories = Object.values(userMap);
-    return NextResponse.json({ userStories });
+    return NextResponse.json({ 
+      stories: userStories,
+      userStories: userStories 
+    });
   } catch (err) {
     console.error("Error obteniendo historias efímeras:", err);
-    return NextResponse.json({ userStories: devStories });
+    return NextResponse.json({ 
+      stories: devStories,
+      userStories: devStories 
+    });
   }
 }
 
@@ -153,9 +191,9 @@ export async function POST(request) {
   }
 
   const { mediaUrl, caption, vibeTag, authorName, authorImage, authorSign } = body;
-  if (!mediaUrl) {
-    return NextResponse.json({ error: "Se requiere una imagen para la historia." }, { status: 400 });
-  }
+  
+  // Fondo místico por defecto si solo se envió texto
+  const finalMediaUrl = mediaUrl || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900&auto=format&fit=crop&q=80';
 
   const db = await getDB();
   const rawId = resolveUserId(token);
@@ -165,7 +203,7 @@ export async function POST(request) {
 
   const newStoryItem = {
     id: storyId,
-    mediaUrl,
+    mediaUrl: finalMediaUrl,
     caption: caption || '',
     vibeTag: vibeTag || '✨ Energía del Día',
     createdAt: now.toISOString()
@@ -192,7 +230,7 @@ export async function POST(request) {
         author.authorName,
         author.authorImage,
         author.authorSign,
-        mediaUrl,
+        finalMediaUrl,
         caption || null,
         vibeTag || '✨ Energía del Día',
         now.toISOString(),
@@ -203,7 +241,7 @@ export async function POST(request) {
     }
   }
 
-  // Actualizar fallback memoria
+  // Actualizar fallback memoria para sesión local
   const existingUserIdx = devStories.findIndex(u => u.userId === rawId);
   if (existingUserIdx >= 0) {
     devStories[existingUserIdx].stories.unshift(newStoryItem);
@@ -215,5 +253,10 @@ export async function POST(request) {
     });
   }
 
-  return NextResponse.json({ success: true, story: newStoryItem });
+  return NextResponse.json({ 
+    success: true, 
+    story: newStoryItem,
+    stories: devStories,
+    userStories: devStories 
+  });
 }

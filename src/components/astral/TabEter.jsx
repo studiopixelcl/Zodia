@@ -14,6 +14,7 @@ import { MatchCelebrationModal } from './MatchCelebrationModal';
 import { AstralPortalModal } from './AstralPortalModal';
 import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
 import { BlindDateModal } from './BlindDateModal';
+import { AstralStoriesRail } from './AstralStoriesRail';
 import { playSwipeLikeSound, playSwipePassSound, playSuperlikeSound } from '../../lib/sound-effects';
 
 export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
@@ -377,6 +378,11 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           </div>
         </div>
       )}
+
+      {/* ── HISTORIAS EFÍMERAS EN EL RADAR (STORIES 24H) ── */}
+      <div className="max-w-sm sm:max-w-md mx-auto w-full mb-3">
+        <AstralStoriesRail currentUser={profile} profile={profile} compact={true} />
+      </div>
 
       {/* ── BANNER DESTACADO: CITAS A CIEGAS CÓSMICAS (BLIND DATING) ── */}
       <div className="max-w-sm sm:max-w-md mx-auto w-full mb-3">

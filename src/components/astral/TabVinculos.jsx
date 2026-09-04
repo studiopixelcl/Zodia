@@ -10,6 +10,7 @@ import { apiFetch } from '../../lib/api';
 import { ZodiacBadge } from './ZodiacBadge';
 import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
 import { AstralPortalModal } from './AstralPortalModal';
+import { AstralStoriesRail } from './AstralStoriesRail';
 import { playMessageSentSound, playIncomingChimeSound } from '../../lib/sound-effects';
 
 /**
@@ -664,6 +665,9 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
           Tus sintonías mutuas y conversaciones activas guiadas por la astrología.
         </p>
       </div>
+
+      {/* ── CARRUSEL DE HISTORIAS EFÍMERAS (24H) ── */}
+      <AstralStoriesRail currentUser={currentUser} profile={profile} compact={true} />
 
       {/* ── 1. CARRUSEL SUPERIOR: NUEVAS RESONANCIAS / MATCHES RECIENTES ── */}
       {newMatches.length > 0 && (

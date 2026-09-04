@@ -34,9 +34,9 @@ export function AstralStoriesViewerModal({
     setProgress(0);
   }, [initialGroupIndex, isOpen]);
 
-  const currentGroup = storyGroups[currentGroupIdx] || null;
+  const currentGroup = storyGroups[currentGroupIdx] || storyGroups[0] || null;
   const stories = currentGroup?.stories || [];
-  const currentStory = stories[currentStoryIdx] || null;
+  const currentStory = stories[currentStoryIdx] || stories[0] || null;
 
   // Marcar como visto al cargar una historia
   useEffect(() => {
@@ -244,6 +244,10 @@ export function AstralStoriesViewerModal({
               src={currentStory.mediaUrl}
               alt="Historia Astral"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900&auto=format&fit=crop&q=80';
+              }}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-indigo-950 via-purple-950 to-black">
