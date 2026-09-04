@@ -5,9 +5,23 @@ import {
   X, ChevronLeft, ChevronRight, Send, Heart, Sparkles, 
   Clock, Flame, MessageCircle, Check, Loader2 
 } from 'lucide-react';
-import { ZodiacBadge } from './ZodiacBadge';
 import { apiFetch } from '../../lib/api';
 import { playMessageSentSound, playSwipeLikeSound } from '../../lib/sound-effects';
+
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return '24h';
+  try {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours <= 0) {
+      const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+      return `hace ${diffMins}m`;
+    }
+    return `hace ${diffHours}h`;
+  } catch {
+    return '24h';
+  }
+}
 
 export function AstralStoriesViewerModal({ 
   isOpen, 
@@ -173,78 +187,24 @@ export function AstralStoriesViewerModal({
   if (!isOpen || !currentGroup || !currentStory || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-2xl flex items-center justify-center animate-fadeIn select-none" style={{ margin: 0 }}>
+    <div 
+      className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-2xl flex items-center justify-center animate-fadeIn select-none" 
+      style={{ margin: 0 }}
+      onClick={onClose}
+    >
       
       {/* Contenedor central simulador de móvil de historias */}
       <div 
-        className="relative w-full max-w-md h-[95vh] max-h-[850px] bg-slate-950 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(6,182,212,0.3)] border border-white/10 flex flex-col justify-between"
+        className="relative w-full max-w-[420px] h-[92vh] max-h-[820px] bg-black rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9),0_0_35px_rgba(6,182,212,0.35)] border border-white/15 flex flex-col justify-between"
+        onClick={(e) => e.stopPropagation()}
         onMouseDown={() => setIsPaused(true)}
         onMouseUp={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
 
-        {/* ── BARRAS DE PROGRESO SUPERIORES ── */}
-        <div className="absolute top-0 inset-x-0 z-30 p-3 pt-3.5 flex gap-1.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-          {stories.map((s, idx) => {
-            let width = '0%';
-            if (idx < currentStoryIdx) width = '100%';
-            else if (idx === currentStoryIdx) width = `${progress}%`;
-
-            return (
-              <div key={s.id || idx} className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 rounded-full transition-all duration-75 ease-linear"
-                  style={{ width }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ── HEADER DE AUTOR DE LA HISTORIA ── */}
-        <div className="absolute top-6 inset-x-0 z-30 px-3 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-cyan-400 to-fuchsia-500 shadow-md">
-              <img
-                src={currentGroup.authorImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentGroup.authorName)}&background=06b6d4&color=fff`}
-                alt={currentGroup.authorName}
-                className="w-10 h-10 rounded-full object-cover border border-black"
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-white text-xs font-bold mystic-font tracking-wider drop-shadow-md">
-                  {currentGroup.authorName}
-                </span>
-                {currentGroup.authorSign && (
-                  <span className="px-1.5 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/40 text-[9px] font-bold text-cyan-300">
-                    {currentGroup.authorSign}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] text-gray-300 drop-shadow flex items-center gap-1">
-                <Clock size={10} className="text-cyan-400" />
-                24h Efímero
-              </span>
-            </div>
-          </div>
-
-          {/* Botón de cierre */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-2 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/80 transition backdrop-blur-md"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* ── IMAGEN / CONTENIDO MULTIMEDIA ── */}
-        <div className="absolute inset-0 z-10 bg-black flex items-center justify-center overflow-hidden">
+        {/* ── 1. FONDO MULTIMEDIA (ABSOLUTE DETRÁS DE TODO) ── */}
+        <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
           {currentStory.mediaUrl ? (
             <img
               src={currentStory.mediaUrl}
@@ -264,12 +224,13 @@ export function AstralStoriesViewerModal({
             </div>
           )}
 
-          {/* Gradiente inferior para legibilidad del texto */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
+          {/* Gradientes oscuros superior e inferior para legibilidad perfecta */}
+          <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/90 via-black/50 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-black via-black/85 to-transparent pointer-events-none" />
         </div>
 
-        {/* ── ZONAS DE TOQUE LATERALES (IZQ / DER) ── */}
-        <div className="absolute inset-0 z-20 flex">
+        {/* ── 2. ZONAS DE TOQUE LATERALES (Z-10) ── */}
+        <div className="absolute inset-0 z-10 flex pointer-events-auto">
           <div 
             className="w-1/3 h-full cursor-pointer"
             onClick={(e) => {
@@ -286,24 +247,96 @@ export function AstralStoriesViewerModal({
           />
         </div>
 
-        {/* ── PIE DE LA HISTORIA: CAPTION, VIBE & RESPUESTA DIRECTA ── */}
-        <div className="relative z-30 p-4 pt-0 space-y-3 bg-gradient-to-t from-black via-black/80 to-transparent">
+        {/* ── 3. SECCIÓN SUPERIOR IN-FLOW (BARRAS DE PROGRESO + AUTOR) (Z-30) ── */}
+        <div className="relative z-30 p-3 pt-3.5 space-y-3 pointer-events-none">
           
-          {/* Tag de vibra y texto */}
-          {currentStory.vibeTag && (
-            <span className="inline-block px-2.5 py-0.5 rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-[10px] font-bold tracking-wider backdrop-blur-md">
-              {currentStory.vibeTag}
-            </span>
-          )}
+          {/* Barras de progreso segmentadas */}
+          <div className="flex gap-1.5 w-full">
+            {stories.map((s, idx) => {
+              let width = '0%';
+              if (idx < currentStoryIdx) width = '100%';
+              else if (idx === currentStoryIdx) width = `${progress}%`;
 
+              return (
+                <div key={s.id || idx} className="flex-1 h-1 bg-white/25 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 rounded-full transition-all duration-75 ease-linear"
+                    style={{ width }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Header de Autor y Botón Cerrar */}
+          <div className="flex items-center justify-between pointer-events-auto">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-cyan-400 to-fuchsia-500 shadow-md shrink-0">
+                <img
+                  src={currentGroup.authorImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentGroup.authorName)}&background=06b6d4&color=fff`}
+                  alt={currentGroup.authorName}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-black"
+                />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-white text-xs sm:text-sm font-bold mystic-font tracking-wide drop-shadow truncate">
+                    {currentGroup.authorName}
+                  </span>
+                  {currentGroup.authorSign && (
+                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/25 border border-cyan-400/40 text-[9px] font-bold text-cyan-300">
+                      {currentGroup.authorSign}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-300 drop-shadow">
+                  <span className="flex items-center gap-1">
+                    <Clock size={10} className="text-cyan-400" />
+                    {formatTimeAgo(currentStory.createdAt)}
+                  </span>
+                  {currentStory.vibeTag && (
+                    <>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-cyan-300 font-semibold px-1.5 py-0.2 rounded-full bg-cyan-950/60 border border-cyan-500/30">
+                        {currentStory.vibeTag}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Botón de Cierre */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="p-2 rounded-full bg-black/60 text-white/80 hover:text-white hover:bg-black/90 transition backdrop-blur-md cursor-pointer shrink-0 ml-2 shadow-lg"
+              title="Cerrar (Esc)"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── 4. SECCIÓN INFERIOR IN-FLOW (CAPTION + REACCIONES + RESPUESTA) (Z-30) ── */}
+        <div className="relative z-30 p-4 space-y-3 pointer-events-auto">
+          
+          {/* Mensaje / Caption de la Historia (En tarjeta translúcida de lectura cómoda) */}
           {currentStory.caption && (
-            <p className="text-xs sm:text-sm text-white font-light leading-snug drop-shadow-md">
-              {currentStory.caption}
-            </p>
+            <div className="p-3 rounded-2xl bg-black/65 backdrop-blur-md border border-white/15 shadow-xl">
+              <p className="text-xs sm:text-sm text-white font-normal leading-relaxed drop-shadow">
+                {currentStory.caption}
+              </p>
+            </div>
           )}
 
-          {/* Respuestas rápidas de emojis */}
-          <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/10">
+          {/* Reacciones Rápidas con Emojis */}
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               {['✨', '🔥', '💖', '🪐', '💫'].map((emoji) => (
                 <button
@@ -313,7 +346,7 @@ export function AstralStoriesViewerModal({
                     e.stopPropagation();
                     handleQuickReaction(emoji);
                   }}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 hover:scale-125 transition flex items-center justify-center text-sm backdrop-blur-md active:scale-95"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 hover:scale-125 transition flex items-center justify-center text-sm backdrop-blur-md active:scale-95 cursor-pointer shadow-md"
                 >
                   {emoji}
                 </button>
@@ -327,7 +360,7 @@ export function AstralStoriesViewerModal({
             )}
           </div>
 
-          {/* Formulario de respuesta al chat */}
+          {/* Formulario para Responder al Chat */}
           <form 
             onSubmit={handleSendReply}
             onClick={(e) => e.stopPropagation()}
@@ -341,10 +374,10 @@ export function AstralStoriesViewerModal({
                 onFocus={() => setIsPaused(true)}
                 onBlur={() => setIsPaused(false)}
                 placeholder={`Responder a ${currentGroup.authorName.split(' ')[0]}...`}
-                className="w-full bg-black/60 border border-white/20 rounded-2xl py-2 pl-3.5 pr-9 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 backdrop-blur-md"
+                className="w-full bg-black/65 border border-white/20 rounded-full py-2.5 pl-4 pr-10 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 backdrop-blur-md transition shadow-inner"
               />
               {replySent && (
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-400">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
                   <Check size={14} />
                 </div>
               )}
@@ -353,11 +386,12 @@ export function AstralStoriesViewerModal({
             <button
               type="submit"
               disabled={!replyText.trim() || isSendingReply}
-              className={`p-2 rounded-2xl transition flex items-center justify-center cursor-pointer ${
+              className={`p-2.5 rounded-full transition flex items-center justify-center cursor-pointer ${
                 replyText.trim() && !isSendingReply
-                  ? 'bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-black hover:scale-105'
+                  ? 'bg-gradient-to-r from-cyan-500 to-fuchsia-500 text-black hover:scale-105 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                   : 'bg-white/10 text-gray-400 cursor-not-allowed'
               }`}
+              title="Enviar respuesta al chat"
             >
               {isSendingReply ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -371,12 +405,16 @@ export function AstralStoriesViewerModal({
 
       </div>
 
-      {/* Flechas flotantes para desktop */}
+      {/* Flechas flotantes para navegación en pantallas medianas / grandes */}
       {currentGroupIdx > 0 && (
         <button
           type="button"
-          onClick={handlePrevStory}
-          className="hidden md:flex absolute left-8 p-3 rounded-full bg-black/50 hover:bg-black text-white/80 hover:text-white transition backdrop-blur-md border border-white/10 shadow-xl"
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePrevStory();
+          }}
+          className="hidden md:flex absolute left-8 p-3 rounded-full bg-black/60 hover:bg-black text-white/80 hover:text-white transition backdrop-blur-md border border-white/15 shadow-xl cursor-pointer"
+          title="Usuario anterior"
         >
           <ChevronLeft size={28} />
         </button>
@@ -385,8 +423,12 @@ export function AstralStoriesViewerModal({
       {currentGroupIdx < storyGroups.length - 1 && (
         <button
           type="button"
-          onClick={handleNextStory}
-          className="hidden md:flex absolute right-8 p-3 rounded-full bg-black/50 hover:bg-black text-white/80 hover:text-white transition backdrop-blur-md border border-white/10 shadow-xl"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleNextStory();
+          }}
+          className="hidden md:flex absolute right-8 p-3 rounded-full bg-black/60 hover:bg-black text-white/80 hover:text-white transition backdrop-blur-md border border-white/15 shadow-xl cursor-pointer"
+          title="Siguiente usuario"
         >
           <ChevronRight size={28} />
         </button>
