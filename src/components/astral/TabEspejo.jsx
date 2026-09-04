@@ -8,7 +8,7 @@ import {
   Flame, Mountain, Wind, Droplets, Shield, Compass, Star, Edit3, 
   MapPin, Heart, Plus, Trash2, X, Check, Camera, Image as ImageIcon, 
   Sparkles, Info, BookOpen, UserCheck, Zap, Eye, Maximize2, Sun, Moon,
-  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle, ChevronRight
+  Video, Play, Film, UploadCloud, Loader2, Calendar, AlertTriangle, ChevronRight, LogOut
 } from 'lucide-react';
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
@@ -16,7 +16,7 @@ import { MediaCropperModal } from '../ui/MediaCropperModal';
 import { VideoCropperModal } from '../ui/VideoCropperModal';
 import { MandalaAstral } from './MandalaAstral';
 
-export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onProfileUpdated }) => {
+export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onSignOut, onProfileUpdated }) => {
   const userSign = profile?.sign ?? 'Capricornio';
   const signInfo = zodiacData.find(s => s.sign === userSign) ?? zodiacData[0];
   const zodiacSymbol = getZodiacSymbol(userSign);
@@ -935,6 +935,21 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
             );
           })}
         </div>
+      </div>
+
+      {/* ── 5. SECCIÓN DE CIERRE DE SESIÓN AL FINAL DEL PERFIL ── */}
+      <div className="pt-3 pb-8 text-center">
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="w-full max-w-sm mx-auto py-3 px-6 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-400/60 text-rose-400 hover:text-rose-300 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest font-bold shadow-md group cursor-pointer active:scale-98"
+        >
+          <LogOut size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          Cerrar Sesión Cósmica
+        </button>
+        <p className="text-[10px] text-slate-500 font-light mt-2">
+          Podrás volver a sintonizar tu cuenta con tus credenciales en cualquier momento.
+        </p>
       </div>
 
       {/* ── MODAL DE PREVISUALIZACIÓN PÚBLICA (PORTAL CENTRADO AISLADO) ── */}

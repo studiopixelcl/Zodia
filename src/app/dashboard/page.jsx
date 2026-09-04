@@ -313,13 +313,6 @@ export default function Dashboard() {
               </span>
             )}
           </button>
-
-          <button
-            onClick={handleSignOut}
-            className="text-gray-400 hover:text-cyan-400 transition flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-widest px-2.5 py-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
-          >
-            <LogOut size={13} /> Desconectar
-          </button>
         </div>
       </header>
 
@@ -332,6 +325,7 @@ export default function Dashboard() {
             avatarSrc={avatarSrc ?? currentUser?.image}
             onAvatarChange={handleAvatarChange}
             onNavigateTab={handleSwitchTab}
+            onSignOut={handleSignOut}
             onProfileUpdated={(updatedProfile) => {
               setProfile(updatedProfile);
               if (updatedProfile.user_image) setAvatarSrc(updatedProfile.user_image);
