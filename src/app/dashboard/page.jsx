@@ -16,7 +16,7 @@ import { NotificationManager } from '../../components/ui/NotificationManager';
 import { NotificationCenterDrawer } from '../../components/ui/NotificationCenterDrawer';
 import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
-import { calculateAstralProfile } from '../../lib/astrology';
+import { calculateAstralProfile, getZodiacSymbol } from '../../lib/astrology';
 
 // ─── PANTALLA DE ESPERA COMPARTIDA ────────────────────────────────────────────
 const Sincronizando = () => (
@@ -300,6 +300,16 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Badge del Signo Activo del Usuario */}
+          {profile?.sign && (
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-full bg-cyan-950/50 border border-cyan-500/30 text-cyan-200 text-[10px] font-semibold backdrop-blur-md shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+              <span className="text-amber-300 font-bold">{getZodiacSymbol(profile.sign)}</span>
+              <span>{profile.sign}</span>
+              <span className="text-white/30 hidden xs:inline">•</span>
+              <span className="text-slate-400 hidden xs:inline">{profile.element}</span>
+            </div>
+          )}
+
           {/* Campanita de Notificaciones Cósmicas In-App */}
           <button
             type="button"

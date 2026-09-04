@@ -15,6 +15,7 @@ import { AstralPortalModal } from './AstralPortalModal';
 import { AstralIcebreakerAssistant } from './AstralIcebreakerAssistant';
 import { BlindDateModal } from './BlindDateModal';
 import { AstralStoriesRail } from './AstralStoriesRail';
+import { AstralSynastryModal } from './AstralSynastryModal';
 import { playSwipeLikeSound, playSwipePassSound, playSuperlikeSound } from '../../lib/sound-effects';
 
 export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
@@ -54,6 +55,21 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   const [matchData, setMatchData] = useState(null); // Modal de celebración de match
   const [icebreakerModalCandidate, setIcebreakerModalCandidate] = useState(null); // Modal de rompehielos rápido
   const [isBlindDateOpen, setIsBlindDateOpen] = useState(false); // Modal de Cita a Ciegas Cósmica
+  const [synastryCandidate, setSynastryCandidate] = useState(null); // Modal de Sinastría Cósmica Profunda
+
+  // Fotos de respaldo cósmico de alta fidelidad según elemento astral
+  const DEFAULT_COSMIC_PHOTOS = {
+    Fuego: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80",
+    Tierra: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=80",
+    Aire: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80",
+    Agua: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80",
+    Default: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80"
+  };
+
+  const getCandidateFallbackPhoto = (candidate) => {
+    if (!candidate) return DEFAULT_COSMIC_PHOTOS.Default;
+    return DEFAULT_COSMIC_PHOTOS[candidate.element] || DEFAULT_COSMIC_PHOTOS.Default;
+  };
 
   // Cargar candidatos desde la API
   const fetchCandidates = async () => {
@@ -238,19 +254,26 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
   // Lista multimedia: Si contiene video_url, va de primero (índice 0), luego las fotos
   const mediaList = useMemo(() => {
     if (!currentCandidate) return [];
+    const fallbackPhoto = getCandidateFallbackPhoto(currentCandidate);
     const items = [];
     if (currentCandidate.video_url) {
       items.push({ type: 'video', url: currentCandidate.video_url });
     }
-    const rawPhotos = currentCandidate.photos?.length 
+    const rawPhotos = (currentCandidate.photos?.length 
       ? currentCandidate.photos 
-      : [currentCandidate.image].filter(Boolean);
+      : [currentCandidate.image]
+    ).filter(Boolean).map(url => {
+      if (typeof url === 'string' && (url.includes('ui-avatars.com') || url.trim() === '')) {
+        return fallbackPhoto;
+      }
+      return url;
+    });
     
     rawPhotos.slice(0, 5).forEach(photoUrl => {
       items.push({ type: 'image', url: photoUrl });
     });
 
-    return items.length > 0 ? items : [{ type: 'image', url: currentCandidate?.image || '/zodia/assets/logo.png' }];
+    return items.length > 0 ? items : [{ type: 'image', url: fallbackPhoto }];
   }, [currentCandidate]);
 
   // Resetear índice y progreso al cambiar de candidato
@@ -282,40 +305,56 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
 
   return (
     <div className="h-full flex flex-col justify-between animate-fadeIn px-1 sm:px-2">
-      {/* ── SELECTOR SUPERIOR DE MODOS (SWIPE VS RADAR) ── */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2 p-1 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl mb-1.5 shrink-0 max-w-sm sm:max-w-md mx-auto w-full">
+      {/* ── BARRA SUPERIOR DE MODOS (SWIPE VS RADAR) Y ACCESOS RÁPIDOS ── */}
+      <div className="flex items-center justify-between gap-1.5 p-1 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl mb-2 shrink-0 max-w-sm sm:max-w-md mx-auto w-full">
+        <div className="flex items-center gap-1 flex-1">
+          <button
+            onClick={() => setViewMode('swipe')}
+            className={`flex-1 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+              viewMode === 'swipe'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Sparkles size={14} className="sm:w-4 sm:h-4" /> Sintonía
+          </button>
+          <button
+            onClick={() => setViewMode('radar')}
+            className={`flex-1 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+              viewMode === 'radar'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Compass size={14} className="sm:w-4 sm:h-4" /> Radar
+          </button>
+        </div>
+
+        {/* Acceso Rápido a Cita a Ciegas Cósmica */}
         <button
-          onClick={() => setViewMode('swipe')}
-          className={`flex-1 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-            viewMode === 'swipe'
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]'
-              : 'text-gray-400 hover:text-white'
-          }`}
+          type="button"
+          onClick={() => setIsBlindDateOpen(true)}
+          className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-purple-950/90 to-cyan-950/90 hover:from-purple-900 hover:to-cyan-900 border border-purple-400/40 text-purple-200 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+          title="Cita a Ciegas Astral (5 min)"
         >
-          <Sparkles size={14} className="sm:w-4 sm:h-4" /> Sintonía (Swipe)
+          <Sparkles size={13} className="text-amber-300 animate-spin" />
+          <span className="hidden xs:inline">Cita a Ciegas</span>
+          <span className="xs:hidden">Ciega</span>
         </button>
-        <button
-          onClick={() => setViewMode('radar')}
-          className={`flex-1 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-            viewMode === 'radar'
-              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          <Compass size={14} className="sm:w-4 sm:h-4" /> Radar con Filtros
-        </button>
+
+        {/* Filtros Geográficos y de Edad */}
         <button
           onClick={() => setShowQuickFilters(prev => !prev)}
-          className={`px-2.5 py-1.5 sm:py-2 rounded-xl transition border text-xs flex items-center gap-1 shrink-0 ${
+          className={`p-1.5 sm:p-2 rounded-xl transition border text-xs flex items-center justify-center shrink-0 ${
             showQuickFilters || selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos'
               ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
               : 'bg-black/50 text-gray-400 hover:text-white border-white/10'
           }`}
-          title="Filtros geográficos y edad"
+          title="Filtros de distancia y edad"
         >
           <SlidersHorizontal size={14} />
           {(selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos') && (
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse ml-0.5" />
           )}
         </button>
       </div>
@@ -379,43 +418,6 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
         </div>
       )}
 
-      {/* ── HISTORIAS EFÍMERAS EN EL RADAR (STORIES 24H) ── */}
-      <div className="max-w-sm sm:max-w-md mx-auto w-full mb-3">
-        <AstralStoriesRail currentUser={profile} profile={profile} compact={true} />
-      </div>
-
-      {/* ── BANNER DESTACADO: CITAS A CIEGAS CÓSMICAS (BLIND DATING) ── */}
-      <div className="max-w-sm sm:max-w-md mx-auto w-full mb-3">
-        <button
-          type="button"
-          onClick={() => setIsBlindDateOpen(true)}
-          className="w-full p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-[#120c26] to-cyan-950/80 border border-purple-500/40 hover:border-cyan-400/60 transition-all flex items-center justify-between gap-3 shadow-[0_0_25px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] group active:scale-98 cursor-pointer text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-400 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform shadow-md">
-              <Sparkles size={20} className="animate-spin-slow" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-white mystic-font uppercase tracking-wider">
-                  Cita a Ciegas Astral
-                </span>
-                <span className="px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 text-[9px] font-extrabold tracking-wider border border-cyan-400/30">
-                  5 MIN
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-300 font-light">
-                Conecta por energía y sinastría antes de revelar la foto
-              </p>
-            </div>
-          </div>
-          <div className="shrink-0 flex items-center gap-1 text-cyan-300 group-hover:text-white transition">
-            <span className="text-xs font-bold hidden sm:inline">Entrar</span>
-            <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-      </div>
-
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* MODO A: TARJETAS DESLIZABLES (SWIPE / DATING DECK)                    */}
       {/* ────────────────────────────────────────────────────────────────────── */}
@@ -459,7 +461,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           ) : (
             <div className="flex-1 min-h-0 flex flex-col justify-between items-center w-full select-none">
               {/* Contenedor del Mazo de Tarjetas (Stacking Deck) */}
-              <div className="relative w-full flex-1 min-h-[230px] max-h-[460px]">
+              <div className="relative w-full flex-1 min-h-[380px] max-h-[580px] sm:max-h-[640px] h-[58vh] sm:h-[64vh]">
                 
                 {/* 1. Tarjeta Subyacente en el Mazo (Siguiente Candidato) */}
                 {candidates[currentIndex + 1] && (
@@ -471,8 +473,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     }}
                   >
                     <img
-                      src={candidates[currentIndex + 1].photos?.[0] || candidates[currentIndex + 1].image}
+                      src={
+                        (candidates[currentIndex + 1].photos?.[0] && !candidates[currentIndex + 1].photos[0].includes('ui-avatars.com'))
+                          ? candidates[currentIndex + 1].photos[0]
+                          : (candidates[currentIndex + 1].image && !candidates[currentIndex + 1].image.includes('ui-avatars.com'))
+                            ? candidates[currentIndex + 1].image
+                            : getCandidateFallbackPhoto(candidates[currentIndex + 1])
+                      }
                       alt={candidates[currentIndex + 1].name}
+                      onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(candidates[currentIndex + 1]); }}
                       className="w-full h-full object-cover filter brightness-75"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
@@ -521,6 +530,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     <img
                       src={mediaList[mediaIndex]?.url || currentCandidate.image}
                       alt={currentCandidate.name}
+                      onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(currentCandidate); }}
                       className="w-full h-full object-cover pointer-events-none"
                     />
                   )}
@@ -605,66 +615,91 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                     </div>
                   </div>
 
-                  {/* Insignia Flotante Superior Derecha: % de Afinidad Cósmica */}
-                  <div className="absolute top-5 right-3 sm:right-4 z-20">
-                    <div className="px-2.5 py-1 rounded-full bg-black/70 border border-cyan-400/60 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                    <Sparkles size={12} className="text-amber-400 animate-spin" />
-                    {currentCandidate.affinity} Afinidad
-                  </div>
-                </div>
-
-                {/* Información del Candidato (Inferior) */}
-                <div className="absolute bottom-0 inset-x-0 p-3 sm:p-5 z-20 space-y-1 sm:space-y-2 pointer-events-none bg-gradient-to-t from-black/95 via-black/75 to-transparent pt-10">
-                  {/* Nombre, Edad e Insignia Zodiacal */}
-                  <div className="flex items-end justify-between gap-1.5">
-                    <div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight">
-                          {currentCandidate.name}
-                        </h2>
-                        {currentCandidate.is_verified && (
-                          <span className="inline-flex items-center text-cyan-400" title="Perfil Cósmico Verificado (Estrella Azul)">
-                            <CheckCircle2 size={18} className="fill-cyan-500 text-black drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-                          </span>
-                        )}
-                        {currentCandidate.age && (
-                          <span className="text-base sm:text-xl font-light text-gray-200">
-                            {currentCandidate.age}
-                          </span>
-                        )}
-                        <ZodiacBadge sign={currentCandidate.sign} size="xs" className="shadow-md sm:hidden" />
-                        <ZodiacBadge sign={currentCandidate.sign} size="sm" className="shadow-md hidden sm:block" />
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-300 mt-0.5 font-light">
-                        <span className="text-cyan-400 font-semibold">{currentCandidate.sign}</span>
-                        <span>•</span>
-                        <span className="text-amber-400 font-semibold">{currentCandidate.element}</span>
-                        {currentCandidate.location && (
-                          <>
-                            <span>•</span>
-                            <span className="inline-flex items-center gap-0.5 text-gray-300">
-                              <MapPin size={10} className="text-cyan-400" />
-                              {currentCandidate.location.split('(')[0].trim()}
-                              <span className="text-cyan-300 font-semibold ml-0.5">({currentCandidate.distanceKm || 3} km)</span>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Botón de inspeccionar información */}
+                  {/* Insignia Flotante Superior Derecha: % de Afinidad Cósmica + Disparador de Sinastría */}
+                  <div className="absolute top-5 right-3 sm:right-4 z-20 pointer-events-auto">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedCandidate(currentCandidate);
+                        setSynastryCandidate(currentCandidate);
                       }}
-                      className="p-2 sm:p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/20 transition pointer-events-auto shadow-lg shrink-0"
-                      title="Ver perfil completo"
+                      className="px-2.5 py-1 rounded-full bg-black/75 hover:bg-cyan-950/80 border border-cyan-400/60 hover:border-cyan-300 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)] transition active:scale-95 cursor-pointer"
+                      title="Ver cálculo de Sinastría Cósmica Profunda"
                     >
-                      <Info size={16} className="sm:w-[18px] sm:h-[18px]" />
+                      <Sparkles size={12} className="text-amber-400 animate-spin" />
+                      <span>{currentCandidate.affinity}</span>
+                      <span className="text-[9px] font-semibold text-cyan-200 bg-cyan-500/20 px-1 py-0.5 rounded">Sinastría ✨</span>
                     </button>
                   </div>
+
+                  {/* Información del Candidato (Inferior) */}
+                  <div className="absolute bottom-0 inset-x-0 p-3 sm:p-5 z-20 space-y-1 sm:space-y-2 pointer-events-none bg-gradient-to-t from-black/95 via-black/75 to-transparent pt-10">
+                    {/* Nombre, Edad e Insignia Zodiacal */}
+                    <div className="flex items-end justify-between gap-1.5">
+                      <div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight">
+                            {currentCandidate.name}
+                          </h2>
+                          {currentCandidate.is_verified && (
+                            <span className="inline-flex items-center text-cyan-400" title="Perfil Cósmico Verificado (Estrella Azul)">
+                              <CheckCircle2 size={18} className="fill-cyan-500 text-black drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                            </span>
+                          )}
+                          {currentCandidate.age && (
+                            <span className="text-base sm:text-xl font-light text-gray-200">
+                              {currentCandidate.age}
+                            </span>
+                          )}
+                          <ZodiacBadge sign={currentCandidate.sign} size="xs" className="shadow-md sm:hidden" />
+                          <ZodiacBadge sign={currentCandidate.sign} size="sm" className="shadow-md hidden sm:block" />
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-300 mt-0.5 font-light">
+                          <span className="text-cyan-400 font-semibold">{currentCandidate.sign}</span>
+                          <span>•</span>
+                          <span className="text-amber-400 font-semibold">{currentCandidate.element}</span>
+                          {currentCandidate.location && (
+                            <>
+                              <span>•</span>
+                              <span className="inline-flex items-center gap-0.5 text-gray-300">
+                                <MapPin size={10} className="text-cyan-400" />
+                                {currentCandidate.location.split('(')[0].trim()}
+                                <span className="text-cyan-300 font-semibold ml-0.5">({currentCandidate.distanceKm || 3} km)</span>
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botonera de herramientas sobre la tarjeta */}
+                      <div className="flex items-center gap-1.5 shrink-0 pointer-events-auto">
+                        {/* Botón Sinastría Profunda */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSynastryCandidate(currentCandidate);
+                          }}
+                          className="px-2.5 py-1.5 rounded-full bg-gradient-to-r from-purple-600/90 to-indigo-600/90 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-300/40 transition shadow-md flex items-center gap-1 text-[10px] sm:text-xs font-bold"
+                          title="Calcular Sinastría Profunda (Elementos, Numerología, Consejos de Cita)"
+                        >
+                          <Sparkles size={12} className="text-amber-300" />
+                          <span>Sinastría</span>
+                        </button>
+
+                        {/* Botón de inspeccionar información */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCandidate(currentCandidate);
+                          }}
+                          className="p-2 sm:p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/20 transition shadow-lg shrink-0"
+                          title="Ver perfil completo"
+                        >
+                          <Info size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        </button>
+                      </div>
+                    </div>
 
                   {/* Bio corta */}
                   {currentCandidate.bio && (
@@ -760,7 +795,44 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       {/* MODO B: RADAR ASTRAL (CUADRÍCULA CON FILTROS Y BÚSQUEDA)              */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {viewMode === 'radar' && (
-        <div className="space-y-5">
+        <div className="space-y-4">
+          {/* ── HISTORIAS EFÍMERAS EN EL RADAR (STORIES 24H) ── */}
+          <div className="max-w-sm sm:max-w-md mx-auto w-full">
+            <AstralStoriesRail currentUser={profile} profile={profile} compact={true} />
+          </div>
+
+          {/* ── BANNER DESTACADO: CITAS A CIEGAS CÓSMICAS (BLIND DATING) ── */}
+          <div className="max-w-sm sm:max-w-md mx-auto w-full">
+            <button
+              type="button"
+              onClick={() => setIsBlindDateOpen(true)}
+              className="w-full p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/80 via-[#120c26] to-cyan-950/80 border border-purple-500/40 hover:border-cyan-400/60 transition-all flex items-center justify-between gap-3 shadow-[0_0_25px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(6,182,212,0.3)] group active:scale-98 cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-400 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                  <Sparkles size={20} className="animate-spin-slow" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-white mystic-font uppercase tracking-wider">
+                      Cita a Ciegas Astral
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 text-[9px] font-extrabold tracking-wider border border-cyan-400/30">
+                      5 MIN
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-300 font-light">
+                    Conecta por energía y sinastría antes de revelar la foto
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 flex items-center gap-1 text-cyan-300 group-hover:text-white transition">
+                <span className="text-xs font-bold hidden sm:inline">Entrar</span>
+                <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+          </div>
+
           {/* Barra de Búsqueda y Filtros Rápidos */}
           <div className="glass-panel p-4 space-y-3 border border-cyan-500/20">
             {/* Input de Búsqueda */}
@@ -886,89 +958,117 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {candidates.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCandidate(c)}
-                  className="glass-panel overflow-hidden border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer group flex flex-col justify-between"
-                >
-                  {/* Imagen y badges */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
-                    <img
-                      src={c.image}
-                      alt={c.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e19] via-transparent to-transparent" />
-                    
-                    {/* Badge Distancia */}
-                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-cyan-200 text-[10px] font-semibold flex items-center gap-1">
-                      <MapPin size={10} className="text-cyan-400" />
-                      {c.distanceKm ? `a ${c.distanceKm} km` : 'Cerca'}
-                    </div>
+              {candidates.map((c) => {
+                const candidateImage = (c.photos?.[0] && !c.photos[0].includes('ui-avatars.com'))
+                  ? c.photos[0]
+                  : (c.image && !c.image.includes('ui-avatars.com'))
+                    ? c.image
+                    : getCandidateFallbackPhoto(c);
 
-                    {/* Badge Afinidad */}
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 border border-cyan-400/40 backdrop-blur-md text-cyan-300 font-extrabold text-[11px]">
-                      {c.affinity}
-                    </div>
-
-                    {/* Badge Signo */}
-                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                      <ZodiacBadge sign={c.sign} size="xs" />
-                      <span className="text-xs font-bold text-white drop-shadow">
-                        {c.name}{c.age ? `, ${c.age}` : ''}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cuerpo de la tarjeta */}
-                  <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-1.5 flex-wrap">
-                        <span className="text-cyan-400">{c.sign}</span>
-                        <span>•</span>
-                        <span className="text-amber-400">{c.element}</span>
-                        {c.location && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate max-w-[130px] flex items-center gap-0.5">
-                              <MapPin size={10} className="text-cyan-400 shrink-0" />
-                              {c.location.split('(')[0].trim()}
-                            </span>
-                          </>
-                        )}
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setSelectedCandidate(c)}
+                    className="glass-panel overflow-hidden border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer group flex flex-col justify-between"
+                  >
+                    {/* Imagen y badges */}
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+                      <img
+                        src={candidateImage}
+                        alt={c.name}
+                        onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(c); }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e19] via-transparent to-transparent" />
+                      
+                      {/* Badge Distancia */}
+                      <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-cyan-200 text-[10px] font-semibold flex items-center gap-1">
+                        <MapPin size={10} className="text-cyan-400" />
+                        {c.distanceKm ? `a ${c.distanceKm} km` : 'Cerca'}
                       </div>
 
-                      <p className="text-xs text-gray-300 line-clamp-2 italic font-light">
-                        "{c.bio || 'Buscando almas afines para compartir momentos astrales.'}"
-                      </p>
+                      {/* Badge Afinidad Interactivo (Sinastría) */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSynastryCandidate(c);
+                        }}
+                        className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/75 hover:bg-cyan-950/80 border border-cyan-400/50 hover:border-cyan-300 backdrop-blur-md text-cyan-300 font-extrabold text-[11px] flex items-center gap-1 shadow-md transition active:scale-95"
+                        title="Calcular Sinastría Profunda"
+                      >
+                        <Sparkles size={11} className="text-amber-300 animate-spin" />
+                        <span>{c.affinity}</span>
+                      </button>
+
+                      {/* Badge Signo */}
+                      <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                        <ZodiacBadge sign={c.sign} size="xs" />
+                        <span className="text-xs font-bold text-white drop-shadow">
+                          {c.name}{c.age ? `, ${c.age}` : ''}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Botones de acción rápida */}
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleInteraction('like', c);
-                        }}
-                        className="btn-mystic flex-1 py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md"
-                      >
-                        <Heart size={14} className="fill-current" /> Sintonizar
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIcebreakerModalCandidate(c);
-                        }}
-                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-cyan-300 border border-white/10 transition"
-                        title="Enviar rompehielos"
-                      >
-                        <Zap size={16} />
-                      </button>
+                    {/* Cuerpo de la tarjeta */}
+                    <div className="p-4 space-y-2.5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 text-[11px] text-gray-400 mb-1.5 flex-wrap">
+                          <span className="text-cyan-400">{c.sign}</span>
+                          <span>•</span>
+                          <span className="text-amber-400">{c.element}</span>
+                          {c.location && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate max-w-[130px] flex items-center gap-0.5">
+                                <MapPin size={10} className="text-cyan-400 shrink-0" />
+                                {c.location.split('(')[0].trim()}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-gray-300 line-clamp-2 italic font-light">
+                          "{c.bio || 'Buscando almas afines para compartir momentos astrales.'}"
+                        </p>
+                      </div>
+
+                      {/* Botones de acción rápida */}
+                      <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInteraction('like', c);
+                          }}
+                          className="btn-mystic flex-1 py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md"
+                        >
+                          <Heart size={14} className="fill-current" /> Sintonizar
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSynastryCandidate(c);
+                          }}
+                          className="p-2 rounded-xl bg-purple-950/50 hover:bg-purple-900/70 text-purple-300 hover:text-white border border-purple-400/40 transition flex items-center justify-center shadow-sm"
+                          title="Calcular Sinastría Profunda"
+                        >
+                          <Sparkles size={15} className="text-amber-300" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIcebreakerModalCandidate(c);
+                          }}
+                          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-cyan-300 border border-white/10 transition flex items-center justify-center shadow-sm"
+                          title="Enviar rompehielos"
+                        >
+                          <Zap size={15} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1122,8 +1222,20 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
               </div>
             </div>
 
+            {/* Botón de Sinastría Astral Profunda */}
+            <button
+              onClick={() => {
+                const cand = selectedCandidate;
+                setSynastryCandidate(cand);
+              }}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-900/60 via-indigo-900/50 to-cyan-900/60 hover:from-purple-800 hover:to-cyan-800 border border-purple-400/40 hover:border-cyan-400 text-cyan-200 hover:text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition active:scale-98 cursor-pointer"
+            >
+              <Sparkles size={14} className="text-amber-300 animate-spin" />
+              <span>Calcular Sinastría Astral Profunda</span>
+            </button>
+
             {/* Botón de Sintonizar */}
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => {
                   const cand = selectedCandidate;
@@ -1210,6 +1322,24 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           if (onSyncUser) onSyncUser(partner.id);
         }}
         userProfile={profile}
+      />
+
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      {/* MODAL: SINASTRÍA ASTRAL PROFUNDA (4 DIMENSIONES & CONSEJOS DE CITA)   */}
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      <AstralSynastryModal
+        isOpen={Boolean(synastryCandidate)}
+        onClose={() => setSynastryCandidate(null)}
+        myProfile={profile}
+        targetProfile={synastryCandidate}
+        onLike={(cand) => {
+          handleInteraction('like', cand);
+          setSynastryCandidate(null);
+        }}
+        onIcebreaker={(cand) => {
+          setIcebreakerModalCandidate(cand);
+          setSynastryCandidate(null);
+        }}
       />
     </div>
   );
