@@ -24,9 +24,10 @@ export async function POST(request) {
     }
 
     const userId = resolveUserId(token);
+    const safeUserId = (userId || 'anon').replace(/[^a-zA-Z0-9_-]/g, '_');
     const formData = await request.formData();
     const file = formData.get('file');
-    const mediaType = formData.get('type') || 'photo'; // 'photo' | 'video'
+    const mediaType = formData.get('type') || 'photo'; // 'photo' | 'video' | 'audio'
 
     if (!file || typeof file === 'string') {
       return NextResponse.json({ error: 'No se recibió ningún archivo válido.' }, { status: 400 });
@@ -34,9 +35,13 @@ export async function POST(request) {
 
     const contentType = file.type || (mediaType === 'video' ? 'video/webm' : (mediaType === 'audio' ? 'audio/webm' : 'image/webp'));
     let ext = 'webp';
-    if (mediaType === 'video') {
+    let folder = 'photos';
+
+    if (mediaType === 'video' || contentType.startsWith('video/')) {
+      folder = 'videos';
       ext = contentType.includes('mp4') ? 'mp4' : 'webm';
     } else if (mediaType === 'audio' || contentType.startsWith('audio/')) {
+      folder = 'audio';
       ext = contentType.includes('mp4') || contentType.includes('m4a') ? 'm4a' : (contentType.includes('ogg') ? 'ogg' : 'webm');
     } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
       ext = 'jpg';
@@ -45,8 +50,7 @@ export async function POST(request) {
     }
 
     const randomSuffix = Math.random().toString(36).substring(2, 9);
-    const filePrefix = mediaType === 'audio' ? 'audio_' : '';
-    const fileKey = `media/${userId}/${filePrefix}${Date.now()}_${randomSuffix}.${ext}`;
+    const fileKey = `${folder}/${safeUserId}/${Date.now()}_${randomSuffix}.${ext}`;
 
     const bucket = await getR2Bucket();
     const fileBuffer = await file.arrayBuffer();
@@ -59,8 +63,9 @@ export async function POST(request) {
             cacheControl: 'public, max-age=31536000, immutable'
           },
           customMetadata: {
-            uploadedBy: userId,
-            mediaType
+            uploadedBy: safeUserId,
+            mediaType,
+            uploadedAt: new Date().toISOString()
           }
         });
 

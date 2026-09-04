@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { compressImage, trimAndOptimizeVideo } from '../../lib/media-processor';
 import { AstralPortalModal } from './AstralPortalModal';
+import { MediaCropperModal } from '../ui/MediaCropperModal';
+import { VideoCropperModal } from '../ui/VideoCropperModal';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onProfileUpdated }) => {
   const userSign = profile?.sign ?? 'Capricornio';
@@ -85,6 +87,19 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
   const [mediaProgressMsg, setMediaProgressMsg] = useState('');
   const [mediaProgressPercent, setMediaProgressPercent] = useState(0);
 
+  // Estados para Modales de Recorte Interactivo
+  const [cropperState, setCropperState] = useState({
+    isOpen: false,
+    file: null,
+    mode: 'gallery', // 'gallery' | 'avatar'
+    initialAspect: '3:4',
+    isAvatar: false
+  });
+  const [videoCropperState, setVideoCropperState] = useState({
+    isOpen: false,
+    file: null
+  });
+
   useEffect(() => {
     if (profile) {
       setEditName(profile.user_name ?? user?.name ?? '');
@@ -104,26 +119,58 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
     editName || user?.name || 'Maverick'
   );
 
-  // Manejador para agregar fotos a la galería con compresión WebP
-  const handleAddPhoto = async (e) => {
+  // ── Selección de Foto de Galería (Abre el Recortador 3:4) ────────────────────
+  const handlePhotoSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (editPhotos.length >= 5) {
       alert('Has alcanzado el límite máximo de 5 fotografías.');
       return;
     }
+    setCropperState({
+      isOpen: true,
+      file,
+      mode: 'gallery',
+      initialAspect: '3:4',
+      isAvatar: false
+    });
+    e.target.value = '';
+  };
 
+  // ── Selección de Avatar (Abre el Recortador 1:1 con guía circular) ───────────
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCropperState({
+      isOpen: true,
+      file,
+      mode: 'avatar',
+      initialAspect: '1:1',
+      isAvatar: true
+    });
+    e.target.value = '';
+  };
+
+  // ── Selección de Video (Abre el Selector de 5.0s y Encuadre) ─────────────────
+  const handleVideoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoCropperState({
+      isOpen: true,
+      file
+    });
+    e.target.value = '';
+  };
+
+  // ── Confirmación de Recorte de Imagen y Subida a Cloudflare R2 ─────────────
+  const handleCropComplete = async (croppedFile) => {
     setIsProcessingMedia(true);
-    setMediaProgressMsg('Comprimiendo imagen a WebP...');
-    setMediaProgressPercent(30);
+    setMediaProgressMsg('Subiendo fotografía optimizada a Cloudflare R2...');
+    setMediaProgressPercent(60);
 
     try {
-      const compressed = await compressImage(file, 1280, 0.82);
-      setMediaProgressMsg('Subiendo foto optimizada...');
-      setMediaProgressPercent(70);
-
       const formData = new FormData();
-      formData.append('file', compressed.file);
+      formData.append('file', croppedFile);
       formData.append('type', 'photo');
 
       const res = await apiFetch('/api/upload', {
@@ -131,27 +178,41 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         body: formData
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir la fotografía');
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir la fotografía a Cloudflare R2');
 
-      const updatedPhotos = [...editPhotos.slice(0, 4), data.url];
-      setEditPhotos(updatedPhotos);
+      const finalUrl = data.url;
 
-      // Persistir automáticamente en el perfil
-      await apiFetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photos: updatedPhotos })
-      });
+      if (cropperState.mode === 'avatar') {
+        if (onAvatarChange) {
+          onAvatarChange(finalUrl);
+        }
+        await apiFetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: finalUrl })
+        });
+        setSaveSuccessMsg('Foto de perfil actualizada en Cloudflare R2 ✨');
+      } else {
+        const updatedPhotos = [...editPhotos.slice(0, 4), finalUrl];
+        setEditPhotos(updatedPhotos);
 
-      setSaveSuccessMsg('Fotografía añadida y optimizada con éxito');
-      setTimeout(() => setSaveSuccessMsg(null), 2500);
+        await apiFetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photos: updatedPhotos })
+        });
+        setSaveSuccessMsg('Fotografía 3:4 añadida y guardada en Cloudflare R2 ✨');
+      }
+
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
     } catch (err) {
-      alert(err.message || 'Ocurrió un error al procesar la fotografía.');
+      console.error('Error subiendo foto a R2:', err);
+      alert(err.message || 'Ocurrió un error al subir la fotografía a Cloudflare R2.');
     } finally {
       setIsProcessingMedia(false);
       setMediaProgressMsg('');
       setMediaProgressPercent(0);
-      e.target.value = '';
+      setCropperState({ isOpen: false, file: null, mode: 'gallery', initialAspect: '3:4', isAvatar: false });
     }
   };
 
@@ -168,25 +229,15 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
     } catch {}
   };
 
-  // Manejador para subir y recortar automáticamente el mini video a 5 segundos
-  const handleAddVideo = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // ── Confirmación de Recorte de Video y Subida a Cloudflare R2 ──────────────
+  const handleVideoCropComplete = async (trimmedFile) => {
     setIsProcessingMedia(true);
-    setMediaProgressMsg('Recortando video automáticamente a 5.0 segundos...');
-    setMediaProgressPercent(15);
+    setMediaProgressMsg('Subiendo mini video optimizado a Cloudflare R2...');
+    setMediaProgressPercent(70);
 
     try {
-      const trimmed = await trimAndOptimizeVideo(file, 5.0, (pct) => {
-        setMediaProgressPercent(Math.round(15 + pct * 0.6));
-      });
-
-      setMediaProgressMsg('Subiendo mini video a Cloudflare R2...');
-      setMediaProgressPercent(80);
-
       const formData = new FormData();
-      formData.append('file', trimmed.file);
+      formData.append('file', trimmedFile);
       formData.append('type', 'video');
 
       const res = await apiFetch('/api/upload', {
@@ -194,30 +245,26 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
         body: formData
       });
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir el video');
+      if (!res.ok || !data.url) throw new Error(data.error || 'Error al subir el video a Cloudflare R2');
 
       setEditVideoUrl(data.url);
 
-      // Persistir automáticamente en el perfil
       await apiFetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video_url: data.url })
       });
 
-      setSaveSuccessMsg(
-        trimmed.wasTrimmed 
-          ? 'Video recortado automáticamente a 5.0s y optimizado con éxito.' 
-          : 'Mini video de 5s guardado con éxito.'
-      );
+      setSaveSuccessMsg('Mini video de 5s guardado con éxito en Cloudflare R2 ✨');
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     } catch (err) {
-      alert(err.message || 'Error al procesar el video.');
+      console.error('Error subiendo video a R2:', err);
+      alert(err.message || 'Error al subir el video a Cloudflare R2.');
     } finally {
       setIsProcessingMedia(false);
       setMediaProgressMsg('');
       setMediaProgressPercent(0);
-      e.target.value = '';
+      setVideoCropperState({ isOpen: false, file: null });
     }
   };
 
@@ -334,7 +381,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           {/* FOTO DE PERFIL CENTRAL Y PROTAGÓNICA */}
           <div className="relative group/avatar cursor-pointer mb-2.5 sm:mb-3">
             <label className="relative block cursor-pointer">
-              <input type="file" accept="image/*" hidden onChange={onAvatarChange} />
+              <input type="file" accept="image/*" hidden onChange={handleAvatarSelect} />
               
               {/* Anillo de avatar elegante y sutil */}
               <div className="p-1 rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-500 to-cyan-300 shadow-[0_0_25px_rgba(6,182,212,0.3)]">
@@ -539,7 +586,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
               {/* Botón de eliminación y reemplazo en hover */}
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                 <label className="p-2.5 bg-sky-500 hover:bg-sky-400 rounded-full text-black transition cursor-pointer shadow-lg" title="Cambiar video">
-                  <input type="file" accept="video/*" hidden onChange={handleAddVideo} />
+                  <input type="file" accept="video/*" hidden onChange={handleVideoSelect} />
                   <UploadCloud size={16} />
                 </label>
                 <button
@@ -554,7 +601,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
             </div>
           ) : (
             <label className="p-6 rounded-2xl border-2 border-dashed border-sky-500/30 hover:border-sky-400 bg-sky-500/[0.03] hover:bg-sky-500/[0.07] transition flex flex-col items-center justify-center cursor-pointer text-center group">
-              <input type="file" accept="video/*" hidden onChange={handleAddVideo} />
+              <input type="file" accept="video/*" hidden onChange={handleVideoSelect} />
               <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform mb-2">
                 <Video size={24} />
               </div>
@@ -562,7 +609,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
                 Subir Mini Video (5s máx)
               </span>
               <p className="text-[11px] text-slate-400 max-w-xs mt-1">
-                Puedes seleccionar cualquier video: el sistema recortará automáticamente los primeros 5.0 segundos y optimizará su compresión para R2.
+                Selecciona cualquier video: podrás elegir interactivamente el encuadre 3:4 y el mejor segmento de 5.0 segundos antes de subir a Cloudflare R2.
               </p>
             </label>
           )}
@@ -612,7 +659,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
 
             {editPhotos.length < 5 && (
               <label className="aspect-square rounded-2xl border-2 border-dashed border-purple-500/30 hover:border-purple-400 bg-purple-500/5 hover:bg-purple-500/10 transition flex flex-col items-center justify-center cursor-pointer text-purple-300 gap-1.5 group">
-                <input type="file" accept="image/*" hidden onChange={handleAddPhoto} />
+                <input type="file" accept="image/*" hidden onChange={handlePhotoSelect} />
                 <div className="p-3 rounded-full bg-purple-500/10 group-hover:scale-110 transition-transform">
                   <Plus size={22} />
                 </div>
@@ -1312,6 +1359,24 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           </form>
         </div>
       </AstralPortalModal>
+
+      {/* Modal de Recorte Interactivo de Fotos (Estándar 3:4 / 1:1) */}
+      <MediaCropperModal
+        isOpen={cropperState.isOpen}
+        imageFile={cropperState.file}
+        initialAspect={cropperState.initialAspect}
+        isAvatar={cropperState.isAvatar}
+        onCropComplete={handleCropComplete}
+        onClose={() => setCropperState(prev => ({ ...prev, isOpen: false, file: null }))}
+      />
+
+      {/* Modal de Recorte y Selección de Rango de Video (5s) */}
+      <VideoCropperModal
+        isOpen={videoCropperState.isOpen}
+        videoFile={videoCropperState.file}
+        onVideoComplete={handleVideoCropComplete}
+        onClose={() => setVideoCropperState({ isOpen: false, file: null })}
+      />
     </div>
   );
 };

@@ -198,23 +198,19 @@ export default function Dashboard() {
   }, [status, session]);
   const [isGameActive, setIsGameActive] = useState(false);
 
-  // ── Avatar upload ──────────────────────────────────────────────────────────
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0];
+  // ── Avatar update (Cloudflare R2) ──────────────────────────────────────────
+  const handleAvatarChange = (avatarUrlOrEvent) => {
+    if (typeof avatarUrlOrEvent === 'string') {
+      setAvatarSrc(avatarUrlOrEvent);
+      return;
+    }
+    const file = avatarUrlOrEvent?.target?.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2 MB.'); return; }
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const base64 = ev.target.result;
       setAvatarSrc(base64);
-      try {
-        await apiFetch('/api/profile', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ image: base64 }),
-        });
-      } catch { /* UI ya actualizado; fallo en DB es silencioso */ }
     };
     reader.readAsDataURL(file);
   };
