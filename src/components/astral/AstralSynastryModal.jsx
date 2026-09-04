@@ -136,11 +136,15 @@ function generateFirstDateTips(signA = 'Capricornio', signB = 'Tauro') {
 export function AstralSynastryModal({
   isOpen,
   onClose,
-  profileA, // Usuario actual
-  candidate, // Perfil B
+  profileA: propProfileA,
+  myProfile,
+  candidate: propCandidate,
+  targetProfile,
   onLike,
   onIcebreaker
 }) {
+  const profileA = propProfileA || myProfile;
+  const candidate = propCandidate || targetProfile;
   const [activeTab, setActiveTab] = useState('elementos'); // 'elementos' | 'sol' | 'numerologia' | 'cita'
 
   // Cálculo de sinastría en tiempo real
