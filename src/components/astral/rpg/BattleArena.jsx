@@ -54,6 +54,14 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
   const [enemyEffects, setEnemyEffects] = useState([]);
   const [enemyShield, setEnemyShield] = useState(0);
 
+  // Refs para garantizar estado siempre sincronizado en callbacks asíncronos y timeouts
+  const enemyHpRef = useRef(enemy.hp || 500);
+  const playerHpRef = useRef(heroStats.maxHp);
+  const enemyShieldRef = useRef(0);
+  const playerShieldRef = useRef(0);
+  const enemyEffectsRef = useRef([]);
+  const playerEffectsRef = useRef([]);
+
   // Estados de animación y turno
   const [turn, setTurn] = useState('player'); // 'player' | 'enemy' | 'busy'
   const [animState, setAnimState] = useState({
@@ -116,13 +124,15 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
 
       // Aplicar daño contra escudo o vida del enemigo
       let finalDamage = damage;
-      if (enemyShield > 0) {
-        if (damage <= enemyShield) {
-          setEnemyShield(s => s - damage);
+      if (enemyShieldRef.current > 0) {
+        if (damage <= enemyShieldRef.current) {
+          enemyShieldRef.current -= damage;
+          setEnemyShield(enemyShieldRef.current);
           finalDamage = 0;
           spawnFloatingText(`¡Bloqueado (${damage})!`, 'enemy', 'shield');
         } else {
-          finalDamage = damage - enemyShield;
+          finalDamage = damage - enemyShieldRef.current;
+          enemyShieldRef.current = 0;
           setEnemyShield(0);
           spawnFloatingText(`-${finalDamage}`, 'enemy', isCrit ? 'crit' : 'damage');
         }
@@ -130,7 +140,8 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
         spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, 'enemy', isCrit ? 'crit' : 'damage');
       }
 
-      const nextEnemyHp = Math.max(0, enemyHp - finalDamage);
+      const nextEnemyHp = Math.max(0, enemyHpRef.current - finalDamage);
+      enemyHpRef.current = nextEnemyHp;
       setEnemyHp(nextEnemyHp);
 
       // Ganar recursos
@@ -142,7 +153,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       if (nextEnemyHp <= 0) {
         handleVictory();
       } else {
-        setTimeout(startEnemyTurn, 800);
+        setTimeout(() => startEnemyTurn(nextEnemyHp), 800);
       }
     }, 450);
   };
@@ -180,25 +191,30 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       // Efectos específicos de habilidades
       if (skill.effect?.type === 'shield' || skill.effect?.type === 'shield_heal') {
         const shieldVal = skill.effect.shield || skill.effect.value || 100;
-        setPlayerShield(s => s + shieldVal);
+        playerShieldRef.current += shieldVal;
+        setPlayerShield(playerShieldRef.current);
         playBattleShieldSound();
         spawnFloatingText(`+${shieldVal} Escudo`, 'player', 'shield');
       }
 
       if (skill.effect?.heal) {
         const healVal = skill.effect.heal;
-        setPlayerHp(hp => Math.min(heroStats.maxHp, hp + healVal));
+        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healVal);
+        playerHpRef.current = nextPlayerHp;
+        setPlayerHp(nextPlayerHp);
         playBattleHealSound();
         spawnFloatingText(`+${healVal} HP`, 'player', 'heal');
       }
 
       if (skill.effect?.type === 'burn' || skill.effect?.type === 'poison') {
-        setEnemyEffects(effs => [...effs, skill.effect]);
+        enemyEffectsRef.current = [...enemyEffectsRef.current, skill.effect];
+        setEnemyEffects([...enemyEffectsRef.current]);
         spawnFloatingText(`¡Efecto de ${skill.effect.type.toUpperCase()}!`, 'enemy', 'buff');
       }
 
       // Aplicar daño
-      const nextEnemyHp = Math.max(0, enemyHp - damage);
+      const nextEnemyHp = Math.max(0, enemyHpRef.current - damage);
+      enemyHpRef.current = nextEnemyHp;
       setEnemyHp(nextEnemyHp);
       spawnFloatingText(`-${damage}`, 'enemy', 'crit');
       setPlayerUltimate(u => Math.min(100, u + 25));
@@ -208,7 +224,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       if (nextEnemyHp <= 0) {
         handleVictory();
       } else {
-        setTimeout(startEnemyTurn, 800);
+        setTimeout(() => startEnemyTurn(nextEnemyHp), 800);
       }
     }, 500);
   };
@@ -236,7 +252,9 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
 
       if (ult.healSelf || isCoop) {
         const healAmount = isCoop ? 140 : (ult.healSelf || 60);
-        setPlayerHp(hp => Math.min(heroStats.maxHp, hp + healAmount));
+        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
+        playerHpRef.current = nextPlayerHp;
+        setPlayerHp(nextPlayerHp);
         playBattleHealSound();
         spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
       }
@@ -244,7 +262,8 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       setAnimState(p => ({ ...p, playerAttacking: false, enemyHit: true }));
       setTimeout(() => setAnimState(p => ({ ...p, enemyHit: false, screenShake: false })), 600);
 
-      const nextEnemyHp = Math.max(0, enemyHp - damage);
+      const nextEnemyHp = Math.max(0, enemyHpRef.current - damage);
+      enemyHpRef.current = nextEnemyHp;
       setEnemyHp(nextEnemyHp);
       spawnFloatingText(`¡ALINEACIÓN! -${damage}`, 'enemy', 'crit');
 
@@ -257,7 +276,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       if (nextEnemyHp <= 0) {
         handleVictory();
       } else {
-        setTimeout(startEnemyTurn, 900);
+        setTimeout(() => startEnemyTurn(nextEnemyHp), 900);
       }
     }, 600);
   };
@@ -267,19 +286,23 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
     if (turn !== 'player' || battleOutcome || potionsLeft <= 0) return;
     setPotionsLeft(p => p - 1);
     const healAmount = Math.round(heroStats.maxHp * 0.45);
-    setPlayerHp(hp => Math.min(heroStats.maxHp, hp + healAmount));
+    const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
+    playerHpRef.current = nextPlayerHp;
+    setPlayerHp(nextPlayerHp);
     playBattleHealSound();
     spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
     logMessage(`🧪 ${hero.name} consumió una Poción Astral curando ${healAmount} HP.`);
   };
 
   // Turno del Enemigo (IA)
-  const startEnemyTurn = () => {
+  const startEnemyTurn = (currentEnemyHp = enemyHpRef.current) => {
     setTurn('enemy');
 
     // 1. Procesar estados en el enemigo (veneno, quemadura, etc.)
-    const statusResult = processStatusEffects(enemyEffects, enemyHp, enemyMaxHp);
+    const statusResult = processStatusEffects(enemyEffectsRef.current, currentEnemyHp, enemyMaxHp);
+    enemyHpRef.current = statusResult.nextHp;
     setEnemyHp(statusResult.nextHp);
+    enemyEffectsRef.current = statusResult.updatedEffects;
     setEnemyEffects(statusResult.updatedEffects);
     statusResult.logMessages.forEach(m => logMessage(m));
 
@@ -290,7 +313,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
 
     // 2. IA del enemigo toma decisión
     setTimeout(() => {
-      const action = chooseEnemyAction(enemy, enemyHp, enemyMaxHp, enemyEther);
+      const action = chooseEnemyAction(enemy, enemyHpRef.current, enemyMaxHp, enemyEther);
       playBattleAttackSound();
       setAnimState(p => ({ ...p, enemyAttacking: true }));
 
@@ -314,13 +337,15 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
 
         // Absorción de daño por escudo del jugador
         let finalDamage = damage;
-        if (playerShield > 0) {
-          if (damage <= playerShield) {
-            setPlayerShield(s => s - damage);
+        if (playerShieldRef.current > 0) {
+          if (damage <= playerShieldRef.current) {
+            playerShieldRef.current -= damage;
+            setPlayerShield(playerShieldRef.current);
             finalDamage = 0;
             spawnFloatingText(`¡Bloqueaste (${damage})!`, 'player', 'shield');
           } else {
-            finalDamage = damage - playerShield;
+            finalDamage = damage - playerShieldRef.current;
+            playerShieldRef.current = 0;
             setPlayerShield(0);
             spawnFloatingText(`-${finalDamage}`, 'player', isCrit ? 'crit' : 'damage');
           }
@@ -328,7 +353,8 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
           spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, 'player', isCrit ? 'crit' : 'damage');
         }
 
-        const nextPlayerHp = Math.max(0, playerHp - finalDamage);
+        const nextPlayerHp = Math.max(0, playerHpRef.current - finalDamage);
+        playerHpRef.current = nextPlayerHp;
         setPlayerHp(nextPlayerHp);
 
         logMessage(`⚡ ${enemy.name || enemy.guardianName} usó ${action.name} causando ${finalDamage} de daño.`);
@@ -337,8 +363,10 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
           handleDefeat();
         } else {
           // Procesar efectos en el jugador
-          const playerStatus = processStatusEffects(playerEffects, nextPlayerHp, heroStats.maxHp);
+          const playerStatus = processStatusEffects(playerEffectsRef.current, nextPlayerHp, heroStats.maxHp);
+          playerHpRef.current = playerStatus.nextHp;
           setPlayerHp(playerStatus.nextHp);
+          playerEffectsRef.current = playerStatus.updatedEffects;
           setPlayerEffects(playerStatus.updatedEffects);
           playerStatus.logMessages.forEach(m => logMessage(m));
 
