@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { TabLudoAstral } from './TabLudoAstral';
 import { ChroniclesGame } from './rpg/ChroniclesGame';
-import { getOrCreateHeroProfile, ZODIAC_HERO_CLASSES, ELEMENTAL_AFFINITIES } from './rpg/rpg-data';
+import { getOrCreateHeroProfile, ZODIAC_HERO_CLASSES, ELEMENTAL_AFFINITIES, getZodiacIcon } from './rpg/rpg-data';
 import { Dices, Sparkles, Gamepad2, Trophy, Star, Sword, Shield, ChevronRight, Zap, Coins } from 'lucide-react';
 
 export const TabJuegos = ({ profile, onGameActiveChange }) => {
@@ -61,20 +61,32 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
           onClick={() => handleSelectGame('chronicles')}
           className="glass-panel p-5 rounded-3xl border-2 border-amber-500/40 hover:border-amber-400 cursor-pointer transition-all bg-gradient-to-r from-purple-950/40 via-black/80 to-amber-950/30 shadow-2xl relative overflow-hidden group"
         >
-          {/* Luz de fondo reactiva */}
+          {/* Luz de fondo reactiva y watermark del signo */}
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <img 
+            src={getZodiacIcon(heroSign)} 
+            alt={heroSign} 
+            className="absolute -right-6 -bottom-6 w-36 h-36 object-contain opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700 filter drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]" 
+          />
 
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 relative z-10">
             <div className="flex items-center gap-3">
-              {/* Avatar con anillo de nivel */}
+              {/* Avatar con foto de perfil y medallón del signo */}
               <div className="relative">
-                <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-0.5 bg-black flex items-center justify-center`}>
+                <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-0.5 bg-black flex items-center justify-center relative shadow-xl`}>
                   {hero.avatarUrl ? (
                     <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
                   ) : (
-                    <span className="text-2xl font-bold text-white">{heroClass.symbol}</span>
+                    <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-10 h-10 object-contain" />
                   )}
                 </div>
+
+                {/* Icono del signo superpuesto */}
+                <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-black/90 border border-amber-400/80 p-0.5 shadow-lg flex items-center justify-center">
+                  <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-full h-full object-contain" />
+                </div>
+
+                {/* Badge de Nivel */}
                 <div className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-400 text-black text-[9px] font-black font-mono shadow-md">
                   Lv.{hero.level}
                 </div>
@@ -82,15 +94,16 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
 
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <img src={getZodiacIcon(heroSign)} alt="" className="w-3 h-3 object-contain inline-block" />
                     Progreso RPG
                   </span>
                   <span className="text-xs text-gray-400 font-light truncate max-w-[120px]">
                     {heroClass.title}
                   </span>
                 </div>
-                <h4 className="mystic-font text-base text-white font-bold group-hover:text-amber-300 transition-colors">
-                  {hero.name} ({heroSign})
+                <h4 className="mystic-font text-base text-white font-bold group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                  {hero.name} <span className="text-amber-400 font-mono text-xs">({heroSign})</span>
                 </h4>
               </div>
             </div>
@@ -182,8 +195,15 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
             </div>
 
             <div>
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mb-4 text-amber-300 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/20">
-                <Sword size={26} />
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 p-1 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-lg shadow-amber-500/20 relative">
+                {hero?.avatarUrl ? (
+                  <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                ) : (
+                  <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-10 h-10 object-contain" />
+                )}
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow-md flex items-center justify-center">
+                  <img src={getZodiacIcon(heroSign)} alt="" className="w-full h-full object-contain" />
+                </div>
               </div>
               <h4 className="mystic-font text-xl text-white font-bold mb-2 group-hover:text-amber-300 transition-colors flex items-center gap-2">
                 CHRONICLES OF THE ZODIA

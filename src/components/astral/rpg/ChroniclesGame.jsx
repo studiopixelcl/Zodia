@@ -14,7 +14,8 @@ import {
   TWELVE_HOUSES_STAGES, 
   ZODIAC_HERO_CLASSES, 
   EQUIPMENT_CATALOG,
-  ELEMENTAL_AFFINITIES 
+  ELEMENTAL_AFFINITIES,
+  getZodiacIcon 
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
@@ -412,6 +413,49 @@ export function ChroniclesGame({ profile, onBack }) {
             </span>
           </div>
 
+          {/* MAPA VISUAL DEL SENDERO ZODIACAL (12 CASAS EN FILA) */}
+          <div className="p-3 rounded-2xl glass-panel border border-cyan-500/30 bg-black/50 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-2.5 min-w-[650px] justify-between px-1">
+              {TWELVE_HOUSES_STAGES.map((st) => {
+                const isCleared = st.house <= (hero.maxHouseCleared || 0);
+                const isCurrent = st.house === (hero.maxHouseCleared || 0) + 1;
+                return (
+                  <div 
+                    key={st.house} 
+                    className={`flex flex-col items-center gap-1 transition-all ${
+                      isCurrent ? 'scale-110' : isCleared ? 'opacity-95' : 'opacity-40'
+                    }`}
+                  >
+                    <div className={`relative w-10 h-10 rounded-xl p-1.5 flex items-center justify-center border transition-all ${
+                      isCurrent 
+                        ? 'border-cyan-400 bg-cyan-950/70 shadow-[0_0_12px_rgba(6,182,212,0.7)] animate-pulse' 
+                        : isCleared 
+                          ? 'border-emerald-500/70 bg-emerald-950/40' 
+                          : 'border-white/10 bg-black/60'
+                    }`}>
+                      <img 
+                        src={getZodiacIcon(st.guardianSign)} 
+                        alt={st.guardianSign} 
+                        className="w-full h-full object-contain"
+                      />
+                      {isCleared && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[9px] font-black shadow">
+                          ✓
+                        </div>
+                      )}
+                      {isCurrent && (
+                        <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                      )}
+                    </div>
+                    <span className={`text-[9px] font-mono ${isCurrent ? 'text-cyan-300 font-bold' : isCleared ? 'text-emerald-400 font-medium' : 'text-gray-500'}`}>
+                      C{st.house}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {TWELVE_HOUSES_STAGES.map((stage) => {
               const isUnlocked = stage.house <= (hero.maxHouseCleared || 0) + 1;
@@ -448,8 +492,12 @@ export function ChroniclesGame({ profile, onBack }) {
                       <p className="text-xs text-gray-300 font-light mt-0.5">{stage.guardianName}</p>
                     </div>
 
-                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-white">
-                      {ZODIAC_HERO_CLASSES[stage.guardianSign]?.symbol}
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white/10 to-black/70 border border-white/15 flex items-center justify-center p-1.5 shadow-lg shrink-0">
+                      <img 
+                        src={getZodiacIcon(stage.guardianSign)} 
+                        alt={stage.guardianSign} 
+                        className="w-full h-full object-contain filter drop-shadow-[0_0_6px_rgba(255,255,255,0.3)]"
+                      />
                     </div>
                   </div>
 
@@ -482,8 +530,15 @@ export function ChroniclesGame({ profile, onBack }) {
       {activeTab === 'shadows' && (
         <div className="glass-panel p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 via-black to-black space-y-4">
           <div className="text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-3xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mx-auto mb-3 text-purple-300 shadow-xl">
-              <Sword size={30} />
+            <div className="relative w-20 h-20 rounded-3xl bg-purple-950/40 border border-purple-500/50 p-2 flex items-center justify-center mx-auto mb-3 text-purple-300 shadow-2xl shadow-purple-900/50">
+              <img 
+                src={getZodiacIcon(hero.sign)} 
+                alt="Sombra" 
+                className="w-12 h-12 object-contain opacity-80 filter drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] animate-pulse" 
+              />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-black border border-purple-400 flex items-center justify-center text-purple-300 shadow">
+                <Sword size={12} />
+              </div>
             </div>
             <h3 className="mystic-font text-xl text-white font-bold mb-1">Duelo de Sombras Astrales</h3>
             <p className="text-xs text-gray-300 leading-relaxed font-light">
@@ -541,14 +596,15 @@ export function ChroniclesGame({ profile, onBack }) {
                       className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-amber-400/50 bg-black flex items-center justify-center">
+                        <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-amber-400/50 bg-black flex items-center justify-center shrink-0">
                           {match.image || match.photos?.[0] ? (
                             <img src={match.image || match.photos?.[0]} alt={match.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-base font-bold text-white">
-                              {ZODIAC_HERO_CLASSES[match.sign]?.symbol || '✨'}
-                            </span>
+                            <img src={getZodiacIcon(match.sign || 'Leo')} alt={match.sign} className="w-8 h-8 object-contain" />
                           )}
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow flex items-center justify-center">
+                            <img src={getZodiacIcon(match.sign || 'Leo')} alt="" className="w-full h-full object-contain" />
+                          </div>
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -588,11 +644,13 @@ export function ChroniclesGame({ profile, onBack }) {
                   <div 
                     key={allySign}
                     onClick={() => startCoopBattle(allySign)}
-                    className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400 cursor-pointer transition-all flex flex-col justify-between group"
+                    className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400 cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white">{allySign}</span>
-                      <span className="text-base">{allyClass.symbol}</span>
+                      <div className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 p-1 flex items-center justify-center">
+                        <img src={getZodiacIcon(allySign)} alt={allySign} className="w-full h-full object-contain" />
+                      </div>
                     </div>
                     <div className="text-[10px] text-amber-300 font-mono font-bold">
                       {syn.score}% Sinastría

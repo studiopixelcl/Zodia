@@ -4,7 +4,7 @@ import {
   Heart, Sword, Shield, Zap, Crosshair, Sparkles, 
   Award, Coins, Package, ChevronRight 
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon } from './rpg-data';
 import { calculateHeroTotalStats } from './rpg-engine';
 
 export function HeroProfileCard({ hero, onOpenInventory }) {
@@ -18,18 +18,23 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
 
   return (
     <div className="glass-panel p-5 relative overflow-hidden bg-gradient-to-b from-black/80 via-purple-950/20 to-black/90 border border-white/10 rounded-2xl shadow-2xl">
-      {/* Luz ambiental elemental */}
+      {/* Luz ambiental elemental y watermark del signo */}
       <div 
         className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-20 -z-10 pointer-events-none"
         style={{ backgroundColor: elemRules.color }}
       />
+      <img 
+        src={getZodiacIcon(hero.sign)} 
+        alt={hero.sign} 
+        className="absolute -right-8 -bottom-8 w-44 h-44 object-contain opacity-10 pointer-events-none filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" 
+      />
 
       {/* Cabecera del Héroe */}
-      <div className="flex items-center gap-4 mb-4">
-        {/* Avatar Cósmico */}
+      <div className="flex items-center gap-4 mb-4 relative z-10">
+        {/* Avatar Cósmico con foto de perfil y medallón del signo */}
         <div className="relative">
           <div 
-            className={`w-18 h-18 rounded-2xl overflow-hidden p-0.5 border-2 ${elemRules.border} ${elemRules.aura} transition-all duration-500`}
+            className={`w-18 h-18 rounded-2xl overflow-hidden p-0.5 border-2 ${elemRules.border} ${elemRules.aura} transition-all duration-500 bg-black flex items-center justify-center`}
             style={{ width: '4.5rem', height: '4.5rem' }}
           >
             {hero.avatarUrl ? (
@@ -39,11 +44,19 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
                 className="w-full h-full object-cover rounded-xl"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-black flex items-center justify-center text-2xl font-bold text-white">
-                {heroClass.symbol}
-              </div>
+              <img 
+                src={getZodiacIcon(hero.sign)} 
+                alt={hero.sign} 
+                className="w-12 h-12 object-contain"
+              />
             )}
           </div>
+
+          {/* Icono del signo superpuesto */}
+          <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow-lg flex items-center justify-center">
+            <img src={getZodiacIcon(hero.sign)} alt="" className="w-full h-full object-contain" />
+          </div>
+
           {/* Badge de Elemento */}
           <div 
             className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider text-black flex items-center gap-1 shadow-lg"

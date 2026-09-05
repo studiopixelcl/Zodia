@@ -5,7 +5,7 @@ import {
   Droplet, Wind, Mountain, AlertCircle, ArrowLeft,
   Trophy, RotateCcw, Skull, CheckCircle2, Star
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, getZodiacIcon } from './rpg-data';
 import { 
   calculateHeroTotalStats, 
   calculateDamage, 
@@ -401,8 +401,12 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
         <div className={`p-4 rounded-2xl bg-black/60 border ${enemyElemMeta.border} relative transition-all duration-300 ${animState.enemyHit ? 'bg-red-950/50 scale-95' : ''}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-xl border-2 ${enemyElemMeta.border} ${enemyElemMeta.aura} overflow-hidden bg-purple-900/40 flex items-center justify-center font-bold text-lg text-white`}>
-                {enemyClass.symbol}
+              <div className={`w-14 h-14 rounded-2xl border-2 ${enemyElemMeta.border} ${enemyElemMeta.aura} overflow-hidden bg-purple-950/40 p-1 flex items-center justify-center`}>
+                <img 
+                  src={getZodiacIcon(enemy.guardianSign || enemy.sign || 'Aries')} 
+                  alt="" 
+                  className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" 
+                />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -490,25 +494,33 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
         <div className={`p-4 rounded-2xl bg-black/60 border ${heroElemMeta.border} relative transition-all duration-300 ${animState.playerHit ? 'bg-red-950/50 scale-95' : ''}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              {/* Avatar del Jugador */}
-              <div className={`w-12 h-12 rounded-xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} overflow-hidden bg-black flex items-center justify-center relative`}>
-                {hero.avatarUrl ? (
-                  <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-lg font-bold text-white">{heroClass.symbol}</span>
-                )}
+              {/* Avatar del Jugador con foto real e icono de signo */}
+              <div className="relative">
+                <div className={`w-14 h-14 rounded-2xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} overflow-hidden bg-black flex items-center justify-center relative p-0.5`}>
+                  {hero.avatarUrl ? (
+                    <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                  ) : (
+                    <img src={getZodiacIcon(hero.sign)} alt="" className="w-10 h-10 object-contain" />
+                  )}
+                </div>
+                {/* Medallón del signo del jugador */}
+                <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-black/90 border border-amber-400/80 p-0.5 shadow-md flex items-center justify-center">
+                  <img src={getZodiacIcon(hero.sign)} alt="" className="w-full h-full object-contain" />
+                </div>
               </div>
 
-              {/* Avatar del Aliado en Coop */}
+              {/* Avatar del Aliado en Coop con foto e icono */}
               {isCoop && (
-                <div className="w-10 h-10 rounded-xl border-2 border-amber-400 overflow-hidden bg-amber-950/40 flex items-center justify-center shadow-lg shadow-amber-500/20 relative -ml-2">
-                  {partner.image || partner.photos?.[0] ? (
-                    <img src={partner.image || partner.photos?.[0]} alt={partner.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold text-amber-300">{ZODIAC_HERO_CLASSES[partner.sign]?.symbol || '⭐'}</span>
-                  )}
-                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 text-black text-[8px] font-black flex items-center justify-center">
-                    ∞
+                <div className="relative -ml-1">
+                  <div className="w-12 h-12 rounded-2xl border-2 border-amber-400 overflow-hidden bg-amber-950/40 flex items-center justify-center shadow-lg shadow-amber-500/20 p-0.5">
+                    {partner.image || partner.photos?.[0] ? (
+                      <img src={partner.image || partner.photos?.[0]} alt={partner.name} className="w-full h-full object-cover rounded-xl" />
+                    ) : (
+                      <img src={getZodiacIcon(partner.sign)} alt="" className="w-8 h-8 object-contain" />
+                    )}
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow-md flex items-center justify-center">
+                    <img src={getZodiacIcon(partner.sign)} alt="" className="w-full h-full object-contain" />
                   </div>
                 </div>
               )}

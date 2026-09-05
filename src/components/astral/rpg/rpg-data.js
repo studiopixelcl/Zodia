@@ -512,12 +512,24 @@ export const TWELVE_HOUSES_STAGES = [
 
 const LOCAL_STORAGE_KEY = 'zodia_rpg_hero_v1';
 
+export const ZODIAC_ICON_SLUGS = {
+  Aries: 'aries', Tauro: 'tauro', Géminis: 'gemini', Cáncer: 'cancer',
+  Leo: 'leo', Virgo: 'virgo', Libra: 'libra', Escorpio: 'escorpio',
+  Sagitario: 'sagitario', Capricornio: 'capricornio', Acuario: 'acuario', Piscis: 'piscis'
+};
+
+export function getZodiacIcon(sign) {
+  const slug = ZODIAC_ICON_SLUGS[sign] || 'capricornio';
+  return `/zodia/assets/zodiac/${slug}.png`;
+}
+
 /**
  * Carga o inicializa el perfil de RPG del jugador
  */
 export function getOrCreateHeroProfile(userProfile) {
-  const defaultSign = userProfile?.sign || 'Aries';
+  const defaultSign = userProfile?.sign || 'Capricornio';
   const heroClass = ZODIAC_HERO_CLASSES[defaultSign] || ZODIAC_HERO_CLASSES['Aries'];
+  const photo = userProfile?.photos?.[0] || userProfile?.image || userProfile?.avatar_url || null;
 
   if (typeof window === 'undefined') {
     return createInitialHero(userProfile, heroClass);
@@ -528,6 +540,13 @@ export function getOrCreateHeroProfile(userProfile) {
     if (raw) {
       const saved = JSON.parse(raw);
       if (saved && saved.sign === defaultSign) {
+        // Asegurar que use la foto y nombre actualizados del jugador si existen
+        if (photo && saved.avatarUrl !== photo) {
+          saved.avatarUrl = photo;
+        }
+        if (userProfile?.name && saved.name !== userProfile.name) {
+          saved.name = userProfile.name;
+        }
         return saved;
       }
     }
@@ -541,6 +560,7 @@ export function getOrCreateHeroProfile(userProfile) {
 }
 
 function createInitialHero(userProfile, heroClass) {
+  const photo = userProfile?.photos?.[0] || userProfile?.image || userProfile?.avatar_url || null;
   return {
     name: userProfile?.name || 'Sintonizador Astral',
     sign: heroClass.sign,
@@ -549,7 +569,7 @@ function createInitialHero(userProfile, heroClass) {
     exp: 0,
     expNext: 150,
     polvoEstelar: 100, // Moneda cósmica
-    avatarUrl: userProfile?.photos?.[0] || userProfile?.image || null,
+    avatarUrl: photo,
     stats: { ...heroClass.baseStats },
     equipped: {
       weapon: EQUIPMENT_CATALOG.find(i => i.id === 'wp_01'),
