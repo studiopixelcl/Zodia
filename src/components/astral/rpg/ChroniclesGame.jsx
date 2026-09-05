@@ -15,7 +15,8 @@ import {
   ZODIAC_HERO_CLASSES, 
   EQUIPMENT_CATALOG,
   ELEMENTAL_AFFINITIES,
-  getZodiacIcon 
+  getZodiacIcon,
+  extractProfilePhoto 
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
@@ -597,10 +598,19 @@ export function ChroniclesGame({ profile, onBack }) {
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-amber-400/50 bg-black flex items-center justify-center shrink-0">
-                          {match.image || match.photos?.[0] ? (
-                            <img src={match.image || match.photos?.[0]} alt={match.name} className="w-full h-full object-cover" />
+                          {extractProfilePhoto(match) ? (
+                            <img 
+                              src={extractProfilePhoto(match)} 
+                              alt="" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = getZodiacIcon(match.sign || 'Leo');
+                                e.currentTarget.className = "w-8 h-8 object-contain";
+                              }}
+                            />
                           ) : (
-                            <img src={getZodiacIcon(match.sign || 'Leo')} alt={match.sign} className="w-8 h-8 object-contain" />
+                            <img src={getZodiacIcon(match.sign || 'Leo')} alt="" className="w-8 h-8 object-contain" />
                           )}
                           <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow flex items-center justify-center">
                             <img src={getZodiacIcon(match.sign || 'Leo')} alt="" className="w-full h-full object-contain" />

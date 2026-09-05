@@ -525,8 +525,17 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
               {/* Avatar del Jugador con foto real e icono de signo */}
               <div className="relative">
                 <div className={`w-14 h-14 rounded-2xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} overflow-hidden bg-black flex items-center justify-center relative p-0.5`}>
-                  {hero.avatarUrl ? (
-                    <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                  {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                    <img 
+                      src={hero.avatarUrl} 
+                      alt="" 
+                      className="w-full h-full object-cover rounded-xl"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getZodiacIcon(hero.sign);
+                        e.currentTarget.className = "w-10 h-10 object-contain";
+                      }}
+                    />
                   ) : (
                     <img src={getZodiacIcon(hero.sign)} alt="" className="w-10 h-10 object-contain" />
                   )}
@@ -541,8 +550,17 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
               {isCoop && (
                 <div className="relative -ml-1">
                   <div className="w-12 h-12 rounded-2xl border-2 border-amber-400 overflow-hidden bg-amber-950/40 flex items-center justify-center shadow-lg shadow-amber-500/20 p-0.5">
-                    {partner.image || partner.photos?.[0] ? (
-                      <img src={partner.image || partner.photos?.[0]} alt={partner.name} className="w-full h-full object-cover rounded-xl" />
+                    {(partner.image || (Array.isArray(partner.photos) && partner.photos[0])) ? (
+                      <img 
+                        src={partner.image || partner.photos[0]} 
+                        alt="" 
+                        className="w-full h-full object-cover rounded-xl"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getZodiacIcon(partner.sign);
+                          e.currentTarget.className = "w-8 h-8 object-contain";
+                        }}
+                      />
                     ) : (
                       <img src={getZodiacIcon(partner.sign)} alt="" className="w-8 h-8 object-contain" />
                     )}

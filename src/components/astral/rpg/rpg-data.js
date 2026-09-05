@@ -523,13 +523,50 @@ export function getZodiacIcon(sign) {
   return `/zodia/assets/zodiac/${slug}.png`;
 }
 
+export function extractProfilePhoto(userProfile) {
+  if (!userProfile) return null;
+
+  // 1. Validar imagen directa o avatar_url
+  if (typeof userProfile.image === 'string' && userProfile.image.length > 5 && !userProfile.image.startsWith('[')) {
+    return userProfile.image;
+  }
+  if (typeof userProfile.avatar_url === 'string' && userProfile.avatar_url.length > 5 && !userProfile.avatar_url.startsWith('[')) {
+    return userProfile.avatar_url;
+  }
+
+  // 2. Validar fotos (array o JSON string)
+  let photos = userProfile.photos;
+  if (typeof photos === 'string') {
+    if (photos.startsWith('[') || photos.startsWith('{')) {
+      try {
+        photos = JSON.parse(photos);
+      } catch {
+        photos = null;
+      }
+    } else if (photos.startsWith('http') || photos.startsWith('/') || photos.startsWith('data:')) {
+      return photos;
+    } else {
+      photos = null;
+    }
+  }
+
+  if (Array.isArray(photos) && photos.length > 0) {
+    const first = photos[0];
+    if (typeof first === 'string' && first.length > 5 && (first.startsWith('http') || first.startsWith('/') || first.startsWith('data:'))) {
+      return first;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Carga o inicializa el perfil de RPG del jugador
  */
 export function getOrCreateHeroProfile(userProfile) {
   const defaultSign = userProfile?.sign || 'Capricornio';
   const heroClass = ZODIAC_HERO_CLASSES[defaultSign] || ZODIAC_HERO_CLASSES['Aries'];
-  const photo = userProfile?.photos?.[0] || userProfile?.image || userProfile?.avatar_url || null;
+  const photo = extractProfilePhoto(userProfile);
 
   if (typeof window === 'undefined') {
     return createInitialHero(userProfile, heroClass);
@@ -540,13 +577,20 @@ export function getOrCreateHeroProfile(userProfile) {
     if (raw) {
       const saved = JSON.parse(raw);
       if (saved && saved.sign === defaultSign) {
-        // Asegurar que use la foto y nombre actualizados del jugador si existen
-        if (photo && saved.avatarUrl !== photo) {
+        let needsSave = false;
+        // Limpiar URL rota '[' de versiones previas si existe
+        if (!saved.avatarUrl || saved.avatarUrl === '[' || saved.avatarUrl.length < 5) {
           saved.avatarUrl = photo;
+          needsSave = true;
+        } else if (photo && saved.avatarUrl !== photo) {
+          saved.avatarUrl = photo;
+          needsSave = true;
         }
         if (userProfile?.name && saved.name !== userProfile.name) {
           saved.name = userProfile.name;
+          needsSave = true;
         }
+        if (needsSave) saveHeroProfile(saved);
         return saved;
       }
     }
@@ -560,7 +604,7 @@ export function getOrCreateHeroProfile(userProfile) {
 }
 
 function createInitialHero(userProfile, heroClass) {
-  const photo = userProfile?.photos?.[0] || userProfile?.image || userProfile?.avatar_url || null;
+  const photo = extractProfilePhoto(userProfile);
   return {
     name: userProfile?.name || 'Sintonizador Astral',
     sign: heroClass.sign,

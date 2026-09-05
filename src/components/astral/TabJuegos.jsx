@@ -74,16 +74,25 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
               {/* Avatar con foto de perfil y medallón del signo */}
               <div className="relative">
                 <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-0.5 bg-black flex items-center justify-center relative shadow-xl`}>
-                  {hero.avatarUrl ? (
-                    <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                  {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                    <img 
+                      src={hero.avatarUrl} 
+                      alt="" 
+                      className="w-full h-full object-cover rounded-xl"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getZodiacIcon(heroSign);
+                        e.currentTarget.className = "w-10 h-10 object-contain";
+                      }}
+                    />
                   ) : (
-                    <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-10 h-10 object-contain" />
+                    <img src={getZodiacIcon(heroSign)} alt="" className="w-10 h-10 object-contain" />
                   )}
                 </div>
 
                 {/* Icono del signo superpuesto */}
                 <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-black/90 border border-amber-400/80 p-0.5 shadow-lg flex items-center justify-center">
-                  <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-full h-full object-contain" />
+                  <img src={getZodiacIcon(heroSign)} alt="" className="w-full h-full object-contain" />
                 </div>
 
                 {/* Badge de Nivel */}
@@ -196,10 +205,19 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
 
             <div>
               <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 p-1 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-lg shadow-amber-500/20 relative">
-                {hero?.avatarUrl ? (
-                  <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                {hero?.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                  <img 
+                    src={hero.avatarUrl} 
+                    alt="" 
+                    className="w-full h-full object-cover rounded-xl"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = getZodiacIcon(heroSign);
+                      e.currentTarget.className = "w-10 h-10 object-contain";
+                    }}
+                  />
                 ) : (
-                  <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-10 h-10 object-contain" />
+                  <img src={getZodiacIcon(heroSign)} alt="" className="w-10 h-10 object-contain" />
                 )}
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow-md flex items-center justify-center">
                   <img src={getZodiacIcon(heroSign)} alt="" className="w-full h-full object-contain" />

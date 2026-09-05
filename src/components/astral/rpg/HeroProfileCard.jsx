@@ -37,16 +37,21 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
             className={`w-18 h-18 rounded-2xl overflow-hidden p-0.5 border-2 ${elemRules.border} ${elemRules.aura} transition-all duration-500 bg-black flex items-center justify-center`}
             style={{ width: '4.5rem', height: '4.5rem' }}
           >
-            {hero.avatarUrl ? (
+            {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
               <img 
                 src={hero.avatarUrl} 
-                alt={hero.name} 
+                alt="" 
                 className="w-full h-full object-cover rounded-xl"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getZodiacIcon(hero.sign);
+                  e.currentTarget.className = "w-12 h-12 object-contain";
+                }}
               />
             ) : (
               <img 
                 src={getZodiacIcon(hero.sign)} 
-                alt={hero.sign} 
+                alt="" 
                 className="w-12 h-12 object-contain"
               />
             )}
