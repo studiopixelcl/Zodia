@@ -1,11 +1,17 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabLudoAstral } from './TabLudoAstral';
 import { ChroniclesGame } from './rpg/ChroniclesGame';
-import { Dices, Sparkles, Gamepad2, Trophy, Star, Sword, ShieldAlert } from 'lucide-react';
+import { getOrCreateHeroProfile, ZODIAC_HERO_CLASSES, ELEMENTAL_AFFINITIES } from './rpg/rpg-data';
+import { Dices, Sparkles, Gamepad2, Trophy, Star, Sword, Shield, ChevronRight, Zap, Coins } from 'lucide-react';
 
 export const TabJuegos = ({ profile, onGameActiveChange }) => {
   const [activeGame, setActiveGame] = useState(null);
+  const [hero, setHero] = useState(null);
+
+  useEffect(() => {
+    setHero(getOrCreateHeroProfile(profile));
+  }, [profile]);
 
   const handleSelectGame = (gameId) => {
     setActiveGame(gameId);
@@ -17,8 +23,24 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
   }
 
   if (activeGame === 'chronicles') {
-    return <ChroniclesGame profile={profile} onBack={() => handleSelectGame(null)} />;
+    return (
+      <ChroniclesGame 
+        profile={profile} 
+        onBack={() => {
+          handleSelectGame(null);
+          // Refrescar el estado del héroe tras salir de combate
+          setHero(getOrCreateHeroProfile(profile));
+        }} 
+      />
+    );
   }
+
+  const heroSign = hero?.sign || profile?.sign || 'Capricornio';
+  const heroClass = ZODIAC_HERO_CLASSES[heroSign] || ZODIAC_HERO_CLASSES['Aries'];
+  const heroElem = hero?.element || heroClass?.element || 'Tierra';
+  const elemMeta = ELEMENTAL_AFFINITIES[heroElem] || ELEMENTAL_AFFINITIES['Tierra'];
+  const expPercent = hero ? Math.min(100, Math.round((hero.exp / hero.expNext) * 100)) : 0;
+  const housesPercent = hero ? Math.round(((hero.maxHouseCleared || 0) / 12) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-fadeIn px-4 pb-20">
@@ -32,6 +54,118 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
           Juegos y aventuras cósmicas reinventadas con la mitología, sinastría y energía elemental de ZODIA.
         </p>
       </div>
+
+      {/* BARRA DE PROGRESO ASTRAL DEL JUGADOR */}
+      {hero && (
+        <div 
+          onClick={() => handleSelectGame('chronicles')}
+          className="glass-panel p-5 rounded-3xl border-2 border-amber-500/40 hover:border-amber-400 cursor-pointer transition-all bg-gradient-to-r from-purple-950/40 via-black/80 to-amber-950/30 shadow-2xl relative overflow-hidden group"
+        >
+          {/* Luz de fondo reactiva */}
+          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              {/* Avatar con anillo de nivel */}
+              <div className="relative">
+                <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-0.5 bg-black flex items-center justify-center`}>
+                  {hero.avatarUrl ? (
+                    <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl" />
+                  ) : (
+                    <span className="text-2xl font-bold text-white">{heroClass.symbol}</span>
+                  )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-400 text-black text-[9px] font-black font-mono shadow-md">
+                  Lv.{hero.level}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Progreso RPG
+                  </span>
+                  <span className="text-xs text-gray-400 font-light truncate max-w-[120px]">
+                    {heroClass.title}
+                  </span>
+                </div>
+                <h4 className="mystic-font text-base text-white font-bold group-hover:text-amber-300 transition-colors">
+                  {hero.name} ({heroSign})
+                </h4>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-right">
+              <div className="hidden sm:block">
+                <div className="text-[10px] text-gray-400 flex items-center justify-end gap-1">
+                  <Coins size={12} className="text-amber-400" /> Polvo Estelar
+                </div>
+                <div className="text-sm font-bold text-amber-300 font-mono">
+                  {hero.polvoEstelar || 0} ✦
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-amber-500 group-hover:text-black transition-all">
+                <ChevronRight size={18} />
+              </div>
+            </div>
+          </div>
+
+          {/* 1. Barra de Progreso de Experiencia (EXP) */}
+          <div className="space-y-1 mb-3">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-gray-300 font-medium flex items-center gap-1">
+                <Zap size={13} className="text-cyan-400" /> Experiencia Astral (Nivel {hero.level})
+              </span>
+              <span className="text-cyan-300 font-mono font-bold">
+                {hero.exp} / {hero.expNext} EXP ({expPercent}%)
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden p-0.5">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+                style={{ width: `${expPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 2. Barra de Progreso de las 12 Casas */}
+          <div className="space-y-1 pt-1 border-t border-white/5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-gray-300 font-medium flex items-center gap-1">
+                <Trophy size={13} className="text-amber-400" /> Casas Purificadas
+              </span>
+              <span className="text-amber-300 font-mono font-bold">
+                {hero.maxHouseCleared || 0} de 12 ({housesPercent}%)
+              </span>
+            </div>
+            {/* Indicador de 12 nodos estelares */}
+            <div className="grid grid-cols-12 gap-1 h-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(houseNum => (
+                <div 
+                  key={houseNum}
+                  className={`rounded-full transition-all ${
+                    houseNum <= (hero.maxHouseCleared || 0)
+                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]'
+                      : 'bg-white/10'
+                  }`}
+                  title={`Casa ${houseNum}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-3.5 pt-2 flex items-center justify-between text-xs">
+            <span className="text-[11px] text-gray-400">
+              {hero.maxHouseCleared >= 12 
+                ? '¡Has conquistado todo el Zodíaco!' 
+                : `Siguiente reto: Casa ${(hero.maxHouseCleared || 0) + 1}`}
+            </span>
+            <span className="text-amber-400 font-bold uppercase tracking-wider text-[11px] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+              Continuar Aventura <ChevronRight size={13} />
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Galería de Juegos */}
       <div>
@@ -57,6 +191,22 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
               <p className="text-xs text-gray-300 font-light leading-relaxed mb-4">
                 RPG táctico por turnos. Encarna el héroe de tu signo zodiacal, conquista las 12 Casas, forja reliquias cósmicas y desata ataques de sinastría en pareja.
               </p>
+
+              {/* Barra de progreso rápida dentro de la tarjeta */}
+              {hero && (
+                <div className="mb-4 p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1">
+                  <div className="flex justify-between text-[10px] text-gray-300">
+                    <span>Nivel {hero.level} ({heroSign})</span>
+                    <span className="text-amber-300 font-mono font-bold">{hero.maxHouseCleared || 0}/12 Casas</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
+                      style={{ width: `${housesPercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
