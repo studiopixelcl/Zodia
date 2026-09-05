@@ -155,6 +155,25 @@ export async function ensureDatabaseSchema(db) {
       status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       expires_at DATETIME NOT NULL
+    )`,
+
+    // 10. Perfiles y Progreso de Chronicles of the Zodia RPG
+    `CREATE TABLE IF NOT EXISTS rpg_profiles (
+      user_id TEXT PRIMARY KEY,
+      level INTEGER DEFAULT 1,
+      exp INTEGER DEFAULT 0,
+      exp_next INTEGER DEFAULT 150,
+      polvo_estelar INTEGER DEFAULT 100,
+      sign TEXT NOT NULL,
+      element TEXT NOT NULL,
+      max_house_cleared INTEGER DEFAULT 0,
+      pvp_rank TEXT DEFAULT 'Polvo Estelar I',
+      equipped_weapon TEXT,
+      equipped_armor TEXT,
+      equipped_relic TEXT,
+      inventory TEXT DEFAULT '[]',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )`
   ];
 
