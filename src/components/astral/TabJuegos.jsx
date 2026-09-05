@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { TabLudoAstral } from './TabLudoAstral';
 import { ChroniclesGame } from './rpg/ChroniclesGame';
-import { getOrCreateHeroProfile, ZODIAC_HERO_CLASSES, ELEMENTAL_AFFINITIES, getZodiacIcon } from './rpg/rpg-data';
+import { getOrCreateHeroProfile, ZODIAC_HERO_CLASSES, ELEMENTAL_AFFINITIES, getZodiacIcon, isValidImageUrl } from './rpg/rpg-data';
 import { Dices, Sparkles, Gamepad2, Trophy, Star, Sword, Shield, ChevronRight, Zap, Coins } from 'lucide-react';
 
 export const TabJuegos = ({ profile, onGameActiveChange }) => {
@@ -65,7 +65,7 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
           <img 
             src={getZodiacIcon(heroSign)} 
-            alt={heroSign} 
+            alt="" 
             className="absolute -right-6 -bottom-6 w-36 h-36 object-contain opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700 filter drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]" 
           />
 
@@ -73,8 +73,8 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
             <div className="flex items-center gap-3">
               {/* Avatar con foto de perfil y medallón del signo */}
               <div className="relative">
-                <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-0.5 bg-black flex items-center justify-center relative shadow-xl`}>
-                  {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 ${elemMeta.border} ${elemMeta.aura} p-1 bg-black flex items-center justify-center relative shadow-xl`}>
+                  {isValidImageUrl(hero.avatarUrl) ? (
                     <img 
                       src={hero.avatarUrl} 
                       alt="" 
@@ -88,11 +88,6 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
                   ) : (
                     <img src={getZodiacIcon(heroSign)} alt="" className="w-10 h-10 object-contain" />
                   )}
-                </div>
-
-                {/* Icono del signo superpuesto */}
-                <div className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-black/90 border border-amber-400/80 p-0.5 shadow-lg flex items-center justify-center">
-                  <img src={getZodiacIcon(heroSign)} alt="" className="w-full h-full object-contain" />
                 </div>
 
                 {/* Badge de Nivel */}
@@ -205,7 +200,7 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
 
             <div>
               <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 p-1 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-lg shadow-amber-500/20 relative">
-                {hero?.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                {isValidImageUrl(hero?.avatarUrl) ? (
                   <img 
                     src={hero.avatarUrl} 
                     alt="" 
@@ -219,9 +214,6 @@ export const TabJuegos = ({ profile, onGameActiveChange }) => {
                 ) : (
                   <img src={getZodiacIcon(heroSign)} alt="" className="w-10 h-10 object-contain" />
                 )}
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-black/90 border border-amber-400 p-0.5 shadow-md flex items-center justify-center">
-                  <img src={getZodiacIcon(heroSign)} alt="" className="w-full h-full object-contain" />
-                </div>
               </div>
               <h4 className="mystic-font text-xl text-white font-bold mb-2 group-hover:text-amber-300 transition-colors flex items-center gap-2">
                 CHRONICLES OF THE ZODIA

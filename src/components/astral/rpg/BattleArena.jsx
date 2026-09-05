@@ -5,7 +5,7 @@ import {
   Droplet, Wind, Mountain, AlertCircle, ArrowLeft,
   Trophy, RotateCcw, Skull, CheckCircle2, Star
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, getZodiacIcon } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, getZodiacIcon, isValidImageUrl } from './rpg-data';
 import { 
   calculateHeroTotalStats, 
   calculateDamage, 
@@ -525,7 +525,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
               {/* Avatar del Jugador con foto real e icono de signo */}
               <div className="relative">
                 <div className={`w-14 h-14 rounded-2xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} overflow-hidden bg-black flex items-center justify-center relative p-0.5`}>
-                  {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+                  {isValidImageUrl(hero.avatarUrl) ? (
                     <img 
                       src={hero.avatarUrl} 
                       alt="" 
@@ -550,9 +550,9 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
               {isCoop && (
                 <div className="relative -ml-1">
                   <div className="w-12 h-12 rounded-2xl border-2 border-amber-400 overflow-hidden bg-amber-950/40 flex items-center justify-center shadow-lg shadow-amber-500/20 p-0.5">
-                    {(partner.image || (Array.isArray(partner.photos) && partner.photos[0])) ? (
+                    {isValidImageUrl(partner.image) ? (
                       <img 
-                        src={partner.image || partner.photos[0]} 
+                        src={partner.image} 
                         alt="" 
                         className="w-full h-full object-cover rounded-xl"
                         onError={(e) => {

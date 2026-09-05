@@ -4,7 +4,7 @@ import {
   Heart, Sword, Shield, Zap, Crosshair, Sparkles, 
   Award, Coins, Package, ChevronRight 
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon, isValidImageUrl } from './rpg-data';
 import { calculateHeroTotalStats } from './rpg-engine';
 
 export function HeroProfileCard({ hero, onOpenInventory }) {
@@ -25,19 +25,19 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
       />
       <img 
         src={getZodiacIcon(hero.sign)} 
-        alt={hero.sign} 
+        alt="" 
         className="absolute -right-8 -bottom-8 w-44 h-44 object-contain opacity-10 pointer-events-none filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" 
       />
 
       {/* Cabecera del Héroe */}
       <div className="flex items-center gap-4 mb-4 relative z-10">
-        {/* Avatar Cósmico con foto de perfil y medallón del signo */}
+        {/* Avatar Cósmico con foto de perfil o medallón del signo */}
         <div className="relative">
           <div 
             className={`w-18 h-18 rounded-2xl overflow-hidden p-0.5 border-2 ${elemRules.border} ${elemRules.aura} transition-all duration-500 bg-black flex items-center justify-center`}
             style={{ width: '4.5rem', height: '4.5rem' }}
           >
-            {hero.avatarUrl && hero.avatarUrl.length > 5 && !hero.avatarUrl.startsWith('[') ? (
+            {isValidImageUrl(hero.avatarUrl) ? (
               <img 
                 src={hero.avatarUrl} 
                 alt="" 
