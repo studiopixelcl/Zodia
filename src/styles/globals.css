@@ -188,3 +188,147 @@
     box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
   }
 }
+
+/* ==========================================
+   ANIMACIONES DE COMBATE RPG ZODIA
+   ========================================== */
+@keyframes battleLungeRight {
+  0% { transform: translateX(0) scale(1); }
+  40% { transform: translateX(55px) scale(1.12); }
+  65% { transform: translateX(50px) scale(1.08); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes battleLungeLeft {
+  0% { transform: translateX(0) scale(1); }
+  40% { transform: translateX(-55px) scale(1.12); }
+  65% { transform: translateX(-50px) scale(1.08); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes battleHurtRight {
+  0% { transform: translateX(0); filter: brightness(1); }
+  25% { transform: translateX(18px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
+  50% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+  100% { transform: translateX(0); filter: brightness(1); }
+}
+
+@keyframes battleHurtLeft {
+  0% { transform: translateX(0); filter: brightness(1); }
+  25% { transform: translateX(-18px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-6px); }
+  100% { transform: translateX(0); filter: brightness(1); }
+}
+
+@keyframes slashSweep {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-35deg) scaleX(0.1) scaleY(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-35deg) scaleX(1.4) scaleY(1.3);
+    filter: drop-shadow(0 0 14px rgba(56, 189, 248, 1)) drop-shadow(0 0 25px rgba(245, 158, 11, 0.8));
+  }
+  70% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) rotate(-35deg) scaleX(1.7) scaleY(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-35deg) scaleX(2.1) scaleY(0.4);
+  }
+}
+
+@keyframes magicBurstRing {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.25) rotate(90deg);
+    filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.9));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.7) rotate(180deg);
+  }
+}
+
+@keyframes cosmicUltimateNova {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  35% {
+    opacity: 0.95;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes floatingHeroBattle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes pedestalPulseLight {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 12px rgba(56, 189, 248, 0.3);
+    transform: scaleX(1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.55), inset 0 0 20px rgba(56, 189, 248, 0.6);
+    transform: scaleX(1.04);
+  }
+}
+
+.animate-battle-lunge-right {
+  animation: battleLungeRight 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-battle-lunge-left {
+  animation: battleLungeLeft 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-battle-hurt-right {
+  animation: battleHurtRight 0.45s ease-in-out forwards;
+}
+
+.animate-battle-hurt-left {
+  animation: battleHurtLeft 0.45s ease-in-out forwards;
+}
+
+.animate-slash-sweep {
+  animation: slashSweep 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-magic-burst-ring {
+  animation: magicBurstRing 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-cosmic-ultimate-nova {
+  animation: cosmicUltimateNova 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hero-battle-float {
+  animation: floatingHeroBattle 3.5s ease-in-out infinite;
+}
+
+.animate-pedestal-pulse {
+  animation: pedestalPulseLight 3s ease-in-out infinite;
+}

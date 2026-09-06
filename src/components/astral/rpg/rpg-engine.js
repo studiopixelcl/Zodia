@@ -194,8 +194,8 @@ export function calculateDamage(
   // Bono de tránsito lunar (+15% si coincide el elemento)
   const transitMult = (transitElement && attackerElem === transitElement) ? 1.15 : 1.0;
 
-  // Fórmula de mitigación de daño clásica Zodia
-  const rawDamage = Math.max(15, (atk * 1.4 - def * 0.45) * skillMultiplier * stanceDamageMult * positionMult * staggerMult * mutatorMult);
+  // Fórmula de mitigación de daño clásica Zodia (Equilibrada para combates tácticos)
+  const rawDamage = Math.max(16, (atk * 1.15 - def * 0.55) * skillMultiplier * stanceDamageMult * positionMult * staggerMult * mutatorMult);
 
   // Tirada de crítico
   const critRoll = Math.random();
