@@ -4,7 +4,7 @@
  * modificadores elementales, sinastría de combate e inteligencia artificial.
  */
 
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, calculateActiveSets } from './rpg-data';
 import { calculatePlanetaryPositions, calculateMoonPhase } from '../../../lib/transits';
 
 /**
@@ -39,38 +39,66 @@ export function getDailyTransitBuff() {
 }
 
 /**
- * Calcula las estadísticas efectivas del héroe sumando nivel y equipamiento
+ * Calcula las estadísticas efectivas del héroe sumando nivel, equipamiento y bonos de conjunto
  */
 export function calculateHeroTotalStats(hero) {
   const base = hero.stats || ZODIAC_HERO_CLASSES[hero.sign]?.baseStats || { hp: 400, atk: 50, def: 25, spd: 30, critRate: 0.15 };
   const level = hero.level || 1;
   const levelBonus = (level - 1) * 0.08; // 8% por nivel
 
-  let maxHp = Math.round(base.hp * (1 + levelBonus));
-  let atk = Math.round(base.atk * (1 + levelBonus));
-  let def = Math.round(base.def * (1 + levelBonus));
-  let spd = Math.round(base.spd * (1 + levelBonus * 0.5));
-  let critRate = base.critRate || 0.15;
+  const baseHp = Math.round(base.hp * (1 + levelBonus));
+  const baseAtk = Math.round(base.atk * (1 + levelBonus));
+  const baseDef = Math.round(base.def * (1 + levelBonus));
+  const baseSpd = Math.round(base.spd * (1 + levelBonus * 0.5));
+  const baseCritRate = base.critRate || 0.15;
 
-  // Añadir bonos de equipamiento
+  let maxHp = baseHp;
+  let atk = baseAtk;
+  let def = baseDef;
+  let spd = baseSpd;
+  let critRate = baseCritRate;
+
+  // Estadísticas aportadas EXCLUSIVAMENTE por piezas de equipo
+  const gearStats = { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0, power: 0 };
+
   const eq = hero.equipped || {};
-  if (eq.weapon) {
-    if (eq.weapon.atk) atk += eq.weapon.atk;
-    if (eq.weapon.crit) critRate += eq.weapon.crit;
-  }
-  if (eq.armor) {
-    if (eq.armor.hp) maxHp += eq.armor.hp;
-    if (eq.armor.def) def += eq.armor.def;
-  }
-  if (eq.relic) {
-    if (eq.relic.atk) atk += eq.relic.atk;
-    if (eq.relic.def) def += eq.relic.def;
-    if (eq.relic.hp) maxHp += eq.relic.hp;
-    if (eq.relic.spd) spd += eq.relic.spd;
-    if (eq.relic.crit) critRate += eq.relic.crit;
+  for (const slot of ['weapon', 'armor', 'relic']) {
+    const item = eq[slot];
+    if (item) {
+      if (item.atk) { atk += item.atk; gearStats.atk += item.atk; }
+      if (item.hp) { maxHp += item.hp; gearStats.hp += item.hp; }
+      if (item.def) { def += item.def; gearStats.def += item.def; }
+      if (item.spd) { spd += item.spd; gearStats.spd += item.spd; }
+      if (item.crit) { critRate += item.crit; gearStats.critRate += item.crit; }
+    }
   }
 
-  return { maxHp, atk, def, spd, critRate: Math.min(0.75, critRate) };
+  // Bonificaciones acumulativas de conjuntos de equipo (Set Bonuses)
+  const activeSets = calculateActiveSets(eq);
+  for (const setInfo of activeSets) {
+    const b = setInfo.bonusStats;
+    if (b.hp) { maxHp += b.hp; gearStats.hp += b.hp; }
+    if (b.atk) { atk += b.atk; gearStats.atk += b.atk; }
+    if (b.def) { def += b.def; gearStats.def += b.def; }
+    if (b.spd) { spd += b.spd; gearStats.spd += b.spd; }
+    if (b.critRate) { critRate += b.critRate; gearStats.critRate += b.critRate; }
+  }
+
+  // Cálculo de Poder Cósmico (Gear Score)
+  gearStats.power = (gearStats.atk * 3) + Math.round(gearStats.hp * 0.8) + (gearStats.def * 2.5) + (gearStats.spd * 2) + Math.round(gearStats.critRate * 300);
+  const totalPower = (atk * 3) + Math.round(maxHp * 0.8) + (def * 2.5) + (spd * 2) + Math.round(critRate * 300);
+
+  return { 
+    baseStats: { hp: baseHp, atk: baseAtk, def: baseDef, spd: baseSpd, critRate: baseCritRate },
+    gearStats,
+    activeSets,
+    totalPower,
+    maxHp, 
+    atk, 
+    def, 
+    spd, 
+    critRate: Math.min(0.85, critRate) 
+  };
 }
 
 /**

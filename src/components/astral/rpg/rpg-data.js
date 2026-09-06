@@ -319,24 +319,189 @@ export const RARITIES = {
   legendario: { name: 'Legendario Cósmico', color: 'text-amber-400', border: 'border-amber-400', bg: 'bg-amber-500/20' }
 };
 
+export const EQUIPMENT_SETS = {
+  set_starlight: {
+    id: 'set_starlight',
+    name: 'Baluarte Sideral',
+    rarity: 'comun',
+    element: 'Aire',
+    badge: '✨ Sideral',
+    color: 'text-gray-300',
+    borderColor: 'border-white/30',
+    bgBadge: 'bg-white/10 text-gray-200',
+    iconName: 'Sparkles',
+    lore: 'Forjado con fragmentos de meteoros y vientos del alba cósmica.',
+    pieces: ['wp_01', 'ar_01', 'rl_01'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Eco del Polvo (2 Piezas)',
+        desc: '+35 HP, +10 DEF',
+        stats: { hp: 35, def: 10 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Frecuencia Astral Completa (3 Piezas)',
+        desc: '+15 ATK, +6 VEL, +3% Crítico',
+        stats: { atk: 15, spd: 6, critRate: 0.03 }
+      }
+    ]
+  },
+  set_lunar: {
+    id: 'set_lunar',
+    name: 'Pléyades & Marea Lunar',
+    rarity: 'raro',
+    element: 'Agua',
+    badge: '🌙 Pléyades',
+    color: 'text-cyan-400',
+    borderColor: 'border-cyan-500/40',
+    bgBadge: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30',
+    iconName: 'Moon',
+    lore: 'Canaliza la serenidad de la Luna y las mareas azules de siete hermanas.',
+    pieces: ['wp_02', 'ar_02', 'rl_02'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Marea de Selene (2 Piezas)',
+        desc: '+25 ATK, +60 HP',
+        stats: { atk: 25, hp: 60 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Corona de las Pléyades (3 Piezas)',
+        desc: '+35 ATK, +8 VEL, +7% Crítico',
+        stats: { atk: 35, spd: 8, critRate: 0.07 }
+      }
+    ]
+  },
+  set_solar: {
+    id: 'set_solar',
+    name: 'Llama Solar de los Titanes',
+    rarity: 'epico',
+    element: 'Fuego',
+    badge: '🔥 Titán Solar',
+    color: 'text-purple-400',
+    borderColor: 'border-purple-500/40',
+    bgBadge: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+    iconName: 'Sun',
+    lore: 'Templado en el corazón incandescente de asteroides con la furia telúrica.',
+    pieces: ['wp_03', 'ar_03', 'rl_03'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Ira del Núcleo Solar (2 Piezas)',
+        desc: '+45 ATK, +30 DEF, +120 HP',
+        stats: { atk: 45, def: 30, hp: 120 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Corona de Titanio Cósmico (3 Piezas)',
+        desc: '+70 ATK, +40 DEF, +12% Crítico',
+        stats: { atk: 70, def: 40, critRate: 0.12 }
+      }
+    ]
+  },
+  set_cosmic: {
+    id: 'set_cosmic',
+    name: 'Soberanía de Orión & Casiopea',
+    rarity: 'legendario',
+    element: 'Tierra',
+    badge: '👑 Soberanía Cósmica',
+    color: 'text-amber-400',
+    borderColor: 'border-amber-400/50',
+    bgBadge: 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20',
+    iconName: 'Crown',
+    lore: 'El conjunto definitivo de los soberanos del firmamento; desgasta y quiebra el éter con su presencia.',
+    pieces: ['wp_04', 'ar_04', 'rl_04'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Mirada del Cazador Supremo (2 Piezas)',
+        desc: '+90 ATK, +250 HP, +10% Crítico',
+        stats: { atk: 90, hp: 250, critRate: 0.10 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Majestad Eterna del Zodíaco (3 Piezas)',
+        desc: '+150 ATK, +60 DEF, +400 HP, +15 VEL, +18% Crítico',
+        stats: { atk: 150, def: 60, hp: 400, spd: 15, critRate: 0.18 }
+      }
+    ]
+  }
+};
+
+export function calculateItemPower(item) {
+  if (!item) return 0;
+  const atk = (item.atk || 0) * 3;
+  const hp = Math.round((item.hp || 0) * 0.8);
+  const def = (item.def || 0) * 2.5;
+  const spd = (item.spd || 0) * 2;
+  const crit = Math.round((item.crit || 0) * 300);
+  return atk + hp + def + spd + crit;
+}
+
+export function calculateActiveSets(equipped = {}) {
+  const activeSets = [];
+  if (!equipped) return activeSets;
+  const equippedList = Object.values(equipped).filter(Boolean);
+  if (equippedList.length === 0) return activeSets;
+
+  const setCounts = {};
+  for (const item of equippedList) {
+    if (item.setId) {
+      setCounts[item.setId] = (setCounts[item.setId] || 0) + 1;
+    }
+  }
+
+  for (const [setId, count] of Object.entries(setCounts)) {
+    const setDef = EQUIPMENT_SETS[setId];
+    if (!setDef) continue;
+
+    const unlockedBonuses = setDef.bonuses.filter(b => count >= b.requiredPieces);
+    
+    const totalBonusStats = { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0 };
+    for (const b of unlockedBonuses) {
+      if (b.stats.hp) totalBonusStats.hp += b.stats.hp;
+      if (b.stats.atk) totalBonusStats.atk += b.stats.atk;
+      if (b.stats.def) totalBonusStats.def += b.stats.def;
+      if (b.stats.spd) totalBonusStats.spd += b.stats.spd;
+      if (b.stats.critRate) totalBonusStats.critRate += b.stats.critRate;
+    }
+
+    activeSets.push({
+      setId,
+      set: setDef,
+      count,
+      maxPieces: 3,
+      isFullyActive: count >= 3,
+      hasAnyBonus: unlockedBonuses.length > 0,
+      unlockedBonuses,
+      nextBonus: setDef.bonuses.find(b => count < b.requiredPieces) || null,
+      bonusStats: totalBonusStats
+    });
+  }
+
+  return activeSets;
+}
+
 export const EQUIPMENT_CATALOG = [
   // ARMAS
-  { id: 'wp_01', type: 'weapon', name: 'Daga de Polvo Estelar', rarity: 'comun', atk: 12, crit: 0.03, desc: 'Forjada con remanentes de meteorito menor.' },
-  { id: 'wp_02', type: 'weapon', name: 'Báculo de las Pléyades', rarity: 'raro', atk: 25, crit: 0.06, desc: 'Canaliza la luz azul de siete estrellas hermanas.' },
-  { id: 'wp_03', type: 'weapon', name: 'Espada de Nebulosa Solar', rarity: 'epico', atk: 45, crit: 0.10, desc: 'Emite calor puro de una supernova en nacimiento.' },
-  { id: 'wp_04', type: 'weapon', name: 'Arco Cósmico de Orión', rarity: 'legendario', atk: 75, crit: 0.18, desc: 'El arma mítica de los cazadores celestiales. Desgarra el éter.' },
+  { id: 'wp_01', type: 'weapon', setId: 'set_starlight', name: 'Daga de Polvo Estelar', rarity: 'comun', atk: 12, crit: 0.03, desc: 'Forjada con remanentes de meteorito menor.' },
+  { id: 'wp_02', type: 'weapon', setId: 'set_lunar', name: 'Báculo de las Pléyades', rarity: 'raro', atk: 25, crit: 0.06, desc: 'Canaliza la luz azul de siete estrellas hermanas.' },
+  { id: 'wp_03', type: 'weapon', setId: 'set_solar', name: 'Espada de Nebulosa Solar', rarity: 'epico', atk: 45, crit: 0.10, desc: 'Emite calor puro de una supernova en nacimiento.' },
+  { id: 'wp_04', type: 'weapon', setId: 'set_cosmic', name: 'Arco Cósmico de Orión', rarity: 'legendario', atk: 75, crit: 0.18, desc: 'El arma mítica de los cazadores celestiales. Desgarra el éter.' },
 
   // ARMADURAS
-  { id: 'ar_01', type: 'armor', name: 'Manto de Seda Astral', rarity: 'comun', hp: 40, def: 8, desc: 'Tejido suave bendecido por la brisa cósmica.' },
-  { id: 'ar_02', type: 'armor', name: 'Pechera de Roca Lunar', rarity: 'raro', hp: 90, def: 18, desc: 'Piedra basáltica extraída de la cara oculta de la Luna.' },
-  { id: 'ar_03', type: 'armor', name: 'Coraza del Coloso Tauro', rarity: 'epico', hp: 170, def: 35, desc: 'Forjada en el corazón de un asteroide de hierro.' },
-  { id: 'ar_04', type: 'armor', name: 'Armadura Sagrada de Casiopea', rarity: 'legendario', hp: 300, def: 55, desc: 'Brilla con la soberanía intocable de la reina estelar.' },
+  { id: 'ar_01', type: 'armor', setId: 'set_starlight', name: 'Manto de Seda Astral', rarity: 'comun', hp: 40, def: 8, desc: 'Tejido suave bendecido por la brisa cósmica.' },
+  { id: 'ar_02', type: 'armor', setId: 'set_lunar', name: 'Pechera de Roca Lunar', rarity: 'raro', hp: 90, def: 18, desc: 'Piedra basáltica extraída de la cara oculta de la Luna.' },
+  { id: 'ar_03', type: 'armor', setId: 'set_solar', name: 'Coraza del Coloso Tauro', rarity: 'epico', hp: 170, def: 35, desc: 'Forjada en el corazón de un asteroide de hierro.' },
+  { id: 'ar_04', type: 'armor', setId: 'set_cosmic', name: 'Armadura Sagrada de Casiopea', rarity: 'legendario', hp: 300, def: 55, desc: 'Brilla con la soberanía intocable de la reina estelar.' },
 
   // RELIQUIAS
-  { id: 'rl_01', type: 'relic', name: 'Fragmento de Cuarzo Místico', rarity: 'comun', hp: 25, spd: 4, desc: 'Pulso suave que afina los sentidos astrales.' },
-  { id: 'rl_02', type: 'relic', name: 'Lágrima Congelada de Neptuno', rarity: 'raro', spd: 10, crit: 0.05, desc: 'Permite deslizarse entre las corrientes temporales.' },
-  { id: 'rl_03', type: 'relic', name: 'Anillo de los Anillos de Saturno', rarity: 'epico', def: 20, spd: 12, desc: 'Manipula la gravedad alrededor de su portador.' },
-  { id: 'rl_04', type: 'relic', name: 'Ojo Omnisciente de Ra', rarity: 'legendario', atk: 35, crit: 0.12, hp: 120, desc: 'Otorga la clarividencia de los antiguos dioses solares.' }
+  { id: 'rl_01', type: 'relic', setId: 'set_starlight', name: 'Fragmento de Cuarzo Místico', rarity: 'comun', hp: 25, spd: 4, desc: 'Pulso suave que afina los sentidos astrales.' },
+  { id: 'rl_02', type: 'relic', setId: 'set_lunar', name: 'Lágrima Congelada de Neptuno', rarity: 'raro', spd: 10, crit: 0.05, desc: 'Permite deslizarse entre las corrientes temporales.' },
+  { id: 'rl_03', type: 'relic', setId: 'set_solar', name: 'Anillo de los Anillos de Saturno', rarity: 'epico', def: 20, spd: 12, desc: 'Manipula la gravedad alrededor de su portador.' },
+  { id: 'rl_04', type: 'relic', setId: 'set_cosmic', name: 'Ojo Omnisciente de Ra', rarity: 'legendario', atk: 35, crit: 0.12, hp: 120, desc: 'Otorga la clarividencia de los antiguos dioses solares.' }
 ];
 
 export const TWELVE_HOUSES_STAGES = [

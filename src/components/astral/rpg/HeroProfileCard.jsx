@@ -157,14 +157,26 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
       {/* Slots de Equipamiento Rápido */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
-            <Package size={14} className="text-cyan-400" /> Reliquias y Equipamiento
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
+              <Package size={14} className="text-cyan-400" /> Reliquias y Equipo
+            </span>
+            {totalStats.activeSets?.some(s => s.hasAnyBonus) && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 font-bold flex items-center gap-1 shadow-sm">
+                <Sparkles size={9} /> Set Activo
+              </span>
+            )}
+          </div>
           <button 
             onClick={onOpenInventory}
             className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 font-medium transition-colors"
           >
-            Ver Inventario <ChevronRight size={13} />
+            {totalStats.gearStats?.power > 0 ? (
+              <span className="font-mono text-[10px] text-amber-300 mr-1.5 font-bold">
+                ⚡ +{totalStats.gearStats.power}
+              </span>
+            ) : null}
+            Gestionar <ChevronRight size={13} />
           </button>
         </div>
 
