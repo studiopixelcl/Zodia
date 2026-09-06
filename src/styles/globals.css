@@ -335,44 +335,44 @@
 
 @keyframes battleLungeUp {
   0% { transform: translateY(0) scale(1); }
-  40% { transform: translateY(-48px) scale(1.1); }
-  65% { transform: translateY(-40px) scale(1.06); }
+  35% { transform: translateY(-18px) scale(1.04); }
+  70% { transform: translateY(-10px) scale(1.02); }
   100% { transform: translateY(0) scale(1); }
 }
 
 @keyframes battleLungeDown {
   0% { transform: translateY(0) scale(1); }
-  40% { transform: translateY(48px) scale(1.1); }
-  65% { transform: translateY(40px) scale(1.06); }
+  35% { transform: translateY(18px) scale(1.04); }
+  70% { transform: translateY(10px) scale(1.02); }
   100% { transform: translateY(0) scale(1); }
 }
 
 @keyframes battleHurtUp {
   0% { transform: translateY(0); filter: brightness(1); }
-  25% { transform: translateY(-16px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
-  50% { transform: translateY(4px); }
+  25% { transform: translateY(-8px); filter: brightness(1.8) drop-shadow(0 0 10px rgba(239, 68, 68, 0.8)); }
+  60% { transform: translateY(2px); }
   100% { transform: translateY(0); filter: brightness(1); }
 }
 
 @keyframes battleHurtDown {
   0% { transform: translateY(0); filter: brightness(1); }
-  25% { transform: translateY(16px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
-  50% { transform: translateY(-4px); }
+  25% { transform: translateY(8px); filter: brightness(1.8) drop-shadow(0 0 10px rgba(239, 68, 68, 0.8)); }
+  60% { transform: translateY(-2px); }
   100% { transform: translateY(0); filter: brightness(1); }
 }
 
 .animate-battle-lunge-up {
-  animation: battleLungeUp 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  animation: battleLungeUp 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
 .animate-battle-lunge-down {
-  animation: battleLungeDown 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  animation: battleLungeDown 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
 .animate-battle-hurt-up {
-  animation: battleHurtUp 0.45s ease-in-out forwards;
+  animation: battleHurtUp 0.4s ease-in-out forwards;
 }
 
 .animate-battle-hurt-down {
-  animation: battleHurtDown 0.45s ease-in-out forwards;
+  animation: battleHurtDown 0.4s ease-in-out forwards;
 }

@@ -4,7 +4,7 @@ import {
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
   HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
-  Swords, RefreshCw, Calendar, Gift, Hammer
+  Swords, RefreshCw, Calendar, Gift, Hammer, Coins
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
@@ -415,11 +415,12 @@ export function ChroniclesGame({ profile, onBack }) {
   const pendingQuestsCount = (hero?.dailyQuests || []).filter(q => q.completed && !q.claimed).length;
   const hasDailyMasterChest = (hero?.dailyQuests || []).filter(q => q.completed).length >= 3 && !hero?.dailyMasterChestClaimed;
   const hasDailyAlert = dailyResetInfo.canClaimStreak || pendingQuestsCount > 0 || hasDailyMasterChest;
+  const heroClass = ZODIAC_HERO_CLASSES[hero?.sign] || ZODIAC_HERO_CLASSES['Aries'];
 
   return (
     <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
       
-      {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO AL MENÚ PRINCIPAL */}
+      {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO Y STATUS RESUMIDO */}
       <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80">
         <button
           onClick={onBack}
@@ -430,40 +431,21 @@ export function ChroniclesGame({ profile, onBack }) {
           <span>Volver al Menú Principal</span>
         </button>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsDailyRewardsOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-400/50 font-bold transition-all shadow-sm relative group"
-            title="Recompensas y Desafíos Diarios"
-          >
-            <Gift size={13} className="text-amber-400 group-hover:rotate-12 transition-transform" />
-            <span>Diario</span>
-            {hasDailyAlert && (
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping absolute -top-0.5 -right-0.5" />
-            )}
-          </button>
-          <button
-            onClick={() => setIsForgeOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-orange-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/40 font-bold transition-all shadow-sm"
-            title="Forja Cósmica y Refinamiento"
-          >
-            <Hammer size={13} className="text-orange-400" />
-            <span>Forja</span>
-          </button>
-          <button
-            onClick={() => setIsSkillTreeOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
-          >
-            <Zap size={13} className="text-amber-400" />
-            <span>Skills</span>
-          </button>
-          <button
-            onClick={() => setIsInventoryOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 font-bold transition-all shadow-sm"
-          >
-            <Package size={13} className="text-cyan-400" />
-            <span>Equipo</span>
-          </button>
+        {/* Indicadores rápidos de estado del héroe */}
+        <div className="flex items-center gap-2 sm:gap-3 text-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono shadow-sm">
+            <Coins size={14} className="text-amber-400" />
+            <span className="font-bold">{hero?.dust || 0}</span>
+            <span className="text-[10px] text-amber-400/80 hidden sm:inline">Polvo</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono shadow-sm">
+            <Trophy size={14} className="text-purple-400" />
+            <span className="font-bold">{getPvpRankInfo(hero?.pvpScore || 1000).name}</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono font-bold shadow-sm">
+            <span className="text-[10px] text-cyan-400">NVL</span>
+            <span>{hero?.level || 1}</span>
+          </div>
         </div>
       </div>
 
@@ -479,52 +461,21 @@ export function ChroniclesGame({ profile, onBack }) {
 
       {/* Cabecera Principal del Juego */}
       <div className="glass-panel p-5 relative overflow-hidden bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-cyan-500/30 rounded-3xl">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-xs text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 border border-cyan-500/30 transition-all"
-          >
-            <ArrowLeft size={16} /> Volver a Arcadia
-          </button>
-
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setIsDailyRewardsOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-400/60 font-bold transition-all shadow-md relative"
-            >
-              <Gift size={14} className="text-amber-400" />
-              <span>Desafíos Diarios</span>
-              {hasDailyAlert && (
-                <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] text-white font-bold animate-pulse">
-                  {dailyResetInfo.canClaimStreak ? '¡Listo!' : pendingQuestsCount + (hasDailyMasterChest ? 1 : 0)}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setIsForgeOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-orange-300 hover:text-white px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500/20 to-amber-500/20 hover:from-orange-500/30 hover:to-amber-500/30 border border-orange-500/40 font-bold transition-all shadow-sm"
-            >
-              <Hammer size={14} className="text-orange-400" /> Forja Cósmica
-            </button>
-            <button
-              onClick={() => setIsSkillTreeOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
-            >
-              <Zap size={14} className="text-amber-400" /> Árbol de Skills
-            </button>
-            <button
-              onClick={() => setIsInventoryOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-cyan-300 hover:text-cyan-200 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 font-bold transition-all shadow-sm"
-            >
-              <Package size={14} className="text-cyan-400" /> Equipo
-            </button>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold hidden sm:inline-block">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold">
               RPG POR TURNOS
             </span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
+              Clase: {heroClass?.name || 'Guerrero'}
+            </span>
           </div>
+          <span className="text-[11px] text-gray-400 font-mono">
+            {hero?.name || 'Guardián'} • {hero?.sign || 'Aries'}
+          </span>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-3">
           <h2 className="mystic-font text-2xl text-white font-bold tracking-wide flex items-center gap-2.5">
             <Sword className="text-cyan-400" size={26} /> CHRONICLES OF THE ZODIA
           </h2>
@@ -532,6 +483,123 @@ export function ChroniclesGame({ profile, onBack }) {
             Encarna la fuerza primordial de tu signo solar. Purifica las 12 Casas Astrales, forja reliquias cósmicas y desata ataques combinados de sinastría con tus almas gemelas.
           </p>
         </div>
+      </div>
+
+      {/* HUB DE ACCIONES PRINCIPALES (BOTONES GRANDES E INTUITIVOS) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {/* Botón 1: Equipo e Inventario */}
+        <button
+          onClick={() => setIsInventoryOpen(true)}
+          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-cyan-950/60 to-[#091522]/80 hover:from-cyan-900/70 hover:to-[#0c1e33] border border-cyan-500/40 hover:border-cyan-400 text-left transition-all duration-300 shadow-lg shadow-cyan-950/30 hover:shadow-cyan-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-all shadow-md">
+              <Package size={24} />
+            </div>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+              {Object.values(hero?.equipment || {}).filter(Boolean).length}/4
+            </span>
+          </div>
+          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-cyan-200 transition-colors">
+            Equipo Astral
+          </h3>
+          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
+            Armas, armaduras y reliquias
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
+            <span>Gestionar</span>
+            <ChevronRight size={14} />
+          </div>
+        </button>
+
+        {/* Botón 2: Árbol de Habilidades */}
+        <button
+          onClick={() => setIsSkillTreeOpen(true)}
+          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-[#1f1606]/80 hover:from-amber-900/70 hover:to-[#2b1f09] border border-amber-500/40 hover:border-amber-400 text-left transition-all duration-300 shadow-lg shadow-amber-950/30 hover:shadow-amber-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 group-hover:scale-110 group-hover:bg-amber-500/30 transition-all shadow-md">
+              <Zap size={24} />
+            </div>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              {hero?.skills?.length || 2}/6 Skills
+            </span>
+          </div>
+          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-amber-200 transition-colors">
+            Árbol de Skills
+          </h3>
+          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
+            Poderes cósmicos y talentos
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+            <span>Aprender</span>
+            <ChevronRight size={14} />
+          </div>
+        </button>
+
+        {/* Botón 3: Forja Cósmica */}
+        <button
+          onClick={() => setIsForgeOpen(true)}
+          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-orange-950/60 to-[#1c0e05]/80 hover:from-orange-900/70 hover:to-[#291408] border border-orange-500/40 hover:border-orange-400 text-left transition-all duration-300 shadow-lg shadow-orange-950/30 hover:shadow-orange-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-300 group-hover:scale-110 group-hover:bg-orange-500/30 transition-all shadow-md">
+              <Hammer size={24} />
+            </div>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/40">
+              Refinar
+            </span>
+          </div>
+          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-orange-200 transition-colors">
+            Forja Cósmica
+          </h3>
+          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
+            Mejora equipo hasta +10
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-orange-400 group-hover:translate-x-1 transition-transform">
+            <span>Refinar</span>
+            <ChevronRight size={14} />
+          </div>
+        </button>
+
+        {/* Botón 4: Desafíos y Recompensas Diarias */}
+        <button
+          onClick={() => setIsDailyRewardsOpen(true)}
+          className={`group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer ${
+            hasDailyAlert 
+              ? 'border-amber-400 shadow-amber-500/20' 
+              : 'border-purple-500/40 hover:border-purple-400 shadow-purple-950/30 hover:shadow-purple-500/20'
+          }`}
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 group-hover:scale-110 group-hover:bg-purple-500/30 transition-all shadow-md">
+              <Gift size={24} className={hasDailyAlert ? 'text-amber-300 animate-bounce' : 'text-purple-300'} />
+            </div>
+            {hasDailyAlert ? (
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">
+                ¡RECLAMAR!
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                Racha {hero?.dailyStreak || 1}d
+              </span>
+            )}
+          </div>
+          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-purple-200 transition-colors">
+            Misiones Diarias
+          </h3>
+          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
+            Rachas, cofres y recompensas
+          </p>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+            <span>{hasDailyAlert ? 'Reclamar premios' : 'Ver misiones'}</span>
+            <ChevronRight size={14} />
+          </div>
+        </button>
       </div>
 
       {/* Banner de Tránsito Planetario en Vivo */}

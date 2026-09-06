@@ -895,7 +895,7 @@ export function BattleArena({
   const totalGoldReward = hasDualEnemies ? (enemy.rewardGold || 220) + (enemy2.rewardGold || 200) : (enemy.rewardGold || 150);
 
   return (
-    <div className={`relative min-h-[600px] rounded-3xl overflow-hidden glass-panel border border-cyan-500/30 p-4 sm:p-6 bg-gradient-to-b from-black via-purple-950/30 to-black select-none ${animState.screenShake ? 'animate-bounce' : ''}`}>
+    <div className="relative min-h-[600px] rounded-3xl overflow-hidden glass-panel border border-cyan-500/30 p-4 sm:p-6 bg-gradient-to-b from-black via-purple-950/30 to-black select-none">
       
       {/* Fondo de Estrellas */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black -z-10" />
