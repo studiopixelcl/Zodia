@@ -332,3 +332,47 @@
 .animate-pedestal-pulse {
   animation: pedestalPulseLight 3s ease-in-out infinite;
 }
+
+@keyframes battleLungeUp {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-48px) scale(1.1); }
+  65% { transform: translateY(-40px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes battleLungeDown {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(48px) scale(1.1); }
+  65% { transform: translateY(40px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes battleHurtUp {
+  0% { transform: translateY(0); filter: brightness(1); }
+  25% { transform: translateY(-16px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
+  50% { transform: translateY(4px); }
+  100% { transform: translateY(0); filter: brightness(1); }
+}
+
+@keyframes battleHurtDown {
+  0% { transform: translateY(0); filter: brightness(1); }
+  25% { transform: translateY(16px); filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); filter: brightness(1); }
+}
+
+.animate-battle-lunge-up {
+  animation: battleLungeUp 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-battle-lunge-down {
+  animation: battleLungeDown 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.animate-battle-hurt-up {
+  animation: battleHurtUp 0.45s ease-in-out forwards;
+}
+
+.animate-battle-hurt-down {
+  animation: battleHurtDown 0.45s ease-in-out forwards;
+}

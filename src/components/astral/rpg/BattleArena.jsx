@@ -776,208 +776,176 @@ export function BattleArena({
       </div>
 
       {/* ========================================================================= */}
-      {/* ESTADIO DE COMBATE CINEMATOGRÁFICO (ASTRAL BATTLE ARENA) */}
+      {/* ESTADIO DE COMBATE VERTICAL (ASTRAL BATTLE ARENA) */}
+      {/* Arriba: Enemigo(s) | Centro: Choque / Turno | Abajo: Jugador */}
       {/* ========================================================================= */}
-      <div className="relative min-h-[320px] sm:min-h-[360px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#0a0d24]/80 via-[#050612]/90 to-[#0c0824]/80 p-3 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-md">
+      <div className="relative min-h-[440px] sm:min-h-[480px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#090b20] via-[#04050d] to-[#0b0820] p-3 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-md">
         
         {/* Telón estelar y runas celestiales */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-black pointer-events-none" />
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4/5 h-20 bg-gradient-to-t from-cyan-500/10 via-purple-500/5 to-transparent blur-xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-4/5 h-28 bg-gradient-to-b from-purple-500/10 via-cyan-500/5 to-transparent blur-2xl pointer-events-none" />
 
-        {/* CAMPO DE COMBATE: HÉROE (IZQUIERDA) vs ENEMIGO(S) (DERECHA) */}
-        <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-8 flex-1 py-2">
+        {/* ------------------------------------------------------------- */}
+        {/* 1. SECCIÓN SUPERIOR: EL / LOS ENEMIGOS ASTRALES */}
+        {/* ------------------------------------------------------------- */}
+        <div className="relative z-10 w-full flex flex-col items-center">
           
-          {/* ------------------------------------------------------------- */}
-          {/* LADO IZQUIERDO: EL HÉROE ASTRAL */}
-          {/* ------------------------------------------------------------- */}
-          <div className="flex flex-col items-center justify-center relative w-1/2 max-w-[240px]">
+          {/* Layout de 1 Enemigo o 2 Enemigos (1vs2) */}
+          <div className={`w-full ${hasDualEnemies ? 'grid grid-cols-2 gap-2 sm:gap-4 max-w-md mx-auto' : 'flex flex-col items-center max-w-sm mx-auto'}`}>
             
-            {/* HUD FLOTANTE SUPERIOR DEL HÉROE */}
-            <div className="w-full mb-2 bg-black/60 p-2 rounded-xl border border-cyan-500/30 backdrop-blur-sm shadow-md">
-              <div className="flex items-center justify-between text-[11px] mb-1">
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="font-bold text-white mystic-font truncate">{hero.name}</span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">N.{hero.level}</span>
+            {/* ENEMIGO 1 */}
+            <div 
+              onClick={() => hasDualEnemies && enemy1Hp > 0 && setActiveTarget(0)}
+              className={`flex flex-col items-center w-full transition-all ${
+                hasDualEnemies ? 'cursor-pointer' : ''
+              } ${hasDualEnemies && activeTarget !== 0 ? 'opacity-70 hover:opacity-100' : ''}`}
+            >
+              {/* HUD ENEMIGO 1 */}
+              <div className={`w-full mb-1.5 p-2 rounded-xl border transition-all text-[11px] bg-black/75 backdrop-blur-sm ${
+                activeTarget === 0 && enemy1Hp > 0 
+                  ? 'border-amber-400 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/40' 
+                  : 'border-white/10'
+              }`}>
+                <div className="flex items-center justify-between gap-1 mb-0.5">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-bold text-white mystic-font truncate">{enemy.name || enemy.guardianName}</span>
+                    <span className={`text-[8px] px-1.5 py-0.2 rounded font-bold uppercase ${enemy1ElemMeta.text} ${enemy1ElemMeta.bg}`}>
+                      {enemy1Elem}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-red-300 shrink-0 text-[10px]">{enemy1Hp}/{enemy1MaxHp}</span>
                 </div>
-                <div className="text-right font-mono text-[10px] text-gray-300 shrink-0">
-                  <span className="font-bold text-cyan-300">{playerHp}</span>/{heroStats.maxHp}
+
+                {/* Barra de Vida */}
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 transition-all duration-300"
+                    style={{ width: `${Math.max(0, (enemy1Hp / enemy1MaxHp) * 100)}%` }}
+                  />
                 </div>
-              </div>
 
-              {/* Barra de Vida fluida */}
-              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.2">
-                <div 
-                  className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
-                  style={{ width: `${Math.max(0, (playerHp / heroStats.maxHp) * 100)}%` }}
-                />
-              </div>
-
-              {/* Recursos: Escudo y Éter */}
-              <div className="flex items-center justify-between mt-1 text-[9px]">
-                <div className="flex items-center gap-1 text-cyan-300">
-                  <span className="font-bold">ÉTER:</span>
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map(dot => (
-                      <div 
-                        key={dot} 
-                        className={`w-2 h-2 rounded-full transition-all ${
-                          dot <= playerEther 
-                            ? 'bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.9)]' 
-                            : 'bg-white/10'
-                        }`} 
-                      />
-                    ))}
+                {/* Tenacidad Astral (Ruptura) */}
+                <div className="flex items-center justify-between mt-1 text-[9px]">
+                  <span className="text-gray-400 truncate">{enemy.role || 'Guardián'}</span>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {enemy1Stagger > 0 ? (
+                      [...Array(3)].map((_, i) => (
+                        <span key={i} className={`text-[9px] ${i < enemy1Stagger ? 'text-cyan-400' : 'text-gray-600'}`}>◆</span>
+                      ))
+                    ) : (
+                      <span className="text-[8px] font-bold text-red-400 animate-pulse">¡RUPTURA! (+50%)</span>
+                    )}
                   </div>
                 </div>
-
-                {playerShield > 0 && (
-                  <span className="text-blue-300 font-bold font-mono">🛡️ +{playerShield}</span>
-                )}
               </div>
-            </div>
 
-            {/* PERSONAJE DEL HÉROE CON PEDESTAL Y AURA */}
-            <div className="relative flex flex-col items-center mt-1">
-              
-              {/* Avatar y Estado Animado del Héroe */}
-              <div 
-                className={`w-20 h-20 sm:w-28 sm:h-28 rounded-2xl sm:rounded-3xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} bg-gradient-to-b from-black to-indigo-950 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                  animState.playerAttacking 
-                    ? 'animate-battle-lunge-right z-30' 
-                    : animState.playerCasting 
-                      ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
-                      : animState.playerHit 
-                        ? 'animate-battle-hurt-left bg-red-950/60' 
-                        : 'animate-hero-battle-float'
-                }`}
-              >
-                {isValidImageUrl(hero.avatarUrl) ? (
-                  <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
-                ) : (
-                  <img src={getZodiacIcon(hero.sign)} alt={hero.sign} className="w-14 h-14 sm:w-18 sm:h-18 object-contain filter drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" />
-                )}
+              {/* Avatar y Pedestal Enemigo 1 */}
+              <div className="relative flex flex-col items-center">
+                <div 
+                  className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl border-2 ${enemy1ElemMeta.border} bg-gradient-to-b from-black to-purple-950/80 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
+                    enemy1Hp <= 0 
+                      ? 'opacity-25 grayscale' 
+                      : animState.enemy1Attacking 
+                        ? 'animate-battle-lunge-down z-30' 
+                        : animState.enemy1Hit 
+                          ? 'animate-battle-hurt-up bg-red-950/80' 
+                          : enemy1Stagger === 0 
+                            ? 'animate-pulse ring-4 ring-red-500/70' 
+                            : ''
+                  } ${activeTarget === 0 && enemy1Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
+                >
+                  <img 
+                    src={getZodiacIcon(enemy.guardianSign || enemy.sign || 'Aries')} 
+                    alt="" 
+                    className="w-10 h-10 sm:w-14 sm:h-14 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
+                  />
 
-                {/* Badge de Postura Activa */}
-                <div className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[9px] font-bold shadow-md flex items-center gap-0.5">
-                  {playerStance === 'solar' && <span className="text-amber-400 flex items-center gap-0.5"><Sun size={10} /> Solar</span>}
-                  {playerStance === 'lunar' && <span className="text-purple-400 flex items-center gap-0.5"><Moon size={10} /> Lunar</span>}
-                  {playerStance === 'stellar' && <span className="text-cyan-400 flex items-center gap-0.5"><Compass size={10} /> Estelar</span>}
-                </div>
+                  {/* Retícula de Objetivo Fijado */}
+                  {activeTarget === 0 && enemy1Hp > 0 && (
+                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-amber-400 text-black text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5 shadow-md whitespace-nowrap">
+                      <Crosshair size={9} className="animate-spin" /> Fijado
+                    </div>
+                  )}
 
-                {/* Badge de Fila */}
-                <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[9px] font-bold shadow-md flex items-center gap-0.5">
-                  {playerPosition === 'frontline' ? (
-                    <span className="text-orange-400 flex items-center gap-0.5"><Sword size={10} /> Vanguardia</span>
-                  ) : (
-                    <span className="text-blue-400 flex items-center gap-0.5"><Shield size={10} /> Retaguardia</span>
+                  {/* Slash / Magic Burst sobre Enemigo 1 */}
+                  {activeVfx && (activeVfx.target === 'enemy1' || activeVfx.target === 'enemy') && (
+                    <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+                      {activeVfx.type === 'slash' && (
+                        <div className="animate-slash-sweep w-28 sm:w-36 h-2.5 bg-gradient-to-r from-transparent via-cyan-200 to-amber-100 shadow-[0_0_20px_rgba(56,189,248,1)] rounded-full rotate-[-35deg]" />
+                      )}
+                      {activeVfx.type === 'skill' && (
+                        <div className="animate-magic-burst-ring w-20 h-20 rounded-full border-4 border-purple-400 bg-gradient-to-r from-purple-500/30 via-pink-500/20 to-cyan-500/30 shadow-[0_0_30px_rgba(168,85,247,0.9)] flex items-center justify-center">
+                          <Sparkles size={24} className="text-amber-300 animate-spin" />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
 
-              {/* Pedestal Rúnico de Luz */}
-              <div className="w-28 sm:w-36 h-6 sm:h-8 rounded-[50%] bg-gradient-to-r from-cyan-500/20 via-indigo-500/40 to-cyan-500/20 border border-cyan-400/40 animate-pedestal-pulse -mt-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center">
-                <div className="w-16 h-2 rounded-[50%] bg-cyan-400/30 blur-xs" />
-              </div>
+                {/* Pedestal de Sombra Enemigo 1 */}
+                <div className="w-20 sm:w-28 h-5 sm:h-6 rounded-[50%] bg-gradient-to-r from-purple-900/30 via-red-950/50 to-purple-900/30 border border-purple-500/30 -mt-2.5 shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center">
+                  <div className="w-10 h-1.5 rounded-[50%] bg-purple-500/20 blur-xs" />
+                </div>
 
-              {/* Textos Flotantes sobre el Héroe */}
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
-                {floatingTexts.filter(t => t.target === 'player').map(t => (
-                  <span 
-                    key={t.id} 
-                    className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
-                      t.type === 'heal' 
-                        ? 'text-emerald-300 text-sm sm:text-base scale-110' 
-                        : t.type === 'shield' 
-                          ? 'text-cyan-300' 
-                          : 'text-red-400'
-                    }`}
-                  >
-                    {t.text}
-                  </span>
-                ))}
+                {/* Textos Flotantes Enemigo 1 */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
+                  {floatingTexts.filter(t => t.target === 'enemy1' || t.target === 'enemy').map(t => (
+                    <span 
+                      key={t.id} 
+                      className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
+                        t.type === 'crit' 
+                          ? 'text-amber-300 text-sm sm:text-base scale-110' 
+                          : t.type === 'shield' 
+                            ? 'text-blue-300' 
+                            : 'text-red-400'
+                      }`}
+                    >
+                      {t.text}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* ------------------------------------------------------------- */}
-          {/* ZONA CENTRAL DE CHOQUE Y EFECTOS VISUALES (VFX IMPACT LAYER) */}
-          {/* ------------------------------------------------------------- */}
-          <div className="relative flex flex-col items-center justify-center shrink-0 w-8 sm:w-16 h-24 pointer-events-none">
-            {/* Visual Slash FX */}
-            {activeVfx?.type === 'slash' && (
-              <div className="absolute inset-0 flex items-center justify-center z-40 animate-slash-sweep">
-                <div className="w-28 sm:w-44 h-2.5 bg-gradient-to-r from-transparent via-cyan-200 to-amber-100 shadow-[0_0_25px_rgba(56,189,248,1)] rounded-full rotate-[-35deg]" />
-              </div>
-            )}
-
-            {/* Visual Skill Magic Burst FX */}
-            {activeVfx?.type === 'skill' && (
-              <div className="absolute inset-0 flex items-center justify-center z-40 animate-magic-burst-ring">
-                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full border-4 border-purple-400 bg-gradient-to-r from-purple-500/30 via-pink-500/20 to-cyan-500/30 shadow-[0_0_35px_rgba(168,85,247,0.9)] flex items-center justify-center">
-                  <Sparkles size={28} className="text-amber-300 animate-spin" />
-                </div>
-              </div>
-            )}
-
-            {/* Visual Ultimate Nova FX */}
-            {activeVfx?.type === 'ultimate' && (
-              <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none animate-cosmic-ultimate-nova bg-purple-950/40 backdrop-blur-xs">
-                <div className="w-64 h-64 sm:w-96 sm:h-96 rounded-full border-4 border-amber-300 bg-gradient-to-r from-amber-500/30 via-purple-600/40 to-cyan-500/30 shadow-[0_0_80px_rgba(245,158,11,1)] flex items-center justify-center">
-                  <span className="mystic-font text-2xl sm:text-3xl font-black text-amber-200 drop-shadow-[0_0_20px_rgba(245,158,11,1)] tracking-widest uppercase">
-                    ¡CATACLISMO ASTRAL!
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="text-[10px] font-black text-white/30 tracking-widest uppercase select-none">VS</div>
-          </div>
-
-          {/* ------------------------------------------------------------- */}
-          {/* LADO DERECHO: EL/LOS ENEMIGO(S) ASTRALES */}
-          {/* ------------------------------------------------------------- */}
-          <div className="flex flex-col items-center justify-center relative w-1/2 max-w-[280px]">
-            
-            <div className={`w-full flex gap-2 ${hasDualEnemies ? 'flex-col sm:flex-row' : 'flex-col'}`}>
-              
-              {/* PERSONAJE: ENEMIGO 1 */}
+            {/* ENEMIGO 2 (SOLO EN 1v2 O TORRE DUAL) */}
+            {hasDualEnemies && (
               <div 
-                onClick={() => hasDualEnemies && enemy1Hp > 0 && setActiveTarget(0)}
-                className={`flex-1 flex flex-col items-center cursor-pointer transition-all ${
-                  hasDualEnemies && activeTarget !== 0 ? 'opacity-70 hover:opacity-100' : ''
+                onClick={() => enemy2Hp > 0 && setActiveTarget(1)}
+                className={`flex flex-col items-center w-full cursor-pointer transition-all ${
+                  activeTarget !== 1 ? 'opacity-70 hover:opacity-100' : ''
                 }`}
               >
-                {/* HUD ENEMIGO 1 */}
-                <div className={`w-full mb-1.5 p-1.5 rounded-xl border transition-all text-[10px] bg-black/70 ${
-                  activeTarget === 0 && enemy1Hp > 0 
+                {/* HUD ENEMIGO 2 */}
+                <div className={`w-full mb-1.5 p-2 rounded-xl border transition-all text-[11px] bg-black/75 backdrop-blur-sm ${
+                  activeTarget === 1 && enemy2Hp > 0 
                     ? 'border-amber-400 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/40' 
                     : 'border-white/10'
                 }`}>
                   <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <div className="flex items-center gap-1 truncate">
-                      <span className="font-bold text-white mystic-font truncate">{enemy.name || enemy.guardianName}</span>
-                      <span className={`text-[8px] px-1 py-0.1 rounded font-bold uppercase ${enemy1ElemMeta.text} ${enemy1ElemMeta.bg}`}>
-                        {enemy1Elem}
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-bold text-white mystic-font truncate">{enemy2.name}</span>
+                      <span className={`text-[8px] px-1.5 py-0.2 rounded font-bold uppercase ${enemy2ElemMeta.text} ${enemy2ElemMeta.bg}`}>
+                        {enemy2Elem}
                       </span>
                     </div>
-                    <span className="font-mono font-bold text-red-300 shrink-0">{enemy1Hp}/{enemy1MaxHp}</span>
+                    <span className="font-mono font-bold text-red-300 shrink-0 text-[10px]">{enemy2Hp}/{enemy2MaxHp}</span>
                   </div>
 
                   {/* Barra de Vida */}
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 transition-all duration-300"
-                      style={{ width: `${Math.max(0, (enemy1Hp / enemy1MaxHp) * 100)}%` }}
+                      style={{ width: `${Math.max(0, (enemy2Hp / enemy2MaxHp) * 100)}%` }}
                     />
                   </div>
 
                   {/* Tenacidad Astral (Ruptura) */}
-                  <div className="flex items-center justify-between mt-0.5 text-[8px]">
-                    <span className="text-gray-400">{enemy.role || 'Guardián'}</span>
-                    <div className="flex items-center gap-0.5">
-                      {enemy1Stagger > 0 ? (
+                  <div className="flex items-center justify-between mt-1 text-[9px]">
+                    <span className="text-gray-400 truncate">{enemy2.role || 'Guardián'}</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {enemy2Stagger > 0 ? (
                         [...Array(3)].map((_, i) => (
-                          <span key={i} className={`text-[9px] ${i < enemy1Stagger ? 'text-cyan-400' : 'text-gray-600'}`}>◆</span>
+                          <span key={i} className={`text-[9px] ${i < enemy2Stagger ? 'text-cyan-400' : 'text-gray-600'}`}>◆</span>
                         ))
                       ) : (
                         <span className="text-[8px] font-bold text-red-400 animate-pulse">¡RUPTURA! (+50%)</span>
@@ -986,43 +954,56 @@ export function BattleArena({
                   </div>
                 </div>
 
-                {/* Avatar y Pedestal Enemigo 1 */}
+                {/* Avatar y Pedestal Enemigo 2 */}
                 <div className="relative flex flex-col items-center">
                   <div 
-                    className={`w-18 h-18 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl border-2 ${enemy1ElemMeta.border} bg-gradient-to-b from-black to-purple-950/70 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                      enemy1Hp <= 0 
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl border-2 ${enemy2ElemMeta.border} bg-gradient-to-b from-black to-purple-950/80 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
+                      enemy2Hp <= 0 
                         ? 'opacity-25 grayscale' 
-                        : animState.enemy1Attacking 
-                          ? 'animate-battle-lunge-left z-30' 
-                          : animState.enemy1Hit 
-                            ? 'animate-battle-hurt-right bg-red-950/80' 
-                            : enemy1Stagger === 0 
+                        : animState.enemy2Attacking 
+                          ? 'animate-battle-lunge-down z-30' 
+                          : animState.enemy2Hit 
+                            ? 'animate-battle-hurt-up bg-red-950/80' 
+                            : enemy2Stagger === 0 
                               ? 'animate-pulse ring-4 ring-red-500/70' 
                               : ''
-                    } ${activeTarget === 0 && enemy1Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
+                    } ${activeTarget === 1 && enemy2Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
                   >
                     <img 
-                      src={getZodiacIcon(enemy.guardianSign || enemy.sign || 'Aries')} 
+                      src={getZodiacIcon(enemy2.guardianSign || enemy2.sign || 'Leo')} 
                       alt="" 
-                      className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
+                      className="w-10 h-10 sm:w-14 sm:h-14 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
                     />
 
                     {/* Retícula de Objetivo Fijado */}
-                    {activeTarget === 0 && enemy1Hp > 0 && (
+                    {activeTarget === 1 && enemy2Hp > 0 && (
                       <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-amber-400 text-black text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5 shadow-md whitespace-nowrap">
                         <Crosshair size={9} className="animate-spin" /> Fijado
                       </div>
                     )}
+
+                    {/* Slash / Magic Burst sobre Enemigo 2 */}
+                    {activeVfx && activeVfx.target === 'enemy2' && (
+                      <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+                        {activeVfx.type === 'slash' && (
+                          <div className="animate-slash-sweep w-28 sm:w-36 h-2.5 bg-gradient-to-r from-transparent via-cyan-200 to-amber-100 shadow-[0_0_20px_rgba(56,189,248,1)] rounded-full rotate-[-35deg]" />
+                        )}
+                        {activeVfx.type === 'skill' && (
+                          <div className="animate-magic-burst-ring w-20 h-20 rounded-full border-4 border-purple-400 bg-gradient-to-r from-purple-500/30 via-pink-500/20 to-cyan-500/30 shadow-[0_0_30px_rgba(168,85,247,0.9)] flex items-center justify-center">
+                            <Sparkles size={24} className="text-amber-300 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Pedestal de Sombra Enemigo 1 */}
-                  <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-purple-900/30 via-red-950/50 to-purple-900/30 border border-purple-500/30 -mt-2.5 shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center">
-                    <div className="w-12 h-1.5 rounded-[50%] bg-purple-500/20 blur-xs" />
+                  <div className="w-20 sm:w-28 h-5 sm:h-6 rounded-[50%] bg-gradient-to-r from-purple-900/30 via-red-950/50 to-purple-900/30 border border-purple-500/30 -mt-2.5 shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center">
+                    <div className="w-10 h-1.5 rounded-[50%] bg-purple-500/20 blur-xs" />
                   </div>
 
-                  {/* Textos Flotantes Enemigo 1 */}
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
-                    {floatingTexts.filter(t => t.target === 'enemy1' || t.target === 'enemy').map(t => (
+                  {/* Textos Flotantes Enemigo 2 */}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
+                    {floatingTexts.filter(t => t.target === 'enemy2').map(t => (
                       <span 
                         key={t.id} 
                         className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
@@ -1039,105 +1020,166 @@ export function BattleArena({
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* PERSONAJE: ENEMIGO 2 (SI ES 1v2 O TORRE DUAL) */}
-              {hasDualEnemies && (
-                <div 
-                  onClick={() => enemy2Hp > 0 && setActiveTarget(1)}
-                  className={`flex-1 flex flex-col items-center cursor-pointer transition-all ${
-                    activeTarget !== 1 ? 'opacity-70 hover:opacity-100' : ''
+        {/* ------------------------------------------------------------- */}
+        {/* 2. ZONA CENTRAL: CHOQUE CÓSMICO Y TURNO ACTIVO */}
+        {/* ------------------------------------------------------------- */}
+        <div className="relative z-10 w-full py-1.5 my-1 flex items-center justify-center">
+          
+          {/* Indicador de Turno */}
+          <div className="flex items-center gap-2">
+            <div className="h-px w-12 sm:w-20 bg-gradient-to-r from-transparent to-cyan-500/40" />
+            <div className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md ${
+              turn === 'player'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-cyan-500/20'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-amber-500/20 animate-pulse'
+            }`}>
+              {turn === 'player' ? (
+                <span>✨ Tu Turno</span>
+              ) : (
+                <span>⚔️ Acción Enemiga</span>
+              )}
+            </div>
+            <div className="h-px w-12 sm:w-20 bg-gradient-to-l from-transparent to-cyan-500/40" />
+          </div>
+
+          {/* Visual Ultimate Nova FX (Pantalla completa de arena) */}
+          {activeVfx?.type === 'ultimate' && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none animate-cosmic-ultimate-nova bg-purple-950/40 backdrop-blur-xs">
+              <div className="w-64 h-64 sm:w-96 sm:h-96 rounded-full border-4 border-amber-300 bg-gradient-to-r from-amber-500/30 via-purple-600/40 to-cyan-500/30 shadow-[0_0_80px_rgba(245,158,11,1)] flex items-center justify-center">
+                <span className="mystic-font text-2xl sm:text-3xl font-black text-amber-200 drop-shadow-[0_0_20px_rgba(245,158,11,1)] tracking-widest uppercase text-center px-4">
+                  ¡CATACLISMO ASTRAL!
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* 3. SECCIÓN INFERIOR: EL HÉROE ASTRAL (JUGADOR) */}
+        {/* ------------------------------------------------------------- */}
+        <div className="relative z-10 w-full flex flex-col items-center max-w-sm mx-auto">
+          
+          {/* Avatar y Pedestal del Héroe */}
+          <div className="relative flex flex-col items-center">
+            
+            {/* Avatar del Héroe */}
+            <div 
+              className={`w-18 h-18 sm:w-22 sm:h-22 rounded-2xl sm:rounded-3xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} bg-gradient-to-b from-black to-indigo-950 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
+                animState.playerAttacking 
+                  ? 'animate-battle-lunge-up z-30' 
+                  : animState.playerCasting 
+                    ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
+                    : animState.playerHit 
+                      ? 'animate-battle-hurt-down bg-red-950/60' 
+                      : 'animate-hero-battle-float'
+              }`}
+            >
+              {isValidImageUrl(hero.avatarUrl) ? (
+                <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
+              ) : (
+                <img src={getZodiacIcon(hero.sign)} alt={hero.sign} className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" />
+              )}
+
+              {/* Badge de Postura Activa */}
+              <div className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
+                {playerStance === 'solar' && <span className="text-amber-400 flex items-center gap-0.5"><Sun size={9} /> Solar</span>}
+                {playerStance === 'lunar' && <span className="text-purple-400 flex items-center gap-0.5"><Moon size={9} /> Lunar</span>}
+                {playerStance === 'stellar' && <span className="text-cyan-400 flex items-center gap-0.5"><Compass size={9} /> Estelar</span>}
+              </div>
+
+              {/* Badge de Fila */}
+              <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
+                {playerPosition === 'frontline' ? (
+                  <span className="text-orange-400 flex items-center gap-0.5"><Sword size={9} /> Vanguardia</span>
+                ) : (
+                  <span className="text-blue-400 flex items-center gap-0.5"><Shield size={9} /> Retaguardia</span>
+                )}
+              </div>
+
+              {/* Slash / Magic Burst sobre Jugador cuando el enemigo ataca */}
+              {activeVfx && activeVfx.target === 'player' && (
+                <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+                  {activeVfx.type === 'slash' && (
+                    <div className="animate-slash-sweep w-28 sm:w-36 h-2.5 bg-gradient-to-r from-transparent via-red-200 to-amber-100 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full rotate-[-35deg]" />
+                  )}
+                  {activeVfx.type === 'skill' && (
+                    <div className="animate-magic-burst-ring w-20 h-20 rounded-full border-4 border-amber-400 bg-gradient-to-r from-red-500/30 via-purple-500/20 to-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.9)] flex items-center justify-center">
+                      <Sparkles size={24} className="text-red-300 animate-spin" />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Pedestal Rúnico de Luz */}
+            <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-cyan-500/20 via-indigo-500/40 to-cyan-500/20 border border-cyan-400/40 animate-pedestal-pulse -mt-2.5 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center">
+              <div className="w-14 h-1.5 rounded-[50%] bg-cyan-400/30 blur-xs" />
+            </div>
+
+            {/* Textos Flotantes sobre el Héroe */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
+              {floatingTexts.filter(t => t.target === 'player').map(t => (
+                <span 
+                  key={t.id} 
+                  className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
+                    t.type === 'heal' 
+                      ? 'text-emerald-300 text-sm sm:text-base scale-110' 
+                      : t.type === 'shield' 
+                        ? 'text-cyan-300' 
+                        : 'text-red-400'
                   }`}
                 >
-                  {/* HUD ENEMIGO 2 */}
-                  <div className={`w-full mb-1.5 p-1.5 rounded-xl border transition-all text-[10px] bg-black/70 ${
-                    activeTarget === 1 && enemy2Hp > 0 
-                      ? 'border-amber-400 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/40' 
-                      : 'border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <div className="flex items-center gap-1 truncate">
-                        <span className="font-bold text-white mystic-font truncate">{enemy2.name}</span>
-                        <span className={`text-[8px] px-1 py-0.1 rounded font-bold uppercase ${enemy2ElemMeta.text} ${enemy2ElemMeta.bg}`}>
-                          {enemy2Elem}
-                        </span>
-                      </div>
-                      <span className="font-mono font-bold text-red-300 shrink-0">{enemy2Hp}/{enemy2MaxHp}</span>
-                    </div>
+                  {t.text}
+                </span>
+              ))}
+            </div>
+          </div>
 
-                    {/* Barra de Vida */}
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 transition-all duration-300"
-                        style={{ width: `${Math.max(0, (enemy2Hp / enemy2MaxHp) * 100)}%` }}
-                      />
-                    </div>
+          {/* HUD FLOTANTE DEL HÉROE */}
+          <div className="w-full mt-2 bg-black/75 p-2 rounded-xl border border-cyan-500/30 backdrop-blur-sm shadow-md">
+            <div className="flex items-center justify-between text-[11px] mb-1">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="font-bold text-white mystic-font truncate">{hero.name}</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">N.{hero.level}</span>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${heroElemMeta.text} ${heroElemMeta.bg}`}>{hero.element}</span>
+              </div>
+              <div className="text-right font-mono text-[10px] text-gray-300 shrink-0">
+                <span className="font-bold text-cyan-300">{playerHp}</span>/{heroStats.maxHp}
+              </div>
+            </div>
 
-                    {/* Tenacidad Astral (Ruptura) */}
-                    <div className="flex items-center justify-between mt-0.5 text-[8px]">
-                      <span className="text-gray-400">{enemy2.role || 'Guardián'}</span>
-                      <div className="flex items-center gap-0.5">
-                        {enemy2Stagger > 0 ? (
-                          [...Array(3)].map((_, i) => (
-                            <span key={i} className={`text-[9px] ${i < enemy2Stagger ? 'text-cyan-400' : 'text-gray-600'}`}>◆</span>
-                          ))
-                        ) : (
-                          <span className="text-[8px] font-bold text-red-400 animate-pulse">¡RUPTURA! (+50%)</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+            {/* Barra de Vida fluida */}
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.2">
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
+                style={{ width: `${Math.max(0, (playerHp / heroStats.maxHp) * 100)}%` }}
+              />
+            </div>
 
-                  {/* Avatar y Pedestal Enemigo 2 */}
-                  <div className="relative flex flex-col items-center">
+            {/* Recursos: Escudo y Éter */}
+            <div className="flex items-center justify-between mt-1 text-[9px]">
+              <div className="flex items-center gap-1 text-cyan-300">
+                <span className="font-bold">ÉTER:</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(dot => (
                     <div 
-                      className={`w-18 h-18 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl border-2 ${enemy2ElemMeta.border} bg-gradient-to-b from-black to-purple-950/70 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                        enemy2Hp <= 0 
-                          ? 'opacity-25 grayscale' 
-                          : animState.enemy2Attacking 
-                            ? 'animate-battle-lunge-left z-30' 
-                            : animState.enemy2Hit 
-                              ? 'animate-battle-hurt-right bg-red-950/80' 
-                              : enemy2Stagger === 0 
-                                ? 'animate-pulse ring-4 ring-red-500/70' 
-                                : ''
-                      } ${activeTarget === 1 && enemy2Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
-                    >
-                      <img 
-                        src={getZodiacIcon(enemy2.guardianSign || enemy2.sign || 'Leo')} 
-                        alt="" 
-                        className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
-                      />
-
-                      {activeTarget === 1 && enemy2Hp > 0 && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-amber-400 text-black text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5 shadow-md whitespace-nowrap">
-                          <Crosshair size={9} className="animate-spin" /> Fijado
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-purple-900/30 via-red-950/50 to-purple-900/30 border border-purple-500/30 -mt-2.5 shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center">
-                      <div className="w-12 h-1.5 rounded-[50%] bg-purple-500/20 blur-xs" />
-                    </div>
-
-                    {/* Textos Flotantes Enemigo 2 */}
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
-                      {floatingTexts.filter(t => t.target === 'enemy2').map(t => (
-                        <span 
-                          key={t.id} 
-                          className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
-                            t.type === 'crit' 
-                              ? 'text-amber-300 text-sm sm:text-base scale-110' 
-                              : t.type === 'shield' 
-                                ? 'text-blue-300' 
-                                : 'text-red-400'
-                          }`}
-                        >
-                          {t.text}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                      key={dot} 
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        dot <= playerEther 
+                          ? 'bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.9)]' 
+                          : 'bg-white/10'
+                      }`} 
+                    />
+                  ))}
                 </div>
+              </div>
+
+              {playerShield > 0 && (
+                <span className="text-blue-300 font-bold font-mono">🛡️ +{playerShield} Escudo</span>
               )}
             </div>
           </div>
@@ -1298,11 +1340,27 @@ export function BattleArena({
           </div>
         )}
 
-        {/* 4. Ultimate Astral / Cataclismo AoE */}
+        {/* 4. Poción Astral */}
+        <button
+          onClick={handleUsePotion}
+          disabled={turn !== 'player' || potionsLeft <= 0 || !!battleOutcome}
+          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <Heart size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">x{potionsLeft}</span>
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white truncate">Poción Astral</div>
+            <div className="text-[9px] text-gray-400 truncate">Restaura 45% HP</div>
+          </div>
+        </button>
+
+        {/* 5. Ultimate Astral / Cataclismo AoE */}
         <button
           onClick={handlePlayerUltimate}
           disabled={turn !== 'player' || playerUltimate < 100 || !!battleOutcome}
-          className={`p-2.5 rounded-2xl text-left transition-all group flex flex-col justify-between ${
+          className={`col-span-2 sm:col-span-1 p-2.5 rounded-2xl text-left transition-all group flex flex-col justify-between ${
             playerUltimate >= 100 
               ? 'bg-gradient-to-r from-amber-500 via-purple-600 to-amber-500 bg-[length:200%_auto] animate-pulse border-2 border-amber-300 text-black shadow-lg shadow-amber-500/40' 
               : 'bg-white/5 border border-white/10 opacity-40 cursor-not-allowed'
@@ -1321,22 +1379,6 @@ export function BattleArena({
             <div className={`text-[9px] truncate ${playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'}`}>
               {hasDualEnemies ? '¡Golpea a Ambos!' : 'Alineación'}
             </div>
-          </div>
-        </button>
-
-        {/* 5. Poción Astral */}
-        <button
-          onClick={handleUsePotion}
-          disabled={turn !== 'player' || potionsLeft <= 0 || !!battleOutcome}
-          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between shadow-sm"
-        >
-          <div className="flex items-center justify-between mb-1">
-            <Heart size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">x{potionsLeft}</span>
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white truncate">Poción Astral</div>
-            <div className="text-[9px] text-gray-400 truncate">Restaura 45% HP</div>
           </div>
         </button>
       </div>
