@@ -5,7 +5,7 @@ import {
   Droplet, Wind, Mountain, AlertCircle, ArrowLeft,
   Trophy, RotateCcw, Skull, CheckCircle2, Star, Crown,
   Sun, Moon, Compass, Target, Crosshair, ChevronDown, ChevronUp,
-  Swords, Users
+  Swords, Users, Volume2, VolumeX
 } from 'lucide-react';
 import { 
   ELEMENTAL_AFFINITIES, 
@@ -26,13 +26,18 @@ import {
   getDailyTransitBuff
 } from './rpg-engine';
 import { 
-  playBattleAttackSound, 
-  playBattleHitSound, 
-  playBattleCritSound, 
-  playBattleShieldSound, 
+  playBattleSlashSound, 
+  playBattleHeavyHitSound, 
+  playBattleCritStrikeSound, 
+  playBattleShieldClangSound, 
   playBattleHealSound, 
   playBattleVictorySound, 
-  playBattleDefeatSound 
+  playBattleDefeatSound,
+  playElementalSkillSound,
+  playSinastryAssistSound,
+  playTurnReadySound,
+  isSoundEnabled,
+  setSoundEnabled
 } from '../../../lib/sound-effects';
 
 export function BattleArena({ 
@@ -165,6 +170,13 @@ export function BattleArena({
   ].filter(Boolean));
 
   const [battleOutcome, setBattleOutcome] = useState(null); // 'victory' | 'defeat' | null
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+
+  useEffect(() => {
+    const handler = () => setSoundOn(isSoundEnabled());
+    window.addEventListener('zodia-sound-toggle', handler);
+    return () => window.removeEventListener('zodia-sound-toggle', handler);
+  }, []);
 
   // Función para agregar textos flotantes
   const spawnFloatingText = (text, target = 'enemy1', type = 'damage') => {
@@ -322,7 +334,7 @@ export function BattleArena({
     setTurn('busy');
     setPlayerEther(e => e - etherCost);
 
-    playBattleAttackSound();
+    playElementalSkillSound(skill.element || hero.element);
     setAnimState(p => ({ ...p, playerCasting: true }));
 
     setTimeout(() => {
@@ -452,7 +464,7 @@ export function BattleArena({
     const skill = partnerAssistSkill;
     const target = getTargetData();
 
-    playBattleAttackSound();
+    playSinastryAssistSound();
     setAnimState(p => ({ ...p, partnerAttacking: true }));
 
     setTimeout(() => {
@@ -540,7 +552,10 @@ export function BattleArena({
     setTurn('busy');
     setPlayerUltimate(0);
 
-    playBattleCritSound();
+    if (isCoop) playSinastryAssistSound();
+    else playElementalSkillSound(hero.element);
+    playBattleCritStrikeSound();
+
     setAnimState(p => ({ 
       ...p, 
       playerCasting: true, 
@@ -723,7 +738,11 @@ export function BattleArena({
         ? { type: 'ultimate', name: `Cataclismo de ${enemyData.enemyObj.sign || 'Gladiador'}` }
         : chooseEnemyAction(enemyData.enemyObj, enemyData.hpRef.current, enemyData.maxHp, 2);
 
-      playBattleAttackSound();
+      if (isRivalUlt || action.type === 'skill') {
+        playElementalSkillSound(enemyData.elem);
+      } else {
+        playBattleSlashSound();
+      }
       setAnimState(p => ({ ...p, [enemyData.idx === 0 ? 'enemy1Attacking' : 'enemy2Attacking']: true }));
 
       setTimeout(() => {
@@ -761,6 +780,7 @@ export function BattleArena({
             playerShieldRef.current -= damage;
             setPlayerShield(playerShieldRef.current);
             finalDmg = 0;
+            playBattleShieldClangSound();
             spawnFloatingText(`¡Bloqueaste (${damage})!`, 'player', 'shield');
           } else {
             finalDmg = damage - playerShieldRef.current;
@@ -873,6 +893,7 @@ export function BattleArena({
     }
 
     setTurn('player');
+    playTurnReadySound();
   };
 
   // ==========================================
@@ -940,6 +961,19 @@ export function BattleArena({
           <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold uppercase tracking-wider">
             {isPvp ? '⚔️ Coliseo Astral PvP' : isCoop ? '🤝 Incursión Sinastría' : mode === 'eclipse' ? '⚡ Desafío 1 vs 2' : mode === 'tower' ? '🗼 Torre del Caos' : mode === 'houses' ? 'Sendero 12 Casas' : 'Duelo Astral'}
           </span>
+
+          {/* Botón de Audio ON/OFF */}
+          <button
+            onClick={() => setSoundEnabled(!soundOn)}
+            className={`p-1.5 rounded-xl border transition-all ${
+              soundOn 
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30' 
+                : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300'
+            }`}
+            title={soundOn ? 'Silenciar efectos de sonido' : 'Activar efectos de sonido'}
+          >
+            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
         </div>
       </div>
 

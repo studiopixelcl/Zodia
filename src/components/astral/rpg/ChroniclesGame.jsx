@@ -4,7 +4,7 @@ import {
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
   HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
-  Swords, RefreshCw, Calendar, Gift, Hammer, Coins
+  Swords, RefreshCw, Calendar, Gift, Hammer, Coins, Volume2, VolumeX
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
@@ -35,7 +35,7 @@ import {
   recordDailyQuestProgress
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
-import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
+import { playBattleVictorySound, playIncomingChimeSound, isSoundEnabled, setSoundEnabled } from '../../../lib/sound-effects';
 import { apiFetch } from '../../../lib/api';
 
 export function ChroniclesGame({ profile, onBack }) {
@@ -52,6 +52,13 @@ export function ChroniclesGame({ profile, onBack }) {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [selectedRaidId, setSelectedRaidId] = useState(COOP_RAID_BOSSES[0].id);
   const [pvpRivals, setPvpRivals] = useState([]);
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+
+  useEffect(() => {
+    const handler = () => setSoundOn(isSoundEnabled());
+    window.addEventListener('zodia-sound-toggle', handler);
+    return () => window.removeEventListener('zodia-sound-toggle', handler);
+  }, []);
 
   const transitBuff = getDailyTransitBuff();
 
@@ -446,6 +453,19 @@ export function ChroniclesGame({ profile, onBack }) {
             <span className="text-[10px] text-cyan-400">NVL</span>
             <span>{hero?.level || 1}</span>
           </div>
+
+          {/* Botón de Sonido ON/OFF */}
+          <button
+            onClick={() => setSoundEnabled(!soundOn)}
+            className={`p-1.5 rounded-xl border transition-all ${
+              soundOn 
+                ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30' 
+                : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300'
+            }`}
+            title={soundOn ? 'Silenciar efectos de sonido' : 'Activar efectos de sonido'}
+          >
+            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
         </div>
       </div>
 

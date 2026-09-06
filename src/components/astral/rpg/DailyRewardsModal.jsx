@@ -17,7 +17,7 @@ import {
   claimDailyMasterChest,
   EQUIPMENT_CATALOG
 } from './rpg-data';
-import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
+import { playDailyClaimSound, playLootChestSound, playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
 
 export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transitBuff }) {
   const [mounted, setMounted] = useState(false);
@@ -94,7 +94,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
   const handleClaimStreak = () => {
     const res = claimDailyStreakReward(hero);
     if (res.rewardDef) {
-      playBattleVictorySound();
+      playDailyClaimSound();
       onHeroUpdate(res.updatedHero);
       let alertText = `¡Reclamaste el ${res.rewardDef.badge}! +${res.rewardDef.polvoEstelar} Polvo, +${res.rewardDef.exp} EXP`;
       if (res.rewardDef.potions) alertText += `, +${res.rewardDef.potions} Pociones`;
@@ -108,7 +108,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
   const handleClaimQuest = (questId) => {
     const res = claimDailyQuestReward(hero, questId);
     if (res.reward) {
-      playIncomingChimeSound();
+      playDailyClaimSound();
       onHeroUpdate(res.updatedHero);
       let alertText = `¡Misión Reclamada! +${res.reward.polvoEstelar} Polvo, +${res.reward.exp} EXP`;
       if (res.reward.pvpPoints) alertText += `, +${res.reward.pvpPoints} Pts de Gloria`;
@@ -122,7 +122,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
   const handleClaimMasterChest = () => {
     const res = claimDailyMasterChest(hero);
     if (res.reward) {
-      playBattleVictorySound();
+      playLootChestSound();
       onHeroUpdate(res.updatedHero);
       let alertText = `¡COFRE MAESTRO ABIERTO! +${res.reward.polvoEstelar} Polvo, +${res.reward.exp} EXP, +${res.reward.potions} Pociones`;
       if (res.gainedItem) alertText += ` y [${res.gainedItem.name}]`;

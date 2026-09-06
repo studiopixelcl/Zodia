@@ -18,7 +18,15 @@ import {
   transmuteEquipmentItems 
 } from './rpg-data';
 import { getItemEffectiveStats } from './rpg-engine';
-import { playBattleShieldSound, playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
+import { 
+  playForgeAnvilStrikeSound, 
+  playForgeSuccessSound, 
+  playForgeFailSound, 
+  playGemSocketSound,
+  playBattleShieldSound, 
+  playBattleVictorySound, 
+  playIncomingChimeSound 
+} from '../../../lib/sound-effects';
 
 export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
   const [mounted, setMounted] = useState(false);
@@ -92,16 +100,17 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
 
     setIsForging(true);
     setFeedback(null);
+    playForgeAnvilStrikeSound();
 
     setTimeout(() => {
       const res = refineEquipmentItem(hero, currentSelectedItem.id);
       setIsForging(false);
       if (res.success) {
-        playBattleVictorySound();
+        playForgeSuccessSound();
         onUpdateHero(res.hero);
         setFeedback({ type: 'success', text: res.message });
       } else {
-        playBattleShieldSound();
+        playForgeFailSound();
         onUpdateHero(res.hero);
         setFeedback({ type: 'warning', text: res.message });
       }
@@ -121,7 +130,7 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
 
     const res = enchantEquipmentItem(hero, currentSelectedItem.id, selectedGemId);
     if (res.success) {
-      playIncomingChimeSound();
+      playGemSocketSound();
       onUpdateHero(res.hero);
       setFeedback({ type: 'success', text: res.message });
     } else {
