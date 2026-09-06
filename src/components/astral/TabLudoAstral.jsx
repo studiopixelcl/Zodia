@@ -914,6 +914,9 @@ export const TabLudoAstral = ({ profile, onBack }) => {
           <div className="space-y-2 shrink-0">
             <div className="glass-panel px-3 py-1.5 flex items-center justify-between shadow-md border border-cyan-500/30 bg-black/80">
               <div className="flex items-center gap-2">
+                <button onClick={onBack} className="p-1.5 text-gray-300 hover:text-cyan-300 transition rounded-xl hover:bg-white/10 flex items-center gap-1 text-xs font-bold border border-white/10" title="Salir a Arcadia">
+                  <ArrowLeft size={16} /> Salir
+                </button>
                 <button onClick={resetGame} className="p-1.5 text-gray-400 hover:text-cyan-400 transition rounded-full hover:bg-white/10" title="Configurar Sala">
                   <Settings size={18} />
                 </button>

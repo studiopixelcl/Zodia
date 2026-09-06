@@ -40,7 +40,8 @@ export function BattleArena({
   partner = null, 
   mutator = null, 
   onBattleEnd, 
-  onBack 
+  onBack,
+  onExitToMenu = null 
 }) {
   const heroStats = calculateHeroTotalStats(hero);
   const heroClass = ZODIAC_HERO_CLASSES[hero.sign] || ZODIAC_HERO_CLASSES['Aries'];
@@ -719,12 +720,25 @@ export function BattleArena({
 
       {/* BARRA SUPERIOR DE CONTROL Y TÁCTICA */}
       <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4 flex-wrap gap-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 transition-colors"
-        >
-          <ArrowLeft size={14} /> Retirada
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/15 transition-all shadow-sm group"
+            title="Volver al mapa del RPG"
+          >
+            <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Retirada al Mapa
+          </button>
+
+          {onExitToMenu && (
+            <button
+              onClick={onExitToMenu}
+              className="flex items-center gap-1.5 text-xs text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-500/40 transition-all shadow-sm"
+              title="Salir completamente al Menú Principal (Arcadia Astral)"
+            >
+              Menú Principal
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Mutador de Torre activo */}
@@ -1259,12 +1273,22 @@ export function BattleArena({
                   La fuerza enemiga superó tus líneas. Prueba cambiando a Postura Lunar defensiva o retirándote a la Retaguardia.
                 </p>
 
-                <button
-                  onClick={() => onBattleEnd({ victory: false })}
-                  className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-all"
-                >
-                  VOLVER A INTENTAR
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onBattleEnd({ victory: false })}
+                    className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-all"
+                  >
+                    Reintentar
+                  </button>
+                  {onExitToMenu && (
+                    <button
+                      onClick={onExitToMenu}
+                      className="px-4 py-3 rounded-xl bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 text-xs font-bold uppercase tracking-wider border border-cyan-500/40 transition-all"
+                    >
+                      Menú
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>

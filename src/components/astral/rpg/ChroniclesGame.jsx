@@ -322,14 +322,44 @@ export function ChroniclesGame({ profile, onBack }) {
           mutator={activeBattle.mutator || null}
           onBattleEnd={handleBattleEnd}
           onBack={() => setActiveBattle(null)}
+          onExitToMenu={onBack}
         />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn">
+    <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
       
+      {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO AL MENÚ PRINCIPAL */}
+      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs font-bold text-cyan-300 hover:text-white px-3.5 py-1.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/50 shadow-md shadow-cyan-950/40 transition-all group"
+          title="Regresar a Arcadia Astral / Menú Principal"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-cyan-400" />
+          <span>Volver al Menú Principal</span>
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsSkillTreeOpen(true)}
+            className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
+          >
+            <Zap size={13} className="text-amber-400" />
+            <span>Skills</span>
+          </button>
+          <button
+            onClick={() => setIsInventoryOpen(true)}
+            className="flex items-center gap-1 text-[11px] text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 font-bold transition-all shadow-sm"
+          >
+            <Package size={13} className="text-cyan-400" />
+            <span>Equipo</span>
+          </button>
+        </div>
+      </div>
+
       {/* Banner de Notificación de Subida de Nivel */}
       {levelUpInfo && (
         <div className="glass-panel p-4 rounded-2xl bg-gradient-to-r from-amber-500/30 via-purple-600/30 to-black border-2 border-amber-400 text-center animate-bounce shadow-2xl">
@@ -940,6 +970,16 @@ export function ChroniclesGame({ profile, onBack }) {
           </div>
         </div>
       )}
+
+      {/* Botón inferior para salir al Menú Principal */}
+      <div className="pt-6 pb-2 text-center border-t border-white/10">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-xs font-bold text-cyan-300 hover:text-white px-6 py-3 rounded-2xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 shadow-lg shadow-cyan-950/30 transition-all"
+        >
+          <ArrowLeft size={16} /> Volver al Menú Principal (Arcadia)
+        </button>
+      </div>
 
       {/* Modal de Inventario y Reliquias */}
       <LootInventoryModal
