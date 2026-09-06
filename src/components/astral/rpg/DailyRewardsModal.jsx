@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Calendar, Gift, Sparkles, Flame, Zap, Heart, Compass, Crown, 
   CheckCircle2, Lock, Clock, Swords, Landmark, Users, Target, 
@@ -19,9 +20,37 @@ import {
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
 
 export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transitBuff }) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('streak'); // 'streak' | 'quests'
   const [claimAlert, setClaimAlert] = useState(null);
   const [timeLeft, setTimeToMidnight] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Bloquear scroll de la página mientras el modal esté abierto
+  useEffect(() => {
+    if (isOpen) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Cerrar con tecla Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Sincronizar misiones si es un nuevo día
   useEffect(() => {
@@ -53,7 +82,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
     return () => clearInterval(interval);
   }, []);
 
-  if (!isOpen || !hero) return null;
+  if (!isOpen || !hero || !mounted) return null;
 
   const resetInfo = getDailyResetInfo(hero);
   const quests = hero.dailyQuests || [];
@@ -125,9 +154,20 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="relative w-full max-w-2xl bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border border-amber-500/40 rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.2)] overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh] text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Cabecera del Modal */}
         <div className="relative px-5 py-4 border-b border-indigo-500/20 bg-slate-900/80 flex items-center justify-between">
@@ -518,6 +558,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

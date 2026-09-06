@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Flame, Sparkles, Shield, Sword, Package, ArrowRight, 
   CheckCircle2, AlertTriangle, Hammer, Moon, Sun, Wind, 
@@ -20,6 +21,7 @@ import { getItemEffectiveStats } from './rpg-engine';
 import { playBattleShieldSound, playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
 
 export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('refine'); // 'refine' | 'enchant' | 'alchemy'
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [selectedGemId, setSelectedGemId] = useState(ASTRAL_GEMS[0].id);
@@ -27,6 +29,10 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
   const [selectedForTransmute, setSelectedForTransmute] = useState([]);
   const [isForging, setIsForging] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Bloquear scroll
   useEffect(() => {
@@ -36,6 +42,18 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
       return () => { document.body.style.overflow = prev; };
     }
   }, [isOpen]);
+
+  // Cerrar con Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Selección inicial
   useEffect(() => {
@@ -47,7 +65,7 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
     }
   }, [isOpen, hero]);
 
-  if (!isOpen || !hero) return null;
+  if (!isOpen || !hero || !mounted) return null;
 
   // Lista de todos los ítems disponibles (equipados + inventario)
   const allItems = [];
@@ -173,9 +191,20 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
     upgradeLevel: currentLevel + 1
   }) : null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-3xl bg-gradient-to-b from-slate-900 via-orange-950/30 to-slate-950 border border-orange-500/40 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="relative w-full max-w-3xl bg-gradient-to-b from-slate-900 via-orange-950/30 to-slate-950 border border-orange-500/40 rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(249,115,22,0.2)] overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh] text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Cabecera */}
         <div className="px-5 py-4 border-b border-orange-500/30 bg-slate-900/80 flex items-center justify-between">
@@ -681,6 +710,7 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
