@@ -2,17 +2,18 @@
 import React from 'react';
 import { 
   Heart, Sword, Shield, Zap, Crosshair, Sparkles, 
-  Award, Coins, Package, ChevronRight 
+  Award, Coins, Package, ChevronRight, Compass
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon, isValidImageUrl } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon, isValidImageUrl, getEquippedSkills } from './rpg-data';
 import { calculateHeroTotalStats } from './rpg-engine';
 
-export function HeroProfileCard({ hero, onOpenInventory }) {
+export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
   if (!hero) return null;
 
   const heroClass = ZODIAC_HERO_CLASSES[hero.sign] || ZODIAC_HERO_CLASSES['Aries'];
   const elemRules = ELEMENTAL_AFFINITIES[hero.element] || ELEMENTAL_AFFINITIES['Fuego'];
   const totalStats = calculateHeroTotalStats(hero);
+  const equippedSkills = getEquippedSkills(hero);
 
   const expPercentage = Math.min(100, Math.round((hero.exp / hero.expNext) * 100));
 
@@ -221,6 +222,75 @@ export function HeroProfileCard({ hero, onOpenInventory }) {
             <span className={`text-[10px] font-bold truncate max-w-full ${hero.equipped?.relic ? RARITIES[hero.equipped.relic.rarity]?.color : 'text-gray-500'}`}>
               {hero.equipped?.relic?.name || 'Ninguna'}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Sección Árbol de Habilidades Astrales */}
+      <div className="mt-4 pt-3 border-t border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={14} className="text-amber-400" />
+            <span className="text-xs font-semibold text-gray-300">Habilidades del Signo</span>
+          </div>
+          {onOpenSkillTree && (
+            <button 
+              onClick={onOpenSkillTree}
+              className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold transition-all bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 shadow-sm"
+            >
+              Árbol Astral <ChevronRight size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Habilidades Equipadas en Ranuras */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Ranura 1 */}
+          <div 
+            onClick={onOpenSkillTree}
+            className="p-2 rounded-xl bg-purple-950/20 border border-purple-500/30 hover:border-purple-400/60 cursor-pointer transition-all text-left group"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-mono uppercase text-purple-400 font-bold">Ranura 1</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">
+                {equippedSkills[0]?.etherCost || 2} Éter
+              </span>
+            </div>
+            <div className="text-xs font-bold text-purple-100 group-hover:text-purple-300 transition-colors truncate">
+              {equippedSkills[0]?.name || heroClass.skill.name}
+            </div>
+            <div className="text-[9px] text-purple-400/80 truncate">
+              {equippedSkills[0]?.mechanic ? `⚡ ${equippedSkills[0].mechanic}` : 'Activa'}
+            </div>
+          </div>
+
+          {/* Ranura 2 */}
+          <div 
+            onClick={onOpenSkillTree}
+            className={`p-2 rounded-xl border transition-all text-left group cursor-pointer ${
+              equippedSkills[1] 
+                ? 'bg-cyan-950/20 border-cyan-500/30 hover:border-cyan-400/60' 
+                : 'bg-white/[0.02] border-dashed border-white/10 hover:border-white/30'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-[9px] font-mono uppercase font-bold ${equippedSkills[1] ? 'text-cyan-400' : 'text-gray-500'}`}>
+                Ranura 2
+              </span>
+              {equippedSkills[1] ? (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                  {equippedSkills[1].etherCost} Éter
+                </span>
+              ) : (
+                <span className="text-[9px] text-gray-500 font-mono">Niv. 4+</span>
+              )}
+            </div>
+            <div className={`text-xs font-bold truncate ${equippedSkills[1] ? 'text-cyan-100 group-hover:text-cyan-300' : 'text-gray-500'}`}>
+              {equippedSkills[1]?.name || 'Sin Asignar'}
+            </div>
+            <div className="text-[9px] text-gray-400 truncate">
+              {equippedSkills[1]?.mechanic ? `⚡ ${equippedSkills[1].mechanic}` : 'Toca para elegir'}
+            </div>
           </div>
         </div>
       </div>

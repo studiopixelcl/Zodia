@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
+import { SkillTreeModal } from './SkillTreeModal';
 import { BattleArena } from './BattleArena';
 import { 
   getOrCreateHeroProfile, 
@@ -26,6 +27,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const [hero, setHero] = useState(() => getOrCreateHeroProfile(profile));
   const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'shadows' | 'coop'
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [realMatches, setRealMatches] = useState([]);
@@ -309,8 +311,20 @@ export function ChroniclesGame({ profile, onBack }) {
             <ArrowLeft size={16} /> Volver a Arcadia
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsSkillTreeOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
+            >
+              <Zap size={14} className="text-amber-400" /> Árbol de Skills
+            </button>
+            <button
+              onClick={() => setIsInventoryOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-cyan-300 hover:text-cyan-200 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 font-bold transition-all shadow-sm"
+            >
+              <Package size={14} className="text-cyan-400" /> Equipo
+            </button>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold hidden sm:inline-block">
               RPG POR TURNOS
             </span>
           </div>
@@ -358,6 +372,7 @@ export function ChroniclesGame({ profile, onBack }) {
       <HeroProfileCard 
         hero={hero} 
         onOpenInventory={() => setIsInventoryOpen(true)} 
+        onOpenSkillTree={() => setIsSkillTreeOpen(true)}
       />
 
       {/* Selector de Pestañas / Modos */}
@@ -683,6 +698,14 @@ export function ChroniclesGame({ profile, onBack }) {
       <LootInventoryModal
         isOpen={isInventoryOpen}
         onClose={() => setIsInventoryOpen(false)}
+        hero={hero}
+        onUpdateHero={(updated) => setHero(updated)}
+      />
+
+      {/* Modal del Árbol de Habilidades Astrales */}
+      <SkillTreeModal
+        isOpen={isSkillTreeOpen}
+        onClose={() => setIsSkillTreeOpen(false)}
         hero={hero}
         onUpdateHero={(updated) => setHero(updated)}
       />

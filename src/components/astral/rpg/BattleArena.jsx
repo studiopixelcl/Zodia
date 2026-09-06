@@ -1,11 +1,11 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Heart, Sword, Shield, Zap, Sparkles, Flame, 
   Droplet, Wind, Mountain, AlertCircle, ArrowLeft,
-  Trophy, RotateCcw, Skull, CheckCircle2, Star
+  Trophy, RotateCcw, Skull, CheckCircle2, Star, Crown
 } from 'lucide-react';
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, getZodiacIcon, isValidImageUrl } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, getZodiacIcon, isValidImageUrl, getEquippedSkills } from './rpg-data';
 import { 
   calculateHeroTotalStats, 
   calculateDamage, 
@@ -29,6 +29,11 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
   const heroStats = calculateHeroTotalStats(hero);
   const heroClass = ZODIAC_HERO_CLASSES[hero.sign] || ZODIAC_HERO_CLASSES['Aries'];
   const heroElemMeta = ELEMENTAL_AFFINITIES[hero.element] || ELEMENTAL_AFFINITIES['Fuego'];
+
+  // Habilidades equipadas del Árbol de Habilidades
+  const equippedSkills = useMemo(() => getEquippedSkills(hero), [hero]);
+  const skillSlot1 = equippedSkills[0] || heroClass.skill;
+  const skillSlot2 = equippedSkills[1] || null;
 
   const enemyClass = ZODIAC_HERO_CLASSES[enemy.sign || enemy.guardianSign] || heroClass;
   const enemyElem = enemy.element || enemyClass.element || 'Fuego';
@@ -158,22 +163,22 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
     }, 450);
   };
 
-  // Turno del Jugador: 2. Habilidad de Signo
-  const handlePlayerSkill = () => {
-    if (turn !== 'player' || battleOutcome) return;
-    if (playerEther < heroClass.skill.etherCost) {
-      logMessage(`⚠️ Necesitas ${heroClass.skill.etherCost} de Éter para usar ${heroClass.skill.name}.`);
+  // Turno del Jugador: 2. Habilidad de Signo (Ranura 1 o Ranura 2)
+  const handlePlayerCastSkill = (skill) => {
+    if (!skill || turn !== 'player' || battleOutcome) return;
+    const etherCost = skill.etherCost ?? 2;
+    if (playerEther < etherCost) {
+      logMessage(`⚠️ Necesitas ${etherCost} de Éter para usar [${skill.name}].`);
       return;
     }
 
     setTurn('busy');
-    setPlayerEther(e => e - heroClass.skill.etherCost);
+    setPlayerEther(e => e - etherCost);
 
     playBattleAttackSound();
     setAnimState(p => ({ ...p, playerAttacking: true }));
 
     setTimeout(() => {
-      const skill = heroClass.skill;
       const { damage, isCrit, hasTransitBoost } = calculateDamage(
         { atk: heroStats.atk, element: hero.element, critRate: (heroStats.critRate || 0.15) + (skill.critBonus || 0) },
         { def: enemy.def || 25, element: enemyElem },
@@ -189,16 +194,20 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       setTimeout(() => setAnimState(p => ({ ...p, enemyHit: false, screenShake: false })), 400);
 
       // Efectos específicos de habilidades
-      if (skill.effect?.type === 'shield' || skill.effect?.type === 'shield_heal') {
-        const shieldVal = skill.effect.shield || skill.effect.value || 100;
+      const effect = skill.effect || {};
+
+      // 1. Escudo
+      if (effect.type === 'shield' || effect.type === 'shield_heal' || effect.shield) {
+        const shieldVal = effect.shield || effect.value || 100;
         playerShieldRef.current += shieldVal;
         setPlayerShield(playerShieldRef.current);
         playBattleShieldSound();
         spawnFloatingText(`+${shieldVal} Escudo`, 'player', 'shield');
       }
 
-      if (skill.effect?.heal) {
-        const healVal = skill.effect.heal;
+      // 2. Sanación directa
+      if (effect.heal || effect.type === 'heal' || effect.type === 'shield_heal') {
+        const healVal = effect.heal || 120;
         const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healVal);
         playerHpRef.current = nextPlayerHp;
         setPlayerHp(nextPlayerHp);
@@ -206,20 +215,63 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
         spawnFloatingText(`+${healVal} HP`, 'player', 'heal');
       }
 
-      if (skill.effect?.type === 'burn' || skill.effect?.type === 'poison') {
-        enemyEffectsRef.current = [...enemyEffectsRef.current, skill.effect];
+      // 3. Robo de vida (Lifesteal)
+      if (effect.type === 'lifesteal' || effect.ratio) {
+        const leech = Math.max(1, Math.round(damage * (effect.ratio || 0.5)));
+        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + leech);
+        playerHpRef.current = nextPlayerHp;
+        setPlayerHp(nextPlayerHp);
+        playBattleHealSound();
+        spawnFloatingText(`+${leech} Drenado`, 'player', 'heal');
+      }
+
+      // 4. Estados alterados ofensivos (Quemadura, Veneno, Sangrado, Aturdimiento/Congelación)
+      if (['burn', 'poison', 'bleed', 'stun'].includes(effect.type)) {
+        enemyEffectsRef.current = [...enemyEffectsRef.current, { ...effect, id: Date.now() }];
         setEnemyEffects([...enemyEffectsRef.current]);
-        spawnFloatingText(`¡Efecto de ${skill.effect.type.toUpperCase()}!`, 'enemy', 'buff');
+        const typeLabels = {
+          burn: '🔥 QUEMADURA',
+          poison: '🧪 VENENO',
+          bleed: '🩸 SANGRADO',
+          stun: '💫 ATURDIDO'
+        };
+        spawnFloatingText(typeLabels[effect.type] || effect.type.toUpperCase(), 'enemy', 'buff');
+      }
+
+      // 5. Drenaje o ganancia de éter
+      if (effect.type === 'drain_ether') {
+        const drain = effect.drain || 1;
+        setEnemyEther(e => Math.max(0, e - drain));
+        setPlayerEther(e => Math.min(5, e + drain));
+        spawnFloatingText(`Drenó ${drain} Éter`, 'enemy', 'shield');
+      } else if (effect.type === 'ether') {
+        const gain = effect.gain || 1;
+        setPlayerEther(e => Math.min(5, e + gain));
+        spawnFloatingText(`+${gain} Éter`, 'player', 'buff');
+      }
+
+      // 6. Reflejo de daño
+      if (effect.type === 'reflect') {
+        playerEffectsRef.current = [...playerEffectsRef.current, { ...effect, id: Date.now() }];
+        setPlayerEffects([...playerEffectsRef.current]);
+        spawnFloatingText('🪞 ESPEJO ACTIVO', 'player', 'shield');
+      }
+
+      // 7. Purificación / Limpieza
+      if (effect.cleanse) {
+        playerEffectsRef.current = [];
+        setPlayerEffects([]);
+        spawnFloatingText('✨ Purificado', 'player', 'heal');
       }
 
       // Aplicar daño
       const nextEnemyHp = Math.max(0, enemyHpRef.current - damage);
       enemyHpRef.current = nextEnemyHp;
       setEnemyHp(nextEnemyHp);
-      spawnFloatingText(`-${damage}`, 'enemy', 'crit');
-      setPlayerUltimate(u => Math.min(100, u + 25));
+      spawnFloatingText(`-${damage}`, 'enemy', isCrit ? 'crit' : 'damage');
+      setPlayerUltimate(u => Math.min(100, u + 22));
 
-      logMessage(`✨ ${hero.name} desató [${skill.name}] infligiendo ${damage} de daño elemental.${hasTransitBoost ? ' (+15% Tránsito Lunar)' : ''}`);
+      logMessage(`✨ ${hero.name} desató [${skill.name}] infligiendo ${damage} de daño.${hasTransitBoost ? ' (+15% Tránsito Lunar)' : ''}`);
 
       if (nextEnemyHp <= 0) {
         handleVictory();
@@ -298,7 +350,7 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
   const startEnemyTurn = (currentEnemyHp = enemyHpRef.current) => {
     setTurn('enemy');
 
-    // 1. Procesar estados en el enemigo (veneno, quemadura, etc.)
+    // 1. Procesar estados en el enemigo (veneno, quemadura, sangrado, etc.)
     const statusResult = processStatusEffects(enemyEffectsRef.current, currentEnemyHp, enemyMaxHp);
     enemyHpRef.current = statusResult.nextHp;
     setEnemyHp(statusResult.nextHp);
@@ -311,7 +363,20 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
       return;
     }
 
-    // 2. IA del enemigo toma decisión
+    // 2. Comprobar si el enemigo está aturdido/inmovilizado (stun)
+    const stunIndex = enemyEffectsRef.current.findIndex(e => e.type === 'stun');
+    if (stunIndex !== -1) {
+      logMessage(`💫 ¡${enemy.name || enemy.guardianName} está inmovilizado/aturdido y pierde su turno!`);
+      spawnFloatingText('¡Aturdido!', 'enemy', 'buff');
+      enemyEffectsRef.current.splice(stunIndex, 1);
+      setEnemyEffects([...enemyEffectsRef.current]);
+      setTimeout(() => {
+        setTurn('player');
+      }, 1000);
+      return;
+    }
+
+    // 3. IA del enemigo toma decisión
     setTimeout(() => {
       const action = chooseEnemyAction(enemy, enemyHpRef.current, enemyMaxHp, enemyEther);
       playBattleAttackSound();
@@ -351,6 +416,29 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
           }
         } else {
           spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, 'player', isCrit ? 'crit' : 'damage');
+        }
+
+        // Reflejo de daño al enemigo si el jugador tiene el efecto activo
+        const reflectIndex = playerEffectsRef.current.findIndex(e => e.type === 'reflect');
+        if (reflectIndex !== -1 && finalDamage > 0) {
+          const reflectRatio = playerEffectsRef.current[reflectIndex].ratio || 0.7;
+          const reflectDmg = Math.max(1, Math.round(finalDamage * reflectRatio));
+          const newEnemyHp = Math.max(0, enemyHpRef.current - reflectDmg);
+          enemyHpRef.current = newEnemyHp;
+          setEnemyHp(newEnemyHp);
+          spawnFloatingText(`🪞 Reflejo -${reflectDmg}`, 'enemy', 'crit');
+          logMessage(`🪞 ¡El Espejo Astral de ${hero.name} reflejó ${reflectDmg} de daño al agresor!`);
+          
+          playerEffectsRef.current[reflectIndex].duration = (playerEffectsRef.current[reflectIndex].duration || 1) - 1;
+          if (playerEffectsRef.current[reflectIndex].duration <= 0) {
+            playerEffectsRef.current.splice(reflectIndex, 1);
+          }
+          setPlayerEffects([...playerEffectsRef.current]);
+
+          if (newEnemyHp <= 0) {
+            handleVictory();
+            return;
+          }
         }
 
         const nextPlayerHp = Math.max(0, playerHpRef.current - finalDamage);
@@ -658,72 +746,121 @@ export function BattleArena({ hero, enemy, mode = 'quick', partner = null, onBat
         </div>
       </div>
 
-      {/* BOTONES DE ACCIÓN DE COMBATE */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* BOTONES DE ACCIÓN DE COMBATE (5 ACCIONES) */}
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-2">
         {/* 1. Ataque Básico */}
         <button
           onClick={handlePlayerBasicAttack}
           disabled={turn !== 'player' || !!battleOutcome}
-          className="p-3 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-cyan-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-cyan-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-1">
-            <Sword size={16} className="text-orange-400 group-hover:scale-110 transition-transform" />
+            <Sword size={15} className="text-orange-400 group-hover:scale-110 transition-transform" />
             <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">+1 Éter</span>
           </div>
-          <div className="text-xs font-bold text-white truncate">{heroClass.basicAttack.name}</div>
-          <div className="text-[10px] text-gray-400 truncate">Ataque físico cósmico</div>
+          <div>
+            <div className="text-xs font-bold text-white truncate">{heroClass.basicAttack.name}</div>
+            <div className="text-[9px] text-gray-400 truncate">Golpe Físico</div>
+          </div>
         </button>
 
-        {/* 2. Habilidad de Signo */}
+        {/* 2. Habilidad Ranura 1 */}
         <button
-          onClick={handlePlayerSkill}
-          disabled={turn !== 'player' || playerEther < heroClass.skill.etherCost || !!battleOutcome}
-          className={`p-3 rounded-2xl bg-gradient-to-br from-purple-950/40 to-black border ${playerEther >= heroClass.skill.etherCost ? 'border-purple-500/60 hover:border-purple-400' : 'border-white/10'} text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group`}
+          onClick={() => handlePlayerCastSkill(skillSlot1)}
+          disabled={turn !== 'player' || !skillSlot1 || playerEther < (skillSlot1.etherCost || 2) || !!battleOutcome}
+          className={`p-2.5 rounded-2xl bg-gradient-to-br from-purple-950/50 to-black border ${
+            playerEther >= (skillSlot1?.etherCost || 2) ? 'border-purple-500/60 hover:border-purple-400 shadow-md shadow-purple-950/40' : 'border-white/10'
+          } text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between`}
         >
           <div className="flex items-center justify-between mb-1">
-            <Sparkles size={16} className="text-purple-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">-{heroClass.skill.etherCost} Éter</span>
+            <Sparkles size={15} className="text-purple-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
+              -{skillSlot1?.etherCost || 2} Éter
+            </span>
           </div>
-          <div className="text-xs font-bold text-purple-200 truncate">{heroClass.skill.name}</div>
-          <div className="text-[10px] text-gray-400 truncate">Habilidad Elemental</div>
+          <div>
+            <div className="text-xs font-bold text-purple-200 truncate">{skillSlot1?.name || 'Habilidad 1'}</div>
+            <div className="text-[9px] text-purple-400/80 truncate">
+              {skillSlot1?.mechanic ? `⚡ ${skillSlot1.mechanic}` : 'Habilidad Astral'}
+            </div>
+          </div>
         </button>
 
-        {/* 3. Ultimate Astral / Ataque de Sinastría */}
+        {/* 3. Habilidad Ranura 2 */}
+        {skillSlot2 ? (
+          <button
+            onClick={() => handlePlayerCastSkill(skillSlot2)}
+            disabled={turn !== 'player' || playerEther < (skillSlot2.etherCost || 2) || !!battleOutcome}
+            className={`p-2.5 rounded-2xl bg-gradient-to-br from-cyan-950/50 to-black border ${
+              playerEther >= (skillSlot2.etherCost || 2) ? 'border-cyan-500/60 hover:border-cyan-400 shadow-md shadow-cyan-950/40' : 'border-white/10'
+            } text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <Zap size={15} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">
+                -{skillSlot2.etherCost} Éter
+              </span>
+            </div>
+            <div>
+              <div className="text-xs font-bold text-cyan-200 truncate">{skillSlot2.name}</div>
+              <div className="text-[9px] text-cyan-400/80 truncate">
+                {skillSlot2.mechanic ? `⚡ ${skillSlot2.mechanic}` : 'Habilidad Secundaria'}
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div className="p-2.5 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-left flex flex-col justify-between opacity-50 select-none">
+            <div className="flex items-center justify-between mb-1">
+              <Zap size={15} className="text-gray-600" />
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/5 text-gray-500 font-mono">Ranura 2</span>
+            </div>
+            <div>
+              <div className="text-xs font-bold text-gray-500 truncate">Sin Asignar</div>
+              <div className="text-[9px] text-gray-600 truncate">Árbol Astral (Niv. 4+)</div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. Ultimate Astral / Ataque de Sinastría */}
         <button
           onClick={handlePlayerUltimate}
           disabled={turn !== 'player' || playerUltimate < 100 || !!battleOutcome}
-          className={`p-3 rounded-2xl text-left transition-all group ${
+          className={`p-2.5 rounded-2xl text-left transition-all group flex flex-col justify-between ${
             playerUltimate >= 100 
               ? 'bg-gradient-to-r from-amber-500 via-purple-600 to-amber-500 bg-[length:200%_auto] animate-pulse border-2 border-amber-300 text-black shadow-lg shadow-amber-500/30' 
               : 'bg-white/5 border border-white/10 opacity-40 cursor-not-allowed'
           }`}
         >
           <div className="flex items-center justify-between mb-1">
-            <Star size={16} className={playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'} />
+            <Star size={15} className={playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'} />
             <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${playerUltimate >= 100 ? 'bg-black text-amber-300' : 'bg-white/10 text-gray-400'}`}>
-              {playerUltimate}/100%
+              {playerUltimate}%
             </span>
           </div>
-          <div className={`text-xs font-bold truncate ${playerUltimate >= 100 ? 'text-white' : 'text-gray-400'}`}>
-            {isCoop ? synastry.attackName : heroClass.ultimate.name}
-          </div>
-          <div className={`text-[10px] truncate ${playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'}`}>
-            {isCoop ? `Sinastría Dúo (${synastry.score}%)` : 'Alineación Cósmica'}
+          <div>
+            <div className={`text-xs font-bold truncate ${playerUltimate >= 100 ? 'text-white' : 'text-gray-400'}`}>
+              {isCoop ? synastry.attackName : heroClass.ultimate.name}
+            </div>
+            <div className={`text-[9px] truncate ${playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'}`}>
+              {isCoop ? `Sinastría (${synastry.score}%)` : 'Alineación'}
+            </div>
           </div>
         </button>
 
-        {/* 4. Poción Astral */}
+        {/* 5. Poción Astral */}
         <button
           onClick={handleUsePotion}
           disabled={turn !== 'player' || potionsLeft <= 0 || !!battleOutcome}
-          className="p-3 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group"
+          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-1">
-            <Heart size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+            <Heart size={15} className="text-emerald-400 group-hover:scale-110 transition-transform" />
             <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">x{potionsLeft}</span>
           </div>
-          <div className="text-xs font-bold text-white truncate">Poción Astral</div>
-          <div className="text-[10px] text-gray-400 truncate">Restaura 45% HP</div>
+          <div>
+            <div className="text-xs font-bold text-white truncate">Poción Astral</div>
+            <div className="text-[9px] text-gray-400 truncate">Restaura 45% HP</div>
+          </div>
         </button>
       </div>
 

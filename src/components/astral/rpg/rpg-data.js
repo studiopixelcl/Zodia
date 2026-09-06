@@ -312,6 +312,729 @@ export const ZODIAC_HERO_CLASSES = {
   }
 };
 
+export const ZODIAC_SKILL_TREES = {
+  Aries: [
+    {
+      id: 'aries_1',
+      name: 'Embestida de Marte',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.5,
+      iconName: 'Flame',
+      type: 'burn',
+      desc: 'Embiste con fuego primordial ignorando el 30% de la defensa enemiga e inflige Quemadura.',
+      effect: { type: 'burn', turns: 2, dot: 20 }
+    },
+    {
+      id: 'aries_2',
+      name: 'Sed de Batalla',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.45,
+      iconName: 'Heart',
+      type: 'lifesteal',
+      desc: 'Corte feroz cargado de sangre astral que absorbe el 35% del daño infligido como vida propia.',
+      effect: { type: 'lifesteal', ratio: 0.35 }
+    },
+    {
+      id: 'aries_3',
+      name: 'Ignición Espontánea',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.3,
+      iconName: 'Zap',
+      type: 'buff',
+      desc: 'Desata una explosión térmica interior aumentando el ATK un 35% y la Prob. Crítica un 25% por 2 turnos.',
+      effect: { type: 'buff_atk_crit', turns: 2, atkMultiplier: 1.35, critBonus: 0.25 }
+    },
+    {
+      id: 'aries_4',
+      name: 'Tajo Meteórico',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 2.1,
+      iconName: 'Sword',
+      type: 'attack',
+      desc: 'Desciende como un bólido celeste perforando el 50% de la defensa rival con impacto demoledor.',
+      critBonus: 0.35
+    },
+    {
+      id: 'aries_5',
+      name: 'Cólera del Heraldo',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.4,
+      iconName: 'Sparkles',
+      type: 'lifesteal_burn',
+      desc: 'Canaliza la ira pura de Marte: daño titánico, 40% de Robo de Vida y Quemadura destructiva por 3 turnos.',
+      effect: { type: 'lifesteal_burn', ratio: 0.40, turns: 3, dot: 30 }
+    }
+  ],
+
+  Tauro: [
+    {
+      id: 'tauro_1',
+      name: 'Fortaleza de Gaia',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.1,
+      iconName: 'Shield',
+      type: 'shield',
+      desc: 'Alza una muralla de roca estelar que otorga un escudo de 130 de absorción y sana 50 HP.',
+      effect: { type: 'shield', turns: 2, value: 130, heal: 50 }
+    },
+    {
+      id: 'tauro_2',
+      name: 'Pisotón Sísmico',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.45,
+      iconName: 'Zap',
+      type: 'crowd_control',
+      desc: 'Hace temblar la corteza astral causando daño pesado y Aturdiendo al rival durante 1 turno.',
+      effect: { type: 'stun', turns: 1 }
+    },
+    {
+      id: 'tauro_3',
+      name: 'Piel de Obsidiana',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.2,
+      iconName: 'Shield',
+      type: 'reflect',
+      desc: 'Recubre el cuerpo con magma solidificado: Escudo de 160 y refleja el 35% del daño recibido.',
+      effect: { type: 'reflect', turns: 2, shield: 160, ratio: 0.35 }
+    },
+    {
+      id: 'tauro_4',
+      name: 'Cornada del Minotauro',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 2.2,
+      iconName: 'Sword',
+      type: 'attack',
+      desc: 'Impacto colosal que convierte la propia Defensa en poder ofensivo adicional aplastante.',
+      effect: { type: 'def_scaling', boost: 1.4 }
+    },
+    {
+      id: 'tauro_5',
+      name: 'Corazón del Coloso',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 1.6,
+      iconName: 'Heart',
+      type: 'heal',
+      desc: 'Restaura 220 HP, otorga un Escudo impenetrable de 200 y aumenta la DEF propia un 40% por 2 turnos.',
+      effect: { type: 'heal_shield_buff', heal: 220, shield: 200, turns: 2, defMultiplier: 1.4 }
+    }
+  ],
+
+  Geminis: [
+    {
+      id: 'geminis_1',
+      name: 'Ráfaga de Espejos',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.4,
+      iconName: 'Wind',
+      type: 'drain_ether',
+      desc: 'Doble corte eólico que desgasta al oponente y le drena 1 punto de Éter.',
+      effect: { type: 'drain_ether', amount: 1 }
+    },
+    {
+      id: 'geminis_2',
+      name: 'Clon de Viento',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.3,
+      iconName: 'Sparkles',
+      type: 'buff',
+      desc: 'Crea una ilusión etérea que esquiva el próximo ataque enemigo y aumenta la VEL propia un 40%.',
+      effect: { type: 'evasion', turns: 1, spdMultiplier: 1.4 }
+    },
+    {
+      id: 'geminis_3',
+      name: 'Vórtice Bipolar',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.65,
+      iconName: 'Zap',
+      type: 'debuff',
+      desc: 'Engaña los sentidos rivales provocando Confusión y Sangrado etéreo continuo por 3 turnos.',
+      effect: { type: 'bleed', turns: 3, dot: 24 }
+    },
+    {
+      id: 'geminis_4',
+      name: 'Paradoja Gemela',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.9,
+      iconName: 'Eye',
+      type: 'drain_ether',
+      desc: 'Roba 2 de Éter directamente al oponente y lo añade a la reserva del héroe.',
+      effect: { type: 'drain_grant_ether', drain: 2, grant: 2 }
+    },
+    {
+      id: 'geminis_5',
+      name: 'Danza de los Reflejos',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.3,
+      iconName: 'Wind',
+      type: 'attack',
+      desc: 'Ataque múltiple coordinado por ambos gemelos celestiales con 100% de golpe crítico certero.',
+      critBonus: 1.0
+    }
+  ],
+
+  Cancer: [
+    {
+      id: 'cancer_1',
+      name: 'Marea Protectora',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.2,
+      iconName: 'Shield',
+      type: 'shield',
+      desc: 'Envuelve al héroe en una burbuja abisal que absorbe 140 de daño.',
+      effect: { type: 'shield', turns: 2, value: 140 }
+    },
+    {
+      id: 'cancer_2',
+      name: 'Manantial de Selene',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.0,
+      iconName: 'Heart',
+      type: 'heal',
+      desc: 'Invocación lunar que sana instantáneamente 170 HP y purifica los efectos negativos.',
+      effect: { type: 'heal_cleanse', heal: 170 }
+    },
+    {
+      id: 'cancer_3',
+      name: 'Garra Abisal',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.6,
+      iconName: 'Droplet',
+      type: 'lifesteal',
+      desc: 'Ataque submarino que quiebra la armadura rival y absorbe el 45% del daño infligido.',
+      effect: { type: 'lifesteal', ratio: 0.45 }
+    },
+    {
+      id: 'cancer_4',
+      name: 'Perla del Océano',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.3,
+      iconName: 'Sparkles',
+      type: 'heal',
+      desc: 'Escudo de perla de 180 HP y regeneración continua de 60 HP por turno durante 2 turnos.',
+      effect: { type: 'shield_regen', shield: 180, regenTurns: 2, regenValue: 60 }
+    },
+    {
+      id: 'cancer_5',
+      name: 'Tsunami de la Luna Oculta',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.3,
+      iconName: 'Droplet',
+      type: 'crowd_control',
+      desc: 'Ola cósmica colosal que aturde al rival durante 1 turno y cura al héroe 180 HP.',
+      effect: { type: 'stun_heal', turns: 1, heal: 180 }
+    }
+  ],
+
+  Leo: [
+    {
+      id: 'leo_1',
+      name: 'Rugido Solar',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.4,
+      iconName: 'Flame',
+      type: 'buff',
+      desc: 'Ruge con la fuerza de una corona solar, aumentando el ATK propio un 25% por 2 turnos.',
+      effect: { type: 'buff_atk', turns: 2, value: 1.25 }
+    },
+    {
+      id: 'leo_2',
+      name: 'Fulgor Deslumbrante',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.35,
+      iconName: 'Eye',
+      type: 'debuff',
+      desc: 'Destello cegador que debilita el poder del rival, reduciendo su ATK un 35% por 2 turnos.',
+      effect: { type: 'debuff_atk', turns: 2, value: 0.65 }
+    },
+    {
+      id: 'leo_3',
+      name: 'Zarpazo de Oro Puro',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.8,
+      iconName: 'Sword',
+      type: 'burn',
+      desc: 'Corte desgarrador que inflige Quemadura solar e incrementa la Prob. Crítica propia.',
+      effect: { type: 'burn', turns: 2, dot: 25 },
+      critBonus: 0.25
+    },
+    {
+      id: 'leo_4',
+      name: 'Corona de Helios',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.6,
+      iconName: 'Crown',
+      type: 'buff',
+      desc: 'Canaliza la realeza solar: Escudo ardiente de 160 y aumento del 40% de ATK.',
+      effect: { type: 'shield_buff_atk', shield: 160, turns: 2, atkMultiplier: 1.4 }
+    },
+    {
+      id: 'leo_5',
+      name: 'Llama del Rey Absoluto',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.5,
+      iconName: 'Flame',
+      type: 'attack',
+      desc: 'Deflagración estelar devastadora que ignora el 60% de la defensa enemiga.',
+      critBonus: 0.35
+    }
+  ],
+
+  Virgo: [
+    {
+      id: 'virgo_1',
+      name: 'Cálculo de Mercurio',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.35,
+      iconName: 'Eye',
+      type: 'debuff',
+      desc: 'Analiza la debilidad del rival reduciendo su defensa un 30% por 2 turnos.',
+      effect: { type: 'debuff_def', turns: 2, value: 0.7 }
+    },
+    {
+      id: 'virgo_2',
+      name: 'Elixir de las Estrellas',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.0,
+      iconName: 'Heart',
+      type: 'heal',
+      desc: 'Destila esencias astrales para curar 150 HP y aumentar la DEF un 30%.',
+      effect: { type: 'heal_buff_def', heal: 150, turns: 2, defMultiplier: 1.3 }
+    },
+    {
+      id: 'virgo_3',
+      name: 'Polvo Purificador',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.5,
+      iconName: 'Sparkles',
+      type: 'crowd_control',
+      desc: 'Silencia las habilidades rivales durante 1 turno y le inflige Toxicidad leve.',
+      effect: { type: 'silence_poison', turns: 1, dot: 20 }
+    },
+    {
+      id: 'virgo_4',
+      name: 'Geometría Sagrada',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 2.0,
+      iconName: 'Shield',
+      type: 'heal',
+      desc: 'Encierra al rival en un prisma que ignora defensas y regenera 100 HP al héroe.',
+      effect: { type: 'heal', value: 100 }
+    },
+    {
+      id: 'virgo_5',
+      name: 'Perfección Alquímica',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.3,
+      iconName: 'Sparkles',
+      type: 'crowd_control',
+      desc: 'Purificación total: sana 200 HP, otorga 2 de Éter y Aturde al enemigo por 1 turno.',
+      effect: { type: 'stun_heal_ether', turns: 1, heal: 200, grantEther: 2 }
+    }
+  ],
+
+  Libra: [
+    {
+      id: 'libra_1',
+      name: 'Brisa Equinoccial',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.3,
+      iconName: 'Wind',
+      type: 'buff',
+      desc: 'Viento armónico que daña y aumenta la Velocidad propia un 35% por 2 turnos.',
+      effect: { type: 'buff_spd', turns: 2, value: 1.35 }
+    },
+    {
+      id: 'libra_2',
+      name: 'Balanza del Karma',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.4,
+      iconName: 'Heart',
+      type: 'heal',
+      desc: 'Equilibra la contienda: si el héroe tiene menos vida que el rival, restaura hasta 180 HP.',
+      effect: { type: 'karma_heal', maxHeal: 180 }
+    },
+    {
+      id: 'libra_3',
+      name: 'Sentencia Imparcial',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.7,
+      iconName: 'Sword',
+      type: 'debuff',
+      desc: 'Golpe de justicia cósmica que drena 1 de Éter y reduce el ATK del rival un 30%.',
+      effect: { type: 'drain_debuff_atk', amount: 1, turns: 2, atkPenalty: 0.7 }
+    },
+    {
+      id: 'libra_4',
+      name: 'Velo de la Armonía',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.5,
+      iconName: 'Shield',
+      type: 'shield',
+      desc: 'Escudo de 180 HP y aumento del 30% en la Probabilidad Crítica por 2 turnos.',
+      effect: { type: 'shield_crit', shield: 180, turns: 2, critBonus: 0.3 }
+    },
+    {
+      id: 'libra_5',
+      name: 'Juicio de los Dos Platillos',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.4,
+      iconName: 'Sparkles',
+      type: 'reflect',
+      desc: 'Daño masivo balanceado, refleja el 40% del daño recibido y Aturde al rival por 1 turno.',
+      effect: { type: 'stun_reflect', turns: 1, ratio: 0.4 }
+    }
+  ],
+
+  Escorpio: [
+    {
+      id: 'escorpio_1',
+      name: 'Aguijón Venenoso',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.4,
+      iconName: 'Skull',
+      type: 'poison',
+      desc: 'Inyecta veneno de asteroides causando daño continuo corrosivo que ignora defensa por 3 turnos.',
+      effect: { type: 'poison', turns: 3, dot: 25 }
+    },
+    {
+      id: 'escorpio_2',
+      name: 'Drenaje de Sangre Astral',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.5,
+      iconName: 'Heart',
+      type: 'lifesteal',
+      desc: 'Robo de Vida vampírico: absorbe el 50% de todo el daño infligido y cura al héroe.',
+      effect: { type: 'lifesteal', ratio: 0.50 }
+    },
+    {
+      id: 'escorpio_3',
+      name: 'Neurotoxina Plutónica',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.6,
+      iconName: 'Skull',
+      type: 'crowd_control',
+      desc: 'Veneno letal acumulativo que además reduce la Velocidad rival un 45% por 2 turnos.',
+      effect: { type: 'poison_slow', turns: 2, dot: 28, spdPenalty: 0.55 }
+    },
+    {
+      id: 'escorpio_4',
+      name: 'Metamorfosis Sombría',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.9,
+      iconName: 'Eye',
+      type: 'lifesteal',
+      desc: 'Poder plutónico absoluto: 60% de Robo de Vida y aumenta el ATK un 35% por 2 turnos.',
+      effect: { type: 'lifesteal_buff', ratio: 0.60, turns: 2, atkMultiplier: 1.35 }
+    },
+    {
+      id: 'escorpio_5',
+      name: 'Cataclismo de Veneno',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.5,
+      iconName: 'Skull',
+      type: 'poison',
+      desc: 'Detona todo el veneno latente causando daño crítico letal y drenando 2 de Éter al oponente.',
+      effect: { type: 'poison_burst', drainEther: 2 }
+    }
+  ],
+
+  Sagitario: [
+    {
+      id: 'sagitario_1',
+      name: 'Disparo de Júpiter',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.6,
+      iconName: 'Sword',
+      type: 'attack',
+      desc: 'Disparo perforante de alta precisión con +35% de probabilidad crítica.',
+      critBonus: 0.35
+    },
+    {
+      id: 'sagitario_2',
+      name: 'Flecha Rastreadora',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.3,
+      iconName: 'Eye',
+      type: 'buff',
+      desc: 'Aumenta la VEL un 40% y asegura que el próximo ataque sea un impacto crítico garantizado.',
+      effect: { type: 'guaranteed_crit', turns: 1, spdMultiplier: 1.4 }
+    },
+    {
+      id: 'sagitario_3',
+      name: 'Lluvia Incendiaria',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.7,
+      iconName: 'Flame',
+      type: 'burn',
+      desc: 'Flechas de fuego que prenden la arena causando Quemadura continua por 3 turnos.',
+      effect: { type: 'burn', turns: 3, dot: 25 }
+    },
+    {
+      id: 'sagitario_4',
+      name: 'Flecha de Orión Perforante',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 2.2,
+      iconName: 'Zap',
+      type: 'attack',
+      desc: 'Lanza celestial que desgarra el éter ignorando el 60% de la defensa enemiga.',
+      critBonus: 0.40
+    },
+    {
+      id: 'sagitario_5',
+      name: 'Cénit del Arquero Supremo',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.6,
+      iconName: 'Star',
+      type: 'attack',
+      desc: 'Disparo mítico con 100% de golpe crítico que genera 2 de Éter inmediatamente.',
+      critBonus: 1.0,
+      effect: { type: 'grant_ether', amount: 2 }
+    }
+  ],
+
+  Capricornio: [
+    {
+      id: 'capricornio_1',
+      name: 'Sentencia de Saturno',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.45,
+      iconName: 'Shield',
+      type: 'debuff',
+      desc: 'Golpe pesado que ralentiza al objetivo y aumenta la DEF propia un 25% por 2 turnos.',
+      effect: { type: 'slow_buff_def', turns: 2, spdPenalty: 0.7, defMultiplier: 1.25 }
+    },
+    {
+      id: 'capricornio_2',
+      name: 'Reloj del Tiempo Cósmico',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.25,
+      iconName: 'Zap',
+      type: 'drain_ether',
+      desc: 'Manipula las líneas temporales: drena 2 de Éter al oponente y otorga 1 Éter al héroe.',
+      effect: { type: 'drain_grant_ether', drain: 2, grant: 1 }
+    },
+    {
+      id: 'capricornio_3',
+      name: 'Aplastamiento de Gravedad',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.7,
+      iconName: 'Shield',
+      type: 'shield',
+      desc: 'Aumenta la gravedad aplastando al enemigo: reduce su ATK un 35% y otorga Escudo de 150 HP.',
+      effect: { type: 'debuff_atk_shield', turns: 2, atkPenalty: 0.65, shield: 150 }
+    },
+    {
+      id: 'capricornio_4',
+      name: 'Baluarte del Cronos',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.5,
+      iconName: 'Crown',
+      type: 'reflect',
+      desc: 'Escudo colosal de 250 HP que refleja el 40% de todo el daño físico recibido.',
+      effect: { type: 'reflect', turns: 2, shield: 250, ratio: 0.40 }
+    },
+    {
+      id: 'capricornio_5',
+      name: 'Sello Temporal Eterno',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.3,
+      iconName: 'Zap',
+      type: 'crowd_control',
+      desc: 'Detiene el tiempo estelar: congela/aturde al rival por 1 turno y asesta daño contundente.',
+      effect: { type: 'stun', turns: 1 }
+    }
+  ],
+
+  Acuario: [
+    {
+      id: 'acuario_1',
+      name: 'Onda Mental Cuántica',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.35,
+      iconName: 'Zap',
+      type: 'drain_ether',
+      desc: 'Pulso psíquico de aire que drena 1 punto de Éter al rival y le causa daño etéreo.',
+      effect: { type: 'drain_ether', amount: 1 }
+    },
+    {
+      id: 'acuario_2',
+      name: 'Vórtice Criogénico',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.4,
+      iconName: 'Wind',
+      type: 'crowd_control',
+      desc: 'Desata una tormenta de hielo cósmico que Congela / Aturde al rival por 1 turno.',
+      effect: { type: 'stun', turns: 1 }
+    },
+    {
+      id: 'acuario_3',
+      name: 'Tormenta Galvánica',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.7,
+      iconName: 'Zap',
+      type: 'debuff',
+      desc: 'Rayo en cadena que reduce la defensa rival un 35% y genera 1 de Éter.',
+      effect: { type: 'debuff_def_grant_ether', turns: 2, defPenalty: 0.65, grantEther: 1 }
+    },
+    {
+      id: 'acuario_4',
+      name: 'Cero Absoluto',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 2.0,
+      iconName: 'Droplet',
+      type: 'crowd_control',
+      desc: 'Congela el flujo de éter enemigo impidiendo el uso de habilidades y sana 130 HP.',
+      effect: { type: 'silence_heal', turns: 2, heal: 130 }
+    },
+    {
+      id: 'acuario_5',
+      name: 'Singularidad Futurista',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.5,
+      iconName: 'Star',
+      type: 'attack',
+      desc: 'Crea un agujero negro en miniatura que absorbe todo el éter del oponente y causa daño masivo.',
+      effect: { type: 'drain_ether', amount: 3 }
+    }
+  ],
+
+  Piscis: [
+    {
+      id: 'piscis_1',
+      name: 'Espejismo de Neptuno',
+      requiredLevel: 1,
+      etherCost: 2,
+      multiplier: 1.25,
+      iconName: 'Droplet',
+      type: 'heal',
+      desc: 'Regenera 50 HP por turno durante 2 turnos y drena 1 de Éter al rival.',
+      effect: { type: 'regen_drain_ether', regenTurns: 2, regenValue: 50, drain: 1 }
+    },
+    {
+      id: 'piscis_2',
+      name: 'Canto de Sirena Onírico',
+      requiredLevel: 4,
+      etherCost: 2,
+      multiplier: 1.3,
+      iconName: 'Heart',
+      type: 'crowd_control',
+      desc: 'Melodía celestial que Confunde al oponente haciéndole fallar su próximo ataque.',
+      effect: { type: 'evasion', turns: 1 }
+    },
+    {
+      id: 'piscis_3',
+      name: 'Marea Sanadora Primordial',
+      requiredLevel: 8,
+      etherCost: 2,
+      multiplier: 1.1,
+      iconName: 'Heart',
+      type: 'heal',
+      desc: 'Oleada sanadora que restaura 200 HP y otorga un Escudo de agua de 110 HP.',
+      effect: { type: 'heal_shield', heal: 200, shield: 110 }
+    },
+    {
+      id: 'piscis_4',
+      name: 'Sueño Profundo Abisal',
+      requiredLevel: 12,
+      etherCost: 3,
+      multiplier: 1.7,
+      iconName: 'Moon',
+      type: 'crowd_control',
+      desc: 'Sumerge al rival en un trance de sueño profundo por 1 turno completo y restaura 100 HP.',
+      effect: { type: 'stun_heal', turns: 1, heal: 100 }
+    },
+    {
+      id: 'piscis_5',
+      name: 'Océano Cósmico Infinito',
+      requiredLevel: 16,
+      etherCost: 3,
+      multiplier: 2.4,
+      iconName: 'Droplet',
+      type: 'heal',
+      desc: 'Sumerge el plano en aguas primordiales: sana 230 HP y otorga 2 de Éter al héroe.',
+      effect: { type: 'heal_ether', heal: 230, grantEther: 2 }
+    }
+  ]
+};
+
+export function getHeroSkillTree(sign = 'Aries') {
+  return ZODIAC_SKILL_TREES[sign] || ZODIAC_SKILL_TREES['Aries'];
+}
+
+export function getEquippedSkills(hero) {
+  if (!hero) return [];
+  const tree = getHeroSkillTree(hero.sign);
+  const heroLevel = hero.level || 1;
+
+  // Si el héroe ya tiene equippedSkills válidas en su perfil, resolverlas
+  if (Array.isArray(hero.equippedSkills) && hero.equippedSkills.length > 0) {
+    const skills = hero.equippedSkills
+      .map(id => tree.find(s => s.id === id))
+      .filter(Boolean)
+      .filter(s => heroLevel >= s.requiredLevel);
+    if (skills.length > 0) return skills;
+  }
+
+  // Si no tiene o son inválidas, equipar por defecto las habilidades desbloqueadas por nivel (hasta 2)
+  const unlocked = tree.filter(s => heroLevel >= s.requiredLevel);
+  return unlocked.slice(0, 2);
+}
+
 export const RARITIES = {
   comun: { name: 'Común', color: 'text-gray-300', border: 'border-white/20', bg: 'bg-white/5' },
   raro: { name: 'Raro', color: 'text-cyan-400', border: 'border-cyan-500/50', bg: 'bg-cyan-500/10' },
@@ -765,6 +1488,11 @@ export function getOrCreateHeroProfile(userProfile) {
         if (userProfile?.name && (!saved.name || saved.name === 'Sintonizador Astral')) {
           saved.name = userProfile.name;
         }
+        if (!Array.isArray(saved.equippedSkills) || saved.equippedSkills.length === 0) {
+          const signTree = ZODIAC_SKILL_TREES[saved.sign] || ZODIAC_SKILL_TREES['Aries'];
+          const unlocked = signTree.filter(s => (saved.level || 1) >= s.requiredLevel);
+          saved.equippedSkills = unlocked.slice(0, 2).map(s => s.id);
+        }
         saveHeroProfile(saved);
         try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch {}
         return saved;
@@ -782,6 +1510,8 @@ export function getOrCreateHeroProfile(userProfile) {
 
 function createInitialHero(userProfile, heroClass) {
   const photo = extractProfilePhoto(userProfile);
+  const signTree = ZODIAC_SKILL_TREES[heroClass.sign] || ZODIAC_SKILL_TREES['Aries'];
+  const initialSkill = signTree[0]?.id || 'aries_1';
   return {
     name: userProfile?.name || 'Sintonizador Astral',
     sign: heroClass.sign,
@@ -792,6 +1522,7 @@ function createInitialHero(userProfile, heroClass) {
     polvoEstelar: 100, // Moneda cósmica
     avatarUrl: photo,
     stats: { ...heroClass.baseStats },
+    equippedSkills: [initialSkill],
     equipped: {
       weapon: EQUIPMENT_CATALOG.find(i => i.id === 'wp_01'),
       armor: null,

@@ -189,10 +189,16 @@ export function processStatusEffects(effects = [], currentHp, maxHp) {
       const dmg = eff.dot || 25;
       hpChange -= dmg;
       logMessages.push(`☠️ El veneno astral inflige ${dmg} de daño residual.`);
+    } else if (eff.type === 'bleed') {
+      const dmg = eff.dot || 24;
+      hpChange -= dmg;
+      logMessages.push(`🩸 El sangrado etéreo inflige ${dmg} de daño.`);
     } else if (eff.type === 'regen') {
       const heal = eff.value || 30;
       hpChange += heal;
       logMessages.push(`✨ Las mareas astrales restauran +${heal} de vida.`);
+    } else if (eff.type === 'stun') {
+      logMessages.push(`💫 Aturdido / Congelado: ¡No puede actuar en este turno!`);
     } else if (eff.type === 'shield') {
       activeShield = eff.value || 0;
     }
