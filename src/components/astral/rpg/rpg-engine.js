@@ -39,6 +39,34 @@ export function getDailyTransitBuff() {
 }
 
 /**
+ * Calcula las estadísticas efectivas de una pieza de equipo considerando su nivel de mejora (+1 a +10)
+ * y cualquier gema de encantamiento elemental engarzada.
+ */
+export function getItemEffectiveStats(item) {
+  if (!item) return { atk: 0, def: 0, hp: 0, spd: 0, crit: 0 };
+  const level = item.upgradeLevel || 0;
+  const upgradeMultiplier = 1 + (level * 0.12); // +12% a atributos primarios por nivel
+
+  let atk = item.atk ? Math.round(item.atk * upgradeMultiplier) : 0;
+  let def = item.def ? Math.round(item.def * upgradeMultiplier) : 0;
+  let hp = item.hp ? Math.round(item.hp * upgradeMultiplier) : 0;
+  let spd = item.spd ? item.spd + Math.floor(level / 2) : 0;
+  let crit = item.crit ? +(item.crit + (level * 0.01)).toFixed(3) : 0;
+
+  // Añadir bonos por gema de encantamiento si existe
+  if (item.enchantment && item.enchantment.bonusStats) {
+    const eb = item.enchantment.bonusStats;
+    if (eb.atk) atk += eb.atk;
+    if (eb.def) def += eb.def;
+    if (eb.hp) hp += eb.hp;
+    if (eb.spd) spd += eb.spd;
+    if (eb.crit) crit += eb.crit;
+  }
+
+  return { atk, def, hp, spd, crit };
+}
+
+/**
  * Calcula las estadísticas efectivas del héroe sumando nivel, equipamiento y bonos de conjunto
  */
 export function calculateHeroTotalStats(hero) {
@@ -78,11 +106,12 @@ export function calculateHeroTotalStats(hero) {
   for (const slot of ['weapon', 'armor', 'relic']) {
     const item = eq[slot];
     if (item) {
-      if (item.atk) { atk += item.atk; gearStats.atk += item.atk; }
-      if (item.hp) { maxHp += item.hp; gearStats.hp += item.hp; }
-      if (item.def) { def += item.def; gearStats.def += item.def; }
-      if (item.spd) { spd += item.spd; gearStats.spd += item.spd; }
-      if (item.crit) { critRate += item.crit; gearStats.critRate += item.crit; }
+      const eff = getItemEffectiveStats(item);
+      if (eff.atk) { atk += eff.atk; gearStats.atk += eff.atk; }
+      if (eff.hp) { maxHp += eff.hp; gearStats.hp += eff.hp; }
+      if (eff.def) { def += eff.def; gearStats.def += eff.def; }
+      if (eff.spd) { spd += eff.spd; gearStats.spd += eff.spd; }
+      if (eff.crit) { critRate += eff.crit; gearStats.critRate += eff.crit; }
     }
   }
 

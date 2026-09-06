@@ -2443,4 +2443,315 @@ export function claimDailyMasterChest(hero) {
   return { updatedHero, reward: DAILY_MASTER_CHEST_REWARD, gainedItem };
 }
 
+// ==========================================
+// FORJA CÓSMICA Y ALQUIMIA (REFINE, ENCHANT, DISMANTLE)
+// ==========================================
+export const UPGRADE_CONFIG = {
+  maxLevel: 10,
+  levels: [
+    { from: 0, to: 1, cost: 35, successRate: 1.00, title: '+1 Forjado' },
+    { from: 1, to: 2, cost: 50, successRate: 1.00, title: '+2 Templado' },
+    { from: 2, to: 3, cost: 70, successRate: 1.00, title: '+3 Purificado' },
+    { from: 3, to: 4, cost: 95, successRate: 1.00, title: '+4 Brillante' },
+    { from: 4, to: 5, cost: 125, successRate: 0.85, title: '+5 Astral' },
+    { from: 5, to: 6, cost: 160, successRate: 0.80, title: '+6 Resonante' },
+    { from: 6, to: 7, cost: 200, successRate: 0.75, title: '+7 Celestial' },
+    { from: 7, to: 8, cost: 250, successRate: 0.65, title: '+8 Cósmico' },
+    { from: 8, to: 9, cost: 310, successRate: 0.55, title: '+9 Supernova' },
+    { from: 9, to: 10, cost: 400, successRate: 0.50, title: '+10 Soberano' }
+  ]
+};
+
+export const ASTRAL_GEMS = [
+  {
+    id: 'gem_fire',
+    name: 'Rubí de Fuego Solar',
+    element: 'Fuego',
+    cost: 110,
+    icon: 'Flame',
+    color: 'text-orange-400 bg-orange-500/20 border-orange-500/40',
+    bonusStats: { atk: 18, crit: 0.04 },
+    passiveDesc: '+18 Ataque y +4% Probabilidad Crítica.',
+    flavor: 'Arde con el calor primordial de una estrella en ignición.'
+  },
+  {
+    id: 'gem_water',
+    name: 'Zafiro de Marea Lunar',
+    element: 'Agua',
+    cost: 110,
+    icon: 'Moon',
+    color: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40',
+    bonusStats: { hp: 85, def: 8 },
+    passiveDesc: '+85 Vida Máxima y +8 Defensa.',
+    flavor: 'Canaliza el pulso de las mareas y el alivio de las profundidades.'
+  },
+  {
+    id: 'gem_earth',
+    name: 'Esmeralda de Granito Terrestre',
+    element: 'Tierra',
+    cost: 110,
+    icon: 'Shield',
+    color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40',
+    bonusStats: { def: 24, hp: 40 },
+    passiveDesc: '+24 Defensa y +40 Vida Máxima.',
+    flavor: 'Dureza inquebrantable forjada en las raíces del zodíaco.'
+  },
+  {
+    id: 'gem_air',
+    name: 'Topacio de Viento Etéreo',
+    element: 'Aire',
+    cost: 110,
+    icon: 'Wind',
+    color: 'text-indigo-400 bg-indigo-500/20 border-indigo-500/40',
+    bonusStats: { spd: 8, atk: 10 },
+    passiveDesc: '+8 Velocidad y +10 Ataque.',
+    flavor: 'Otorga la ligereza de las ráfagas celestiales y anticipación veloz.'
+  }
+];
+
+export const DISMANTLE_RATES = {
+  comun: 25,
+  raro: 60,
+  epico: 130,
+  legendario: 280
+};
+
+/**
+ * Refina una pieza de equipo (+1 a +10)
+ */
+export function refineEquipmentItem(hero, itemId) {
+  if (!hero || !itemId) return { success: false, hero, message: 'Datos inválidos' };
+
+  let targetItem = null;
+  let isEquippedSlot = null;
+
+  for (const slot of ['weapon', 'armor', 'relic']) {
+    if (hero.equipped && hero.equipped[slot]?.id === itemId) {
+      targetItem = hero.equipped[slot];
+      isEquippedSlot = slot;
+      break;
+    }
+  }
+
+  if (!targetItem && Array.isArray(hero.inventory)) {
+    targetItem = hero.inventory.find(i => i.id === itemId);
+  }
+
+  if (!targetItem) return { success: false, hero, message: 'Objeto no encontrado' };
+
+  const currentLevel = targetItem.upgradeLevel || 0;
+  if (currentLevel >= UPGRADE_CONFIG.maxLevel) {
+    return { success: false, hero, message: 'El objeto ya alcanzó el nivel máximo (+10).' };
+  }
+
+  const step = UPGRADE_CONFIG.levels[currentLevel];
+  if (!step) return { success: false, hero, message: 'Nivel no disponible' };
+
+  if ((hero.polvoEstelar || 0) < step.cost) {
+    return { success: false, hero, message: `Necesitas ${step.cost} de Polvo Estelar.` };
+  }
+
+  const roll = Math.random();
+  const isSuccess = roll <= step.successRate;
+  const newPolvo = hero.polvoEstelar - step.cost;
+
+  if (isSuccess) {
+    const updatedItem = {
+      ...targetItem,
+      upgradeLevel: currentLevel + 1
+    };
+
+    let newEquipped = { ...(hero.equipped || {}) };
+    let newInventory = [...(hero.inventory || [])];
+
+    if (isEquippedSlot) {
+      newEquipped[isEquippedSlot] = updatedItem;
+    } else {
+      newInventory = newInventory.map(i => i.id === itemId ? updatedItem : i);
+    }
+
+    const updatedHero = {
+      ...hero,
+      polvoEstelar: newPolvo,
+      equipped: newEquipped,
+      inventory: newInventory
+    };
+
+    saveHeroProfile(updatedHero);
+    return {
+      success: true,
+      hero: updatedHero,
+      updatedItem,
+      levelGained: currentLevel + 1,
+      message: `¡Éxito en la Forja! Objeto refinado a +${currentLevel + 1} (${step.title})`
+    };
+  } else {
+    const updatedHero = {
+      ...hero,
+      polvoEstelar: newPolvo
+    };
+    saveHeroProfile(updatedHero);
+    return {
+      success: false,
+      hero: updatedHero,
+      message: 'La armonía estelar falló, pero el objeto permaneció intacto.'
+    };
+  }
+}
+
+/**
+ * Aplica una gema de encantamiento elemental a una pieza
+ */
+export function enchantEquipmentItem(hero, itemId, gemId) {
+  if (!hero || !itemId || !gemId) return { success: false, hero, message: 'Datos incompletos' };
+
+  const gem = ASTRAL_GEMS.find(g => g.id === gemId);
+  if (!gem) return { success: false, hero, message: 'Gema no válida' };
+
+  if ((hero.polvoEstelar || 0) < gem.cost) {
+    return { success: false, hero, message: `Necesitas ${gem.cost} de Polvo Estelar para engarzar esta gema.` };
+  }
+
+  let targetItem = null;
+  let isEquippedSlot = null;
+
+  for (const slot of ['weapon', 'armor', 'relic']) {
+    if (hero.equipped && hero.equipped[slot]?.id === itemId) {
+      targetItem = hero.equipped[slot];
+      isEquippedSlot = slot;
+      break;
+    }
+  }
+
+  if (!targetItem && Array.isArray(hero.inventory)) {
+    targetItem = hero.inventory.find(i => i.id === itemId);
+  }
+
+  if (!targetItem) return { success: false, hero, message: 'Objeto no encontrado' };
+
+  const updatedItem = {
+    ...targetItem,
+    enchantment: {
+      gemId: gem.id,
+      name: gem.name,
+      element: gem.element,
+      bonusStats: gem.bonusStats,
+      passiveDesc: gem.passiveDesc
+    }
+  };
+
+  let newEquipped = { ...(hero.equipped || {}) };
+  let newInventory = [...(hero.inventory || [])];
+
+  if (isEquippedSlot) {
+    newEquipped[isEquippedSlot] = updatedItem;
+  } else {
+    newInventory = newInventory.map(i => i.id === itemId ? updatedItem : i);
+  }
+
+  const updatedHero = {
+    ...hero,
+    polvoEstelar: hero.polvoEstelar - gem.cost,
+    equipped: newEquipped,
+    inventory: newInventory
+  };
+
+  saveHeroProfile(updatedHero);
+  return {
+    success: true,
+    hero: updatedHero,
+    updatedItem,
+    message: `¡Encantamiento exitoso! ${gem.name} engarzada.`
+  };
+}
+
+/**
+ * Desmonta una lista de piezas del inventario para recuperar Polvo Estelar
+ */
+export function dismantleEquipmentItems(hero, itemIds) {
+  if (!hero || !Array.isArray(itemIds) || itemIds.length === 0) {
+    return { success: false, hero, gainedPolvo: 0 };
+  }
+
+  let gainedPolvo = 0;
+  const itemsToRemove = new Set(itemIds);
+
+  (hero.inventory || []).forEach(item => {
+    if (itemsToRemove.has(item.id)) {
+      const rate = DISMANTLE_RATES[item.rarity] || 25;
+      const upgradeBonus = (item.upgradeLevel || 0) * 15;
+      gainedPolvo += (rate + upgradeBonus);
+    }
+  });
+
+  const newInventory = (hero.inventory || []).filter(item => !itemsToRemove.has(item.id));
+
+  const updatedHero = {
+    ...hero,
+    polvoEstelar: (hero.polvoEstelar || 0) + gainedPolvo,
+    inventory: newInventory
+  };
+
+  saveHeroProfile(updatedHero);
+  return {
+    success: true,
+    hero: updatedHero,
+    gainedPolvo,
+    message: `Has desintegrado ${itemIds.length} pieza(s) y obtenido +${gainedPolvo} de Polvo Estelar.`
+  };
+}
+
+/**
+ * Fusiona 3 piezas de la misma rareza para transmutar en 1 de rareza superior
+ */
+export function transmuteEquipmentItems(hero, itemIds) {
+  if (!hero || !Array.isArray(itemIds) || itemIds.length !== 3) {
+    return { success: false, hero, message: 'Se requieren exactamente 3 piezas para la fusión.' };
+  }
+
+  const items = (hero.inventory || []).filter(i => itemIds.includes(i.id));
+  if (items.length !== 3) {
+    return { success: false, hero, message: 'No se encontraron las 3 piezas en el inventario.' };
+  }
+
+  const baseRarity = items[0].rarity;
+  const allSameRarity = items.every(i => i.rarity === baseRarity);
+  if (!allSameRarity) {
+    return { success: false, hero, message: 'Las 3 piezas deben ser de la misma rareza.' };
+  }
+
+  let targetRarity = 'raro';
+  if (baseRarity === 'comun') targetRarity = 'raro';
+  else if (baseRarity === 'raro') targetRarity = 'epico';
+  else if (baseRarity === 'epico') targetRarity = 'legendario';
+  else {
+    return { success: false, hero, message: 'Piezas legendarias no pueden transmutarse más allá.' };
+  }
+
+  const pool = EQUIPMENT_CATALOG.filter(i => i.rarity === targetRarity);
+  const randomItem = pool[Math.floor(Math.random() * pool.length)] || EQUIPMENT_CATALOG[0];
+
+  const newItem = {
+    ...randomItem,
+    id: `${randomItem.id}_transmute_${Date.now()}`
+  };
+
+  const newInventory = (hero.inventory || []).filter(i => !itemIds.includes(i.id));
+  newInventory.push(newItem);
+
+  const updatedHero = {
+    ...hero,
+    inventory: newInventory
+  };
+
+  saveHeroProfile(updatedHero);
+  return {
+    success: true,
+    hero: updatedHero,
+    gainedItem: newItem,
+    message: `¡Transmutación exitosa! Has obtenido [${newItem.name}] (${targetRarity.toUpperCase()}).`
+  };
+}
+
+
 

@@ -13,10 +13,10 @@ import {
   calculateActiveSets, 
   calculateItemPower 
 } from './rpg-data';
-import { calculateHeroTotalStats } from './rpg-engine';
+import { calculateHeroTotalStats, getItemEffectiveStats } from './rpg-engine';
 import { playLootChestSound, playBattleShieldSound } from '../../../lib/sound-effects';
 
-export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
+export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpenForge }) {
   const [mounted, setMounted] = useState(false);
   const [filter, setFilter] = useState('all'); // all, weapon, armor, relic
   const [selectedItem, setSelectedItem] = useState(null);
@@ -396,9 +396,21 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
 
                             {item ? (
                               <>
-                                <h4 className={`text-xs sm:text-sm font-bold truncate ${rarity.color}`}>
-                                  {item.name}
-                                </h4>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className={`text-xs sm:text-sm font-bold truncate ${rarity.color}`}>
+                                    {item.name}
+                                  </h4>
+                                  {item.upgradeLevel > 0 && (
+                                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      +{item.upgradeLevel}
+                                    </span>
+                                  )}
+                                  {item.enchantment && (
+                                    <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold" title={item.enchantment.name}>
+                                      💎 {item.enchantment.name.split(' ')[0]}
+                                    </span>
+                                  )}
+                                </div>
                                 
                                 {/* Atributos y Set */}
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -408,13 +420,18 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
                                       {setDef.badge}
                                     </span>
                                   )}
-                                  <div className="flex gap-2 text-[10px] font-mono text-cyan-300">
-                                    {item.atk && <span>+{item.atk} ATK</span>}
-                                    {item.hp && <span>+{item.hp} HP</span>}
-                                    {item.def && <span>+{item.def} DEF</span>}
-                                    {item.spd && <span>+{item.spd} VEL</span>}
-                                    {item.crit && <span>+{Math.round(item.crit * 100)}% CRÍT</span>}
-                                  </div>
+                                  {(() => {
+                                    const eff = getItemEffectiveStats(item);
+                                    return (
+                                      <div className="flex gap-2 text-[10px] font-mono text-cyan-300">
+                                        {eff.atk > 0 && <span>+{eff.atk} ATK</span>}
+                                        {eff.hp > 0 && <span>+{eff.hp} HP</span>}
+                                        {eff.def > 0 && <span>+{eff.def} DEF</span>}
+                                        {eff.spd > 0 && <span>+{eff.spd} VEL</span>}
+                                        {eff.crit > 0 && <span>+{Math.round(eff.crit * 100)}% CRÍT</span>}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </>
                             ) : (
@@ -686,6 +703,16 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
                               <span className={`text-xs font-bold truncate ${rarityMeta.color}`}>
                                 {item.name}
                               </span>
+                              {item.upgradeLevel > 0 && (
+                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  +{item.upgradeLevel}
+                                </span>
+                              )}
+                              {item.enchantment && (
+                                <span className="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold" title={item.enchantment.name}>
+                                  💎 {item.enchantment.name.split(' ')[0]}
+                                </span>
+                              )}
                               <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-white/10 text-gray-300 font-light">
                                 {rarityMeta.name}
                               </span>
@@ -701,14 +728,19 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
                               {item.desc}
                             </p>
 
-                            {/* Estadísticas */}
-                            <div className="flex gap-2.5 text-[10px] font-mono text-cyan-300 mt-1 flex-wrap">
-                              {item.atk && <span>+ATK {item.atk}</span>}
-                              {item.hp && <span>+HP {item.hp}</span>}
-                              {item.def && <span>+DEF {item.def}</span>}
-                              {item.spd && <span>+VEL {item.spd}</span>}
-                              {item.crit && <span>+CRÍT {Math.round(item.crit * 100)}%</span>}
-                            </div>
+                            {/* Estadísticas Efectivas */}
+                            {(() => {
+                              const eff = getItemEffectiveStats(item);
+                              return (
+                                <div className="flex gap-2.5 text-[10px] font-mono text-cyan-300 mt-1 flex-wrap">
+                                  {eff.atk > 0 && <span>+ATK {eff.atk}</span>}
+                                  {eff.hp > 0 && <span>+HP {eff.hp}</span>}
+                                  {eff.def > 0 && <span>+DEF {eff.def}</span>}
+                                  {eff.spd > 0 && <span>+VEL {eff.spd}</span>}
+                                  {eff.crit > 0 && <span>+CRÍT {Math.round(eff.crit * 100)}%</span>}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
 

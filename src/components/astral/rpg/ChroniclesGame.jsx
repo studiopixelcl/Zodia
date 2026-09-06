@@ -4,12 +4,13 @@ import {
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
   HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
-  Swords, RefreshCw, Calendar, Gift
+  Swords, RefreshCw, Calendar, Gift, Hammer
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
 import { SkillTreeModal } from './SkillTreeModal';
 import { DailyRewardsModal } from './DailyRewardsModal';
+import { CosmicForgeModal } from './CosmicForgeModal';
 import { BattleArena } from './BattleArena';
 import { 
   getOrCreateHeroProfile, 
@@ -43,6 +44,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [isDailyRewardsOpen, setIsDailyRewardsOpen] = useState(false);
+  const [isForgeOpen, setIsForgeOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
@@ -441,6 +443,14 @@ export function ChroniclesGame({ profile, onBack }) {
             )}
           </button>
           <button
+            onClick={() => setIsForgeOpen(true)}
+            className="flex items-center gap-1 text-[11px] text-orange-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/40 font-bold transition-all shadow-sm"
+            title="Forja Cósmica y Refinamiento"
+          >
+            <Hammer size={13} className="text-orange-400" />
+            <span>Forja</span>
+          </button>
+          <button
             onClick={() => setIsSkillTreeOpen(true)}
             className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
           >
@@ -489,6 +499,12 @@ export function ChroniclesGame({ profile, onBack }) {
                   {dailyResetInfo.canClaimStreak ? '¡Listo!' : pendingQuestsCount + (hasDailyMasterChest ? 1 : 0)}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setIsForgeOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-orange-300 hover:text-white px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500/20 to-amber-500/20 hover:from-orange-500/30 hover:to-amber-500/30 border border-orange-500/40 font-bold transition-all shadow-sm"
+            >
+              <Hammer size={14} className="text-orange-400" /> Forja Cósmica
             </button>
             <button
               onClick={() => setIsSkillTreeOpen(true)}
@@ -1289,6 +1305,10 @@ export function ChroniclesGame({ profile, onBack }) {
         onClose={() => setIsInventoryOpen(false)}
         hero={hero}
         onUpdateHero={(updated) => setHero(updated)}
+        onOpenForge={() => {
+          setIsInventoryOpen(false);
+          setIsForgeOpen(true);
+        }}
       />
 
       {/* Modal del Árbol de Habilidades Astrales */}
@@ -1309,6 +1329,17 @@ export function ChroniclesGame({ profile, onBack }) {
           saveHeroProfile(updated);
         }}
         transitBuff={transitBuff}
+      />
+
+      {/* Modal de la Forja Cósmica y Alquimia */}
+      <CosmicForgeModal
+        isOpen={isForgeOpen}
+        onClose={() => setIsForgeOpen(false)}
+        hero={hero}
+        onUpdateHero={(updated) => {
+          setHero(updated);
+          saveHeroProfile(updated);
+        }}
       />
     </div>
   );
