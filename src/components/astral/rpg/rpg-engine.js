@@ -131,13 +131,63 @@ export function getElementalMultiplier(attackerElem, defenderElem) {
 }
 
 /**
- * Calcula el daño de una habilidad o ataque considerando ventajas y tránsitos
+ * Calcula el daño de una habilidad o ataque considerando ventajas, tránsitos, posiciones tácticas y posturas
  */
-export function calculateDamage(attacker, defender, skillMultiplier = 1.0, isCritForced = false, transitElement = null) {
-  const atk = attacker.atk || 50;
-  const def = defender.def || 25;
+export function calculateDamage(
+  attacker, 
+  defender, 
+  skillMultiplier = 1.0, 
+  isCritForced = false, 
+  transitElement = null,
+  tactics = {}
+) {
+  const { 
+    attackerPosition = 'frontline', 
+    defenderPosition = 'frontline', 
+    stance = null, 
+    isStaggered = false, 
+    mutator = null 
+  } = tactics;
+
+  let atk = attacker.atk || 50;
+  let def = defender.def || 25;
   const attackerElem = attacker.element;
   const defenderElem = defender.element;
+
+  // Modificadores de Postura Cósmica del atacante
+  let stanceDamageMult = 1.0;
+  let stanceCritBonus = 0;
+  if (stance === 'solar') {
+    stanceDamageMult = 1.25; // +25% ATQ en postura solar
+  } else if (stance === 'lunar') {
+    stanceDamageMult = 0.90; // Modo defensivo
+  } else if (stance === 'stellar') {
+    stanceCritBonus = 0.15; // +15% Prob. Crítico
+  }
+
+  // Modificador de Posicionamiento táctico (Vanguardia vs Retaguardia)
+  let positionMult = 1.0;
+  if (attackerPosition === 'frontline') {
+    positionMult *= 1.20; // +20% Daño ofensivo en vanguardia
+  } else if (attackerPosition === 'backline') {
+    positionMult *= 0.85; // Menos daño físico a distancia
+  }
+
+  // Si el defensor está en Retaguardia, absorbe un 30% del impacto directo
+  if (defenderPosition === 'backline') {
+    positionMult *= 0.70;
+  }
+
+  // Multiplicador por Ruptura Cósmica (Stagger / Rotura de Guardia)
+  const staggerMult = isStaggered ? 1.50 : 1.0;
+
+  // Mutador de Torre del Caos activo
+  let mutatorMult = 1.0;
+  if (mutator?.id === 'solar_flare' && (attackerElem === 'Fuego')) {
+    mutatorMult = 1.25;
+  } else if (mutator?.id === 'gravity_well' && attackerPosition === 'frontline') {
+    mutatorMult = 1.30;
+  }
 
   const { multiplier: elemMult, status: elemStatus } = getElementalMultiplier(attackerElem, defenderElem);
 
@@ -145,17 +195,16 @@ export function calculateDamage(attacker, defender, skillMultiplier = 1.0, isCri
   const transitMult = (transitElement && attackerElem === transitElement) ? 1.15 : 1.0;
 
   // Fórmula de mitigación de daño clásica Zodia
-  // Daño Base = (ATK * 1.5 - DEF * 0.45) * skillMultiplier
-  const rawDamage = Math.max(15, (atk * 1.4 - def * 0.45) * skillMultiplier);
+  const rawDamage = Math.max(15, (atk * 1.4 - def * 0.45) * skillMultiplier * stanceDamageMult * positionMult * staggerMult * mutatorMult);
 
   // Tirada de crítico
   const critRoll = Math.random();
-  const critRate = attacker.critRate || 0.15;
+  const critRate = (attacker.critRate || 0.15) + stanceCritBonus + (attackerPosition === 'frontline' ? 0.10 : 0);
   const isCrit = isCritForced || critRoll < critRate;
   const critMult = isCrit ? 1.65 : 1.0;
 
-  // Variación aleatoria (±8%)
-  const variance = 0.92 + Math.random() * 0.16;
+  // Variación aleatoria (±7%)
+  const variance = 0.93 + Math.random() * 0.14;
 
   const finalDamage = Math.max(10, Math.round(rawDamage * elemMult * transitMult * critMult * variance));
 
@@ -165,7 +214,8 @@ export function calculateDamage(attacker, defender, skillMultiplier = 1.0, isCri
     elemStatus,
     hasTransitBoost: transitElement && attackerElem === transitElement,
     isSuperEffective: elemStatus === 'super_effective',
-    isResisted: elemStatus === 'resisted'
+    isResisted: elemStatus === 'resisted',
+    isStaggered
   };
 }
 

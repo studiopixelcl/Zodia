@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
-  HelpCircle, Play, ChevronRight, Zap
+  HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
@@ -17,7 +17,10 @@ import {
   EQUIPMENT_CATALOG,
   ELEMENTAL_AFFINITIES,
   getZodiacIcon,
-  extractProfilePhoto 
+  extractProfilePhoto,
+  ECLIPSE_TWINS_CHALLENGES,
+  TOWER_MUTATORS,
+  generateTowerFloor
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
@@ -131,6 +134,16 @@ export function ChroniclesGame({ profile, onBack }) {
       newMaxHouse = activeBattle.houseNumber;
     }
 
+    let newMaxTowerFloor = hero.maxTowerFloor || 1;
+    if (activeBattle.mode === 'tower' && activeBattle.floorNumber >= newMaxTowerFloor) {
+      newMaxTowerFloor = activeBattle.floorNumber + 1;
+    }
+
+    let newEclipseCleared = [...(hero.eclipseCleared || [])];
+    if (activeBattle.mode === 'eclipse' && activeBattle.challengeId && !newEclipseCleared.includes(activeBattle.challengeId)) {
+      newEclipseCleared.push(activeBattle.challengeId);
+    }
+
     const updatedHero = {
       ...hero,
       level: newLevel,
@@ -138,7 +151,9 @@ export function ChroniclesGame({ profile, onBack }) {
       expNext: newExpNext,
       polvoEstelar: (hero.polvoEstelar || 0) + gold,
       inventory: newInventory,
-      maxHouseCleared: newMaxHouse
+      maxHouseCleared: newMaxHouse,
+      maxTowerFloor: newMaxTowerFloor,
+      eclipseCleared: newEclipseCleared
     };
 
     setHero(updatedHero);
@@ -187,6 +202,28 @@ export function ChroniclesGame({ profile, onBack }) {
       },
       mode: 'houses',
       houseNumber: stage.house
+    });
+  };
+
+  // Iniciar Desafío 1 vs 2: Gemelos del Eclipse
+  const startEclipseBattle = (challenge) => {
+    setActiveBattle({
+      enemy: challenge.enemy1,
+      enemy2: challenge.enemy2,
+      mode: 'eclipse',
+      challengeId: challenge.id
+    });
+  };
+
+  // Iniciar combate en Torre del Caos Astral
+  const startTowerBattle = (floorNumber) => {
+    const floorData = generateTowerFloor(floorNumber, hero.level);
+    setActiveBattle({
+      enemy: floorData.enemy1,
+      enemy2: floorData.enemy2,
+      mutator: floorData.mutator,
+      mode: 'tower',
+      floorNumber
     });
   };
 
@@ -279,8 +316,10 @@ export function ChroniclesGame({ profile, onBack }) {
         <BattleArena 
           hero={hero}
           enemy={activeBattle.enemy}
+          enemy2={activeBattle.enemy2 || null}
           mode={activeBattle.mode}
           partner={activeBattle.partner}
+          mutator={activeBattle.mutator || null}
           onBattleEnd={handleBattleEnd}
           onBack={() => setActiveBattle(null)}
         />
@@ -375,42 +414,66 @@ export function ChroniclesGame({ profile, onBack }) {
         onOpenSkillTree={() => setIsSkillTreeOpen(true)}
       />
 
-      {/* Selector de Pestañas / Modos */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Selector de Pestañas / Modos (5 Modos) */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <button
           onClick={() => setActiveTab('houses')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
             activeTab === 'houses'
               ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow-lg shadow-cyan-500/20'
               : 'glass-panel text-gray-400 hover:text-white border border-white/10'
           }`}
         >
-          <Trophy size={16} />
+          <Trophy size={15} />
           <span>12 Casas</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('shadows')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'shadows'
+          onClick={() => setActiveTab('eclipse')}
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'eclipse'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-black shadow-lg shadow-amber-500/20'
+              : 'glass-panel text-amber-400/80 hover:text-amber-300 border border-amber-500/20'
+          }`}
+        >
+          <Zap size={15} className="text-amber-400" />
+          <span>Duelos 1vs2</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('tower')}
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'tower'
               ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/20'
+              : 'glass-panel text-purple-400/80 hover:text-purple-300 border border-purple-500/20'
+          }`}
+        >
+          <Crown size={15} className="text-purple-400" />
+          <span>Torre Caos</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('shadows')}
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'shadows'
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
               : 'glass-panel text-gray-400 hover:text-white border border-white/10'
           }`}
         >
-          <Sword size={16} />
+          <Sword size={15} />
           <span>Duelo 1v1</span>
         </button>
 
         <button
           onClick={() => setActiveTab('coop')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
             activeTab === 'coop'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-black shadow-lg shadow-amber-500/20'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-black shadow-lg shadow-emerald-500/20'
               : 'glass-panel text-gray-400 hover:text-white border border-white/10'
           }`}
         >
-          <Users size={16} />
-          <span>Coop Sinastría</span>
+          <Users size={15} />
+          <span>Sinastría</span>
         </button>
       </div>
 
@@ -542,7 +605,191 @@ export function ChroniclesGame({ profile, onBack }) {
         </div>
       )}
 
-      {/* 2. MODO: DUELO DE SOMBRAS 1v1 */}
+      {/* 2. MODO: DESAFÍOS 1 VS 2 (GEMELOS DEL ECLIPSE) */}
+      {activeTab === 'eclipse' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pl-2 flex-wrap gap-2">
+            <div>
+              <h3 className="mystic-font text-base text-white font-bold flex items-center gap-2">
+                <Zap className="text-amber-400" size={18} /> Gemelos del Eclipse (1 vs 2)
+              </h3>
+              <p className="text-xs text-gray-400">
+                Combates tácticos en inferioridad numérica contra dos sombras sincronizadas. Alterna entre Vanguardia y Retaguardia y selecciona tus objetivos.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/30">
+              {hero.eclipseCleared?.length || 0} / {ECLIPSE_TWINS_CHALLENGES.length} Dominados
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            {ECLIPSE_TWINS_CHALLENGES.map((ch) => {
+              const isCleared = hero.eclipseCleared?.includes(ch.id);
+              const isUnlocked = (hero.level || 1) >= ch.levelReq;
+              const elem1 = ELEMENTAL_AFFINITIES[ch.enemy1.element] || ELEMENTAL_AFFINITIES['Fuego'];
+              const elem2 = ELEMENTAL_AFFINITIES[ch.enemy2.element] || ELEMENTAL_AFFINITIES['Aire'];
+
+              return (
+                <div
+                  key={ch.id}
+                  className={`p-4 rounded-2xl glass-panel border transition-all ${
+                    isCleared
+                      ? 'border-emerald-500/40 bg-emerald-950/10'
+                      : isUnlocked
+                        ? 'border-amber-500/30 hover:border-amber-400/70 bg-gradient-to-r from-amber-950/20 via-black to-purple-950/20'
+                        : 'border-white/5 opacity-50 bg-black/40'
+                  }`}
+                >
+                  <div className="flex items-start justify-between flex-wrap gap-3">
+                    <div className="flex-1 min-w-[240px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Nivel {ch.levelReq}+
+                        </span>
+                        {isCleared && (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
+                            <CheckCircle2 size={12} /> Dominado
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold text-white mystic-font">{ch.title}</h4>
+                      <div className="text-xs text-amber-200/80 font-medium mt-0.5">{ch.subtitle}</div>
+                      <p className="text-xs text-gray-400 font-light mt-1.5 leading-relaxed">
+                        {ch.description}
+                      </p>
+                    </div>
+
+                    {/* Previsualización de los 2 enemigos */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-11 h-11 rounded-xl border ${elem1.border} bg-black/60 p-1 flex items-center justify-center`}>
+                          <img src={getZodiacIcon(ch.enemy1.sign)} alt="" className="w-full h-full object-contain" />
+                        </div>
+                        <span className="text-[9px] text-gray-400 font-mono mt-0.5">{ch.enemy1.sign}</span>
+                      </div>
+                      <span className="text-amber-400 font-black text-xs">&</span>
+                      <div className="flex flex-col items-center">
+                        <div className={`w-11 h-11 rounded-xl border ${elem2.border} bg-black/60 p-1 flex items-center justify-center`}>
+                          <img src={getZodiacIcon(ch.enemy2.sign)} alt="" className="w-full h-full object-contain" />
+                        </div>
+                        <span className="text-[9px] text-gray-400 font-mono mt-0.5">{ch.enemy2.sign}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between flex-wrap gap-2">
+                    <div className="text-[11px] text-gray-400 font-mono flex items-center gap-3">
+                      <span className="text-cyan-300 font-bold">+{ch.rewardExp} EXP</span>
+                      <span className="text-amber-300 font-bold">+{ch.rewardGold} ✦</span>
+                    </div>
+
+                    {isUnlocked ? (
+                      <button
+                        onClick={() => startEclipseBattle(ch)}
+                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
+                      >
+                        <Zap size={13} /> {isCleared ? 'Repetir 1vs2' : 'Desafiar 1vs2'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Lock size={13} /> Requiere Nivel {ch.levelReq}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. MODO: TORRE DEL CAOS ASTRAL (ENDLESS / PISOS) */}
+      {activeTab === 'tower' && (() => {
+        const currentFloor = hero.maxTowerFloor || 1;
+        const currentData = generateTowerFloor(currentFloor, hero.level);
+        const nextMutator = currentData.mutator;
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pl-2 flex-wrap gap-2">
+              <div>
+                <h3 className="mystic-font text-base text-white font-bold flex items-center gap-2">
+                  <Crown className="text-purple-400" size={18} /> Torre del Caos Astral (Modo Infinito)
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Asciende piso a piso por la aguja celestial. Cada nivel introduce mutadores y jefes con barras de guardia.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-purple-300 font-bold bg-purple-500/10 px-2.5 py-1 rounded-xl border border-purple-500/30">
+                Piso Máximo: {currentFloor}
+              </span>
+            </div>
+
+            {/* Tarjeta del Piso Actual */}
+            <div className="glass-panel p-6 rounded-3xl border border-purple-500/40 bg-gradient-to-b from-purple-950/30 via-black to-black space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold">
+                    PISO ACTUAL
+                  </span>
+                  <h3 className="mystic-font text-3xl text-white font-bold mt-1">
+                    Piso {currentFloor}
+                  </h3>
+                  <div className="text-xs text-gray-300 font-light mt-0.5">
+                    {currentData.isDual ? '⚠️ ¡Batalla de Emboscada 1vs2 en este piso!' : 'Guardián del Caos Individual'}
+                  </div>
+                </div>
+
+                {/* Previsualización del mutador activo en este piso */}
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10 max-w-xs text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 mb-0.5">
+                    <Flame size={13} /> Mutador: {nextMutator.name}
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-snug">
+                    {nextMutator.desc}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detalles de los Guardianes del Piso */}
+              <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-purple-950/40 border border-purple-500/40 p-1 flex items-center justify-center">
+                    <img src={getZodiacIcon(currentData.enemy1.sign)} alt="" className="w-full h-full object-contain" />
+                  </div>
+                  {currentData.enemy2 && (
+                    <div className="w-12 h-12 rounded-xl bg-purple-950/40 border border-purple-500/40 p-1 flex items-center justify-center -ml-3 shadow-lg">
+                      <img src={getZodiacIcon(currentData.enemy2.sign)} alt="" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xs font-bold text-white">
+                      {currentData.enemy1.name} {currentData.enemy2 ? `& ${currentData.enemy2.name}` : ''}
+                    </div>
+                    <div className="text-[10px] text-gray-400">
+                      HP: ~{currentData.enemy1.hp} {currentData.enemy2 ? `+ ${currentData.enemy2.hp}` : ''} • {currentData.isDual ? 'Dúo Sincronizado' : 'Guardián Solitario'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] text-gray-400 block font-mono">RECOMPENSA AL VENCER</span>
+                  <span className="text-xs font-mono font-bold text-cyan-300">+{currentData.rewardExp} EXP • +{currentData.rewardGold} ✦</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => startTowerBattle(currentFloor)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-purple-900/40 transition-all"
+              >
+                <Play size={16} /> Entrar al Piso {currentFloor}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 4. MODO: DUELO DE SOMBRAS 1v1 */}
       {activeTab === 'shadows' && (
         <div className="glass-panel p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 via-black to-black space-y-4">
           <div className="text-center max-w-md mx-auto">

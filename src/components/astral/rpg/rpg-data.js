@@ -1493,6 +1493,12 @@ export function getOrCreateHeroProfile(userProfile) {
           const unlocked = signTree.filter(s => (saved.level || 1) >= s.requiredLevel);
           saved.equippedSkills = unlocked.slice(0, 2).map(s => s.id);
         }
+        if (typeof saved.maxTowerFloor !== 'number') {
+          saved.maxTowerFloor = 1;
+        }
+        if (!Array.isArray(saved.eclipseCleared)) {
+          saved.eclipseCleared = [];
+        }
         saveHeroProfile(saved);
         try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch {}
         return saved;
@@ -1533,6 +1539,8 @@ function createInitialHero(userProfile, heroClass) {
       EQUIPMENT_CATALOG.find(i => i.id === 'rl_01')
     ],
     maxHouseCleared: 0,
+    maxTowerFloor: 1,
+    eclipseCleared: [],
     pvpRank: 'Polvo Estelar I',
     pvpPoints: 0,
     potions: 3
@@ -1546,4 +1554,258 @@ export function saveHeroProfile(hero) {
   } catch (e) {
     console.error('Error guardando perfil RPG:', e);
   }
+}
+
+// ==========================================
+// DESAFÍOS 1 VS 2: GEMELOS DEL ECLIPSE
+// ==========================================
+export const ECLIPSE_TWINS_CHALLENGES = [
+  {
+    id: 'twin_1',
+    title: 'Llamarada Primordial',
+    subtitle: 'Furia de Aries & Corona de Leo',
+    description: 'Aries presiona con golpes de sangrado y alta velocidad mientras Leo aturde con llamaradas solares. Ambos comparten una gran potencia de Fuego.',
+    levelReq: 3,
+    rewardExp: 220,
+    rewardGold: 260,
+    dropChance: 'wp_02',
+    enemy1: {
+      name: 'Sombra de Aries',
+      sign: 'Aries',
+      element: 'Fuego',
+      hp: 360,
+      atk: 58,
+      def: 22,
+      spd: 45,
+      skillName: 'Embate de Fuego',
+      role: 'Ofensivo Rápido'
+    },
+    enemy2: {
+      name: 'Sombra de Leo',
+      sign: 'Leo',
+      element: 'Fuego',
+      hp: 320,
+      atk: 52,
+      def: 26,
+      spd: 35,
+      skillName: 'Rugido Deslumbrante',
+      role: 'Aturdimiento y Escudo'
+    }
+  },
+  {
+    id: 'twin_2',
+    title: 'Bastión Tectónico',
+    subtitle: 'Roca de Tauro & Cima de Capricornio',
+    description: 'La muralla indestructible de Tierra. Tauro levanta escudos diamantinos mientras Capricornio desgasta con golpes sísmicos. Recomendado: veneno o penetración.',
+    levelReq: 7,
+    rewardExp: 380,
+    rewardGold: 420,
+    dropChance: 'ar_02',
+    enemy1: {
+      name: 'Sombra de Tauro',
+      sign: 'Tauro',
+      element: 'Tierra',
+      hp: 520,
+      atk: 54,
+      def: 45,
+      spd: 25,
+      skillName: 'Escudo Diamantino',
+      role: 'Tanque Protector'
+    },
+    enemy2: {
+      name: 'Sombra de Capricornio',
+      sign: 'Capricornio',
+      element: 'Tierra',
+      hp: 480,
+      atk: 66,
+      def: 38,
+      spd: 30,
+      skillName: 'Impacto Granítico',
+      role: 'Golpeador Físico'
+    }
+  },
+  {
+    id: 'twin_3',
+    title: 'Velo Venenoso del Espejo',
+    subtitle: 'Aguijón de Escorpio & Engaño de Géminis',
+    description: 'Un dúo sumamente traicionero. Géminis refleja el daño que recibe mientras Escorpio corrompe tus reservas de vida con veneno y robo vampírico.',
+    levelReq: 11,
+    rewardExp: 580,
+    rewardGold: 620,
+    dropChance: 'rl_03',
+    enemy1: {
+      name: 'Sombra de Escorpio',
+      sign: 'Escorpio',
+      element: 'Agua',
+      hp: 560,
+      atk: 74,
+      def: 30,
+      spd: 42,
+      skillName: 'Picadura Necrótica',
+      role: 'Veneno y Drenaje'
+    },
+    enemy2: {
+      name: 'Sombra de Géminis',
+      sign: 'Géminis',
+      element: 'Aire',
+      hp: 500,
+      atk: 68,
+      def: 28,
+      spd: 52,
+      skillName: 'Espejo Ilusorio',
+      role: 'Evasión y Reflejo'
+    }
+  },
+  {
+    id: 'twin_4',
+    title: 'Tormenta del Abismo y Éter',
+    subtitle: 'Mareas de Cáncer & Vacío de Acuario',
+    description: 'Cáncer sana de forma periódica a ambos guardianes mientras Acuario sabotea tu barra de Éter. Derrota a Cáncer rápido o la batalla será eterna.',
+    levelReq: 15,
+    rewardExp: 850,
+    rewardGold: 900,
+    dropChance: 'wp_04',
+    enemy1: {
+      name: 'Sombra de Cáncer',
+      sign: 'Cáncer',
+      element: 'Agua',
+      hp: 680,
+      atk: 60,
+      def: 36,
+      spd: 38,
+      skillName: 'Marea Restauradora',
+      role: 'Sanador de Dúo'
+    },
+    enemy2: {
+      name: 'Sombra de Acuario',
+      sign: 'Acuario',
+      element: 'Aire',
+      hp: 620,
+      atk: 82,
+      def: 32,
+      spd: 48,
+      skillName: 'Prisión de Éter',
+      role: 'Drenador de Recursos'
+    }
+  },
+  {
+    id: 'twin_5',
+    title: 'Sentencia de las Constelaciones',
+    subtitle: 'Balanza de Libra & Saeta de Sagitario',
+    description: 'El desafío definitivo 1vs2. Libra redistribuye los impactos y purifica a su compañero, mientras Sagitario dispara ráfagas centellantes con probabilidad de crítico letal.',
+    levelReq: 19,
+    rewardExp: 1300,
+    rewardGold: 1400,
+    dropChance: 'ar_04',
+    enemy1: {
+      name: 'Sombra de Libra',
+      sign: 'Libra',
+      element: 'Aire',
+      hp: 850,
+      atk: 78,
+      def: 42,
+      spd: 44,
+      skillName: 'Sentencia Cósmica',
+      role: 'Equilibrio y Purificación'
+    },
+    enemy2: {
+      name: 'Sombra de Sagitario',
+      sign: 'Sagitario',
+      element: 'Fuego',
+      hp: 780,
+      atk: 96,
+      def: 35,
+      spd: 55,
+      skillName: 'Flecha del Juicio',
+      role: 'Daño Crítico Puro'
+    }
+  }
+];
+
+// ==========================================
+// TORRE DEL CAOS ASTRAL (ENDLESS / MUTADORES)
+// ==========================================
+export const TOWER_MUTATORS = [
+  {
+    id: 'solar_flare',
+    name: 'Llamarada Solar',
+    desc: '+25% Daño de Fuego y Luz para todos. Quemaduras causan doble daño.',
+    color: '#f59e0b',
+    icon: 'Flame'
+  },
+  {
+    id: 'ether_surge',
+    name: 'Sobrecarga de Éter',
+    desc: 'Ambos bandos generan +1 Éter extra al inicio de turno. Habilidades más frecuentes.',
+    color: '#06b6d4',
+    icon: 'Zap'
+  },
+  {
+    id: 'lunar_shroud',
+    name: 'Manto de Penumbra',
+    desc: 'Los escudos y curaciones son un 40% más potentes.',
+    color: '#a855f7',
+    icon: 'Shield'
+  },
+  {
+    id: 'gravity_well',
+    name: 'Pozo Gravitatorio',
+    desc: 'La Retaguardia recibe -40% daño. La Vanguardia inflige +30% daño físico.',
+    color: '#3b82f6',
+    icon: 'Crosshair'
+  },
+  {
+    id: 'blood_eclipse',
+    name: 'Eclipse Sangriento',
+    desc: 'Todos los ataques físicos aplican una carga de Sangrado por 2 turnos.',
+    color: '#ef4444',
+    icon: 'Flame'
+  }
+];
+
+export function generateTowerFloor(floorNumber, heroLevel = 1) {
+  const signs = Object.keys(ZODIAC_HERO_CLASSES);
+  const mutator = TOWER_MUTATORS[(floorNumber - 1) % TOWER_MUTATORS.length];
+  const isDual = floorNumber >= 5 && floorNumber % 5 === 0;
+
+  const sign1 = signs[(floorNumber * 3) % signs.length];
+  const class1 = ZODIAC_HERO_CLASSES[sign1];
+  const scaling = 1 + (floorNumber - 1) * 0.12;
+
+  const enemy1 = {
+    name: isDual ? `Guardián A (${sign1})` : `Guardián del Piso ${floorNumber} (${sign1})`,
+    sign: sign1,
+    element: class1.element,
+    hp: Math.round((class1.baseStats.hp + 60) * scaling),
+    atk: Math.round((class1.baseStats.atk + 10) * scaling),
+    def: Math.round((class1.baseStats.def + 5) * scaling),
+    spd: Math.round(class1.baseStats.spd * (1 + floorNumber * 0.02)),
+    role: isDual ? 'Vanguardia Rival' : 'Guardián del Caos'
+  };
+
+  let enemy2 = null;
+  if (isDual) {
+    const sign2 = signs[(floorNumber * 7) % signs.length];
+    const class2 = ZODIAC_HERO_CLASSES[sign2];
+    enemy2 = {
+      name: `Guardián B (${sign2})`,
+      sign: sign2,
+      element: class2.element,
+      hp: Math.round((class2.baseStats.hp + 40) * scaling * 0.85),
+      atk: Math.round((class2.baseStats.atk + 8) * scaling * 0.9),
+      def: Math.round((class2.baseStats.def + 5) * scaling * 0.85),
+      spd: Math.round(class2.baseStats.spd * (1 + floorNumber * 0.02)),
+      role: 'Retaguardia Rival'
+    };
+  }
+
+  return {
+    floor: floorNumber,
+    isDual,
+    mutator,
+    enemy1,
+    enemy2,
+    rewardExp: 90 + floorNumber * 35,
+    rewardGold: 110 + floorNumber * 40
+  };
 }
