@@ -171,6 +171,25 @@ export function BattleArena({
 
   const [battleOutcome, setBattleOutcome] = useState(null); // 'victory' | 'defeat' | null
   const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+  const [defeatingTarget, setDefeatingTarget] = useState(null); // 'enemy1' | 'enemy2' | 'both' | 'player' | null
+  const [playerGhostHp, setPlayerGhostHp] = useState(playerHp);
+  const [enemy1GhostHp, setEnemy1GhostHp] = useState(enemy1Hp);
+  const [enemy2GhostHp, setEnemy2GhostHp] = useState(enemy2Hp);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPlayerGhostHp(playerHp), 350);
+    return () => clearTimeout(timer);
+  }, [playerHp]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setEnemy1GhostHp(enemy1Hp), 350);
+    return () => clearTimeout(timer);
+  }, [enemy1Hp]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setEnemy2GhostHp(enemy2Hp), 350);
+    return () => clearTimeout(timer);
+  }, [enemy2Hp]);
 
   useEffect(() => {
     const handler = () => setSoundOn(isSoundEnabled());
@@ -645,9 +664,16 @@ export function BattleArena({
     const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
 
     if (isEnemy1Dead && isEnemy2Dead) {
-      handleVictory();
+      setTurn('busy');
+      setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
+      spawnFloatingText('💥 ¡ANIQUILADO!', activeTarget === 0 ? 'enemy1' : 'enemy2', 'crit');
+      logMessage(`💥 ¡Impacto fulminante! Las sombras cósmicas se desintegran.`);
+      setTimeout(() => {
+        handleVictory();
+      }, 1300);
     } else {
       if (hasDualEnemies && isEnemy1Dead && activeTarget === 0) {
+        setDefeatingTarget('enemy1');
         setActiveTarget(1);
         logMessage(`💀 ¡La Sombra frontal ha caído! Ahora enfócate en [${enemy2.name}].`);
       }
@@ -825,7 +851,13 @@ export function BattleArena({
         }
 
         if (nextPlayerHp <= 0) {
-          handleDefeat();
+          setTurn('busy');
+          setDefeatingTarget('player');
+          spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
+          logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
+          setTimeout(() => {
+            handleDefeat();
+          }, 1300);
         } else {
           setTimeout(onComplete, 500);
         }
@@ -850,6 +882,19 @@ export function BattleArena({
 
   // Fin de ronda enemiga: procesar estados del jugador y devolver turno
   const finishEnemyRound = () => {
+    // Comprobar si ambos enemigos murieron por daño residual (veneno/quemadura)
+    const isEnemy1Dead = enemy1HpRef.current <= 0;
+    const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
+    if (isEnemy1Dead && isEnemy2Dead) {
+      setTurn('busy');
+      setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
+      spawnFloatingText('💥 ¡ANIQUILADO!', 'enemy1', 'crit');
+      setTimeout(() => {
+        handleVictory();
+      }, 1300);
+      return;
+    }
+
     if (playerHpRef.current <= 0) return;
 
     // Procesar venenos/sangrados en el jugador
@@ -861,7 +906,13 @@ export function BattleArena({
     playerStatus.logMessages.forEach(m => logMessage(m));
 
     if (playerStatus.nextHp <= 0) {
-      handleDefeat();
+      setTurn('busy');
+      setDefeatingTarget('player');
+      spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
+      logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
+      setTimeout(() => {
+        handleDefeat();
+      }, 1300);
       return;
     }
 
@@ -1046,10 +1097,16 @@ export function BattleArena({
                   <span className="font-mono font-bold text-red-300 shrink-0 text-[10px]">{enemy1Hp}/{enemy1MaxHp}</span>
                 </div>
 
-                {/* Barra de Vida */}
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                {/* Barra de Vida con Animación Gradual y Barra Fantasma de Daño */}
+                <div className="relative w-full h-2.5 bg-black/60 border border-white/10 rounded-full overflow-hidden shadow-inner">
+                  {/* Barra Fantasma (Trail de daño recibido) */}
                   <div 
-                    className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 transition-all duration-300"
+                    className="absolute inset-0 h-full bg-amber-400/50 rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${Math.max(0, (enemy1GhostHp / enemy1MaxHp) * 100)}%` }}
+                  />
+                  {/* Barra Principal de Vida */}
+                  <div 
+                    className="relative h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)]"
                     style={{ width: `${Math.max(0, (enemy1Hp / enemy1MaxHp) * 100)}%` }}
                   />
                 </div>
@@ -1081,17 +1138,22 @@ export function BattleArena({
               <div className="relative flex flex-col items-center">
                 <div 
                   className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl border-2 ${enemy1ElemMeta.border} bg-gradient-to-b from-black to-purple-950/80 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                    enemy1Hp <= 0 
-                      ? 'opacity-25 grayscale' 
-                      : animState.enemy1Attacking 
-                        ? 'animate-battle-lunge-down z-30' 
-                        : animState.enemy1Hit 
-                          ? 'animate-battle-hurt-up bg-red-950/80' 
-                          : enemy1Stagger === 0 
-                            ? 'animate-pulse ring-4 ring-red-500/70' 
-                            : ''
+                    (defeatingTarget === 'enemy1' || defeatingTarget === 'both')
+                      ? 'animate-defeat-dissolve z-30'
+                      : enemy1Hp <= 0 
+                        ? 'opacity-25 grayscale' 
+                        : animState.enemy1Attacking 
+                          ? 'animate-battle-lunge-down z-30' 
+                          : animState.enemy1Hit 
+                            ? 'animate-battle-hurt-up bg-red-950/80' 
+                            : enemy1Stagger === 0 
+                              ? 'animate-pulse ring-4 ring-red-500/70' 
+                              : ''
                   } ${activeTarget === 0 && enemy1Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
                 >
+                  {(defeatingTarget === 'enemy1' || defeatingTarget === 'both') && (
+                    <div className="absolute inset-0 rounded-2xl sm:rounded-3xl border-4 border-amber-300 animate-defeat-shockwave pointer-events-none" />
+                  )}
                   {isPvp && isValidImageUrl(enemy.avatarUrl) ? (
                     <img src={enemy.avatarUrl} alt="" className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
                   ) : (
@@ -1173,10 +1235,16 @@ export function BattleArena({
                     <span className="font-mono font-bold text-red-300 shrink-0 text-[10px]">{enemy2Hp}/{enemy2MaxHp}</span>
                   </div>
 
-                  {/* Barra de Vida */}
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  {/* Barra de Vida con Animación Gradual y Barra Fantasma de Daño */}
+                  <div className="relative w-full h-2.5 bg-black/60 border border-white/10 rounded-full overflow-hidden shadow-inner">
+                    {/* Barra Fantasma (Trail de daño) */}
                     <div 
-                      className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 transition-all duration-300"
+                      className="absolute inset-0 h-full bg-amber-400/50 rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${Math.max(0, (enemy2GhostHp / enemy2MaxHp) * 100)}%` }}
+                    />
+                    {/* Barra Principal */}
+                    <div 
+                      className="relative h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)]"
                       style={{ width: `${Math.max(0, (enemy2Hp / enemy2MaxHp) * 100)}%` }}
                     />
                   </div>
@@ -1200,17 +1268,22 @@ export function BattleArena({
                 <div className="relative flex flex-col items-center">
                   <div 
                     className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl border-2 ${enemy2ElemMeta.border} bg-gradient-to-b from-black to-purple-950/80 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                      enemy2Hp <= 0 
-                        ? 'opacity-25 grayscale' 
-                        : animState.enemy2Attacking 
-                          ? 'animate-battle-lunge-down z-30' 
-                          : animState.enemy2Hit 
-                            ? 'animate-battle-hurt-up bg-red-950/80' 
-                            : enemy2Stagger === 0 
-                              ? 'animate-pulse ring-4 ring-red-500/70' 
-                              : ''
+                      (defeatingTarget === 'enemy2' || defeatingTarget === 'both')
+                        ? 'animate-defeat-dissolve z-30'
+                        : enemy2Hp <= 0 
+                          ? 'opacity-25 grayscale' 
+                          : animState.enemy2Attacking 
+                            ? 'animate-battle-lunge-down z-30' 
+                            : animState.enemy2Hit 
+                              ? 'animate-battle-hurt-up bg-red-950/80' 
+                              : enemy2Stagger === 0 
+                                ? 'animate-pulse ring-4 ring-red-500/70' 
+                                : ''
                     } ${activeTarget === 1 && enemy2Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
                   >
+                    {(defeatingTarget === 'enemy2' || defeatingTarget === 'both') && (
+                      <div className="absolute inset-0 rounded-2xl sm:rounded-3xl border-4 border-amber-300 animate-defeat-shockwave pointer-events-none" />
+                    )}
                     <img 
                       src={getZodiacIcon(enemy2.guardianSign || enemy2.sign || 'Leo')} 
                       alt="" 
@@ -1312,15 +1385,20 @@ export function BattleArena({
             <div className="relative flex flex-col items-center">
               <div 
                 className={`w-18 h-18 sm:w-22 sm:h-22 rounded-2xl sm:rounded-3xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} bg-gradient-to-b from-black to-indigo-950 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                  animState.playerAttacking 
-                    ? 'animate-battle-lunge-up z-30' 
-                    : animState.playerCasting 
-                      ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
-                      : animState.playerHit 
-                        ? 'animate-battle-hurt-down bg-red-950/60' 
-                        : 'animate-hero-battle-float'
+                  defeatingTarget === 'player'
+                    ? 'animate-player-faint z-30'
+                    : animState.playerAttacking 
+                      ? 'animate-battle-lunge-up z-30' 
+                      : animState.playerCasting 
+                        ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
+                        : animState.playerHit 
+                          ? 'animate-battle-hurt-down bg-red-950/60' 
+                          : 'animate-hero-battle-float'
                 }`}
               >
+                {defeatingTarget === 'player' && (
+                  <div className="absolute inset-0 rounded-2xl sm:rounded-3xl border-4 border-rose-500 animate-defeat-shockwave pointer-events-none" />
+                )}
                 {isValidImageUrl(hero.avatarUrl) ? (
                   <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
                 ) : (
@@ -1450,10 +1528,16 @@ export function BattleArena({
               </div>
             </div>
 
-            {/* Barra de Vida fluida del Jugador */}
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.2">
+            {/* Barra de Vida fluida del Jugador con Barra Fantasma de Daño */}
+            <div className="relative w-full h-3 bg-black/60 border border-cyan-500/30 rounded-full overflow-hidden p-0.5 shadow-inner">
+              {/* Barra Fantasma (Trail de daño) */}
               <div 
-                className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
+                className="absolute inset-0 h-full bg-rose-500/50 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${Math.max(0, (playerGhostHp / heroStats.maxHp) * 100)}%` }}
+              />
+              {/* Barra Principal (Gradual y brillante) */}
+              <div 
+                className="relative h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(6,182,212,0.8)]"
                 style={{ width: `${Math.max(0, (playerHp / heroStats.maxHp) * 100)}%` }}
               />
             </div>
