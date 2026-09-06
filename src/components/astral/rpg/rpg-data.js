@@ -448,8 +448,10 @@ export function calculateActiveSets(equipped = {}) {
 
   const setCounts = {};
   for (const item of equippedList) {
-    if (item.setId) {
-      setCounts[item.setId] = (setCounts[item.setId] || 0) + 1;
+    if (!item) continue;
+    const resolvedSetId = item.setId || (item.id ? EQUIPMENT_CATALOG.find(c => item.id.startsWith(c.id))?.setId : null);
+    if (resolvedSetId) {
+      setCounts[resolvedSetId] = (setCounts[resolvedSetId] || 0) + 1;
     }
   }
 

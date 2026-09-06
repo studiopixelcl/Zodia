@@ -42,6 +42,19 @@ export function getDailyTransitBuff() {
  * Calcula las estadísticas efectivas del héroe sumando nivel, equipamiento y bonos de conjunto
  */
 export function calculateHeroTotalStats(hero) {
+  if (!hero) {
+    return {
+      baseStats: { hp: 400, atk: 50, def: 25, spd: 30, critRate: 0.15 },
+      gearStats: { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0, power: 0 },
+      activeSets: [],
+      totalPower: 0,
+      maxHp: 400,
+      atk: 50,
+      def: 25,
+      spd: 30,
+      critRate: 0.15
+    };
+  }
   const base = hero.stats || ZODIAC_HERO_CLASSES[hero.sign]?.baseStats || { hp: 400, atk: 50, def: 25, spd: 30, critRate: 0.15 };
   const level = hero.level || 1;
   const levelBonus = (level - 1) * 0.08; // 8% por nivel

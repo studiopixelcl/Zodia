@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Package, Sword, Shield, Sparkles, Coins, 
@@ -63,13 +63,10 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero }) {
   const heroTotal = calculateHeroTotalStats(hero);
   const { gearStats, activeSets } = heroTotal;
 
-  // Filtrar ítems del inventario
-  const filteredInventory = useMemo(() => {
-    return inventory.filter(item => {
-      if (filter === 'all') return true;
-      return item.type === filter;
-    });
-  }, [inventory, filter]);
+  const filteredInventory = inventory.filter(item => {
+    if (filter === 'all') return true;
+    return item.type === filter;
+  });
 
   // Manejar equipar objeto
   const handleEquip = (itemToEquip) => {
