@@ -1499,6 +1499,21 @@ export function getOrCreateHeroProfile(userProfile) {
         if (!Array.isArray(saved.eclipseCleared)) {
           saved.eclipseCleared = [];
         }
+        if (typeof saved.dailyStreak !== 'number') {
+          saved.dailyStreak = 0;
+        }
+        if (!Array.isArray(saved.dailyQuests)) {
+          saved.dailyQuests = [];
+        }
+        if (typeof saved.dailyMasterChestClaimed !== 'boolean') {
+          saved.dailyMasterChestClaimed = false;
+        }
+        if (typeof saved.pvpPoints !== 'number') {
+          saved.pvpPoints = 0;
+        }
+        if (!saved.pvpRank) {
+          saved.pvpRank = 'Polvo Cósmico I';
+        }
         saveHeroProfile(saved);
         try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch {}
         return saved;
@@ -1541,9 +1556,15 @@ function createInitialHero(userProfile, heroClass) {
     maxHouseCleared: 0,
     maxTowerFloor: 1,
     eclipseCleared: [],
-    pvpRank: 'Polvo Estelar I',
+    pvpRank: 'Polvo Cósmico I',
     pvpPoints: 0,
-    potions: 3
+    potions: 3,
+    dailyStreak: 0,
+    lastDailyClaimDate: null,
+    dailyQuests: [],
+    dailyQuestsDate: null,
+    dailyMasterChestClaimed: false,
+    lastFirstWinDate: null
   };
 }
 
@@ -2083,4 +2104,343 @@ export const PARTNER_ASSIST_SKILLS = {
     shieldAmount: 80
   }
 };
+
+// ==========================================
+// RECOMPENSAS DE RACHA DIARIA (7 DÍAS)
+// ==========================================
+export const DAILY_STREAK_REWARDS = [
+  {
+    day: 1,
+    title: 'Despertar Astral',
+    desc: 'Bono inicial de bienvenida al cosmos',
+    polvoEstelar: 60,
+    exp: 50,
+    potions: 1,
+    icon: 'Sparkles',
+    badge: 'Día 1'
+  },
+  {
+    day: 2,
+    title: 'Pulso de Nebulosa',
+    desc: 'Crecimiento de éter celestial',
+    polvoEstelar: 90,
+    exp: 80,
+    potions: 1,
+    icon: 'Flame',
+    badge: 'Día 2'
+  },
+  {
+    day: 3,
+    title: 'Cofre del Heraldo',
+    desc: 'Equipamiento Raro de Pléyades garantizado',
+    polvoEstelar: 120,
+    exp: 100,
+    potions: 1,
+    itemDropId: 'wp_02',
+    icon: 'Gift',
+    badge: 'Día 3 ★'
+  },
+  {
+    day: 4,
+    title: 'Elixir de los Astros',
+    desc: 'Reserva médica cósmica ampliada',
+    polvoEstelar: 150,
+    exp: 130,
+    potions: 2,
+    icon: 'Heart',
+    badge: 'Día 4'
+  },
+  {
+    day: 5,
+    title: 'Vórtice Cósmico',
+    desc: 'Sobrecarga de poder y experiencia',
+    polvoEstelar: 190,
+    exp: 180,
+    potions: 2,
+    icon: 'Zap',
+    badge: 'Día 5'
+  },
+  {
+    day: 6,
+    title: 'Reliquia de Saturno',
+    desc: 'Artefacto Épico de anillos astrales',
+    polvoEstelar: 240,
+    exp: 220,
+    potions: 2,
+    itemDropId: 'rl_03',
+    icon: 'Compass',
+    badge: 'Día 6 ★'
+  },
+  {
+    day: 7,
+    title: 'Soberanía del Zodíaco',
+    desc: 'Cofre Mítico: Arma Legendaria de Orión y Polvo Máximo',
+    polvoEstelar: 400,
+    exp: 320,
+    potions: 3,
+    itemDropId: 'wp_04',
+    icon: 'Crown',
+    badge: 'Día 7 ★★★'
+  }
+];
+
+// ==========================================
+// MISIONES DIARIAS DEL ORÁCULO (DAILY QUESTS)
+// ==========================================
+export const DAILY_QUESTS_TEMPLATE = [
+  {
+    id: 'quest_houses',
+    category: 'houses',
+    title: 'Purificación del Templo',
+    desc: 'Lucha o vence en 1 Casa de las Doce Casas del Zodíaco',
+    target: 1,
+    reward: { polvoEstelar: 50, exp: 60 },
+    icon: 'Landmark'
+  },
+  {
+    id: 'quest_pvp',
+    category: 'pvp',
+    title: 'Gloria en el Coliseo',
+    desc: 'Disputa 1 Duelo en el Coliseo Astral contra otro gladiador',
+    target: 1,
+    reward: { polvoEstelar: 55, exp: 50, pvpPoints: 15 },
+    icon: 'Swords'
+  },
+  {
+    id: 'quest_coop',
+    category: 'coop',
+    title: 'Nexo de Sinastría',
+    desc: 'Participa en 1 Incursión Titánica junto a un compañero de vínculo o aliado',
+    target: 1,
+    reward: { polvoEstelar: 65, exp: 70, potions: 1 },
+    icon: 'Users'
+  },
+  {
+    id: 'quest_shadows_tower',
+    category: 'shadows_tower',
+    title: 'Prueba de Tenacidad',
+    desc: 'Lucha en un Duelo de Sombras, Torre del Caos o Gemelos del Eclipse',
+    target: 1,
+    reward: { polvoEstelar: 45, exp: 50 },
+    icon: 'Target'
+  }
+];
+
+export const DAILY_MASTER_CHEST_REWARD = {
+  polvoEstelar: 180,
+  exp: 150,
+  potions: 2,
+  itemDropId: 'ar_03'
+};
+
+/**
+ * Retorna la fecha local en formato YYYY-MM-DD
+ */
+export function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Calcula el estado de reinicio diario, racha activa y disponibilidad
+ */
+export function getDailyResetInfo(hero) {
+  const todayStr = getTodayDateString();
+  const lastClaim = hero?.lastDailyClaimDate;
+
+  let canClaimStreak = false;
+  let streak = hero?.dailyStreak || 0;
+
+  if (!lastClaim) {
+    canClaimStreak = true;
+  } else if (lastClaim !== todayStr) {
+    const todayDate = new Date(todayStr);
+    const lastDate = new Date(lastClaim);
+    const diffDays = Math.round((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      canClaimStreak = true;
+    } else {
+      canClaimStreak = true;
+      streak = 0;
+    }
+  }
+
+  // Índice para mostrar el día actual en el ciclo de 7 días (0 a 6)
+  const currentDayIndex = canClaimStreak ? (streak % 7) : Math.max(0, ((streak - 1) % 7));
+  const isFirstWinAvailable = hero?.lastFirstWinDate !== todayStr;
+
+  return {
+    todayStr,
+    canClaimStreak,
+    dailyStreak: streak,
+    currentDayIndex,
+    isFirstWinAvailable
+  };
+}
+
+/**
+ * Procesa el reclamo del día actual en la racha de 7 días
+ */
+export function claimDailyStreakReward(hero) {
+  const { canClaimStreak, dailyStreak, todayStr } = getDailyResetInfo(hero);
+  if (!canClaimStreak) return { updatedHero: hero, rewardDef: null, gainedItem: null };
+
+  const newStreak = (dailyStreak % 7) + 1;
+  const rewardIndex = newStreak - 1;
+  const rewardDef = DAILY_STREAK_REWARDS[rewardIndex] || DAILY_STREAK_REWARDS[0];
+
+  let newInventory = [...(hero.inventory || [])];
+  let gainedItem = null;
+  if (rewardDef.itemDropId) {
+    const item = EQUIPMENT_CATALOG.find(i => i.id === rewardDef.itemDropId);
+    if (item) {
+      gainedItem = { ...item, id: `${item.id}_streak_${Date.now()}` };
+      newInventory.push(gainedItem);
+    }
+  }
+
+  const updatedHero = {
+    ...hero,
+    dailyStreak: newStreak,
+    lastDailyClaimDate: todayStr,
+    polvoEstelar: (hero.polvoEstelar || 0) + (rewardDef.polvoEstelar || 0),
+    exp: (hero.exp || 0) + (rewardDef.exp || 0),
+    potions: (hero.potions || 0) + (rewardDef.potions || 0),
+    inventory: newInventory
+  };
+
+  saveHeroProfile(updatedHero);
+  return { updatedHero, rewardDef, gainedItem };
+}
+
+/**
+ * Inicializa o resetea las misiones diarias si el día cambió
+ */
+export function initializeOrSyncDailyQuests(hero) {
+  if (!hero) return hero;
+  const todayStr = getTodayDateString();
+
+  if (hero.dailyQuestsDate === todayStr && Array.isArray(hero.dailyQuests) && hero.dailyQuests.length === DAILY_QUESTS_TEMPLATE.length) {
+    return hero;
+  }
+
+  const initialQuests = DAILY_QUESTS_TEMPLATE.map(t => ({
+    id: t.id,
+    category: t.category,
+    progress: 0,
+    target: t.target,
+    completed: false,
+    claimed: false
+  }));
+
+  const updatedHero = {
+    ...hero,
+    dailyQuestsDate: todayStr,
+    dailyQuests: initialQuests,
+    dailyMasterChestClaimed: false
+  };
+
+  saveHeroProfile(updatedHero);
+  return updatedHero;
+}
+
+/**
+ * Incrementa el progreso de la misión diaria según la actividad realizada
+ */
+export function recordDailyQuestProgress(hero, actionType) {
+  if (!hero) return hero;
+  let updatedHero = initializeOrSyncDailyQuests(hero);
+  let quests = [...(updatedHero.dailyQuests || [])];
+  let changed = false;
+
+  quests = quests.map(q => {
+    let matches = false;
+    if (q.category === 'houses' && actionType === 'houses') matches = true;
+    if (q.category === 'pvp' && actionType === 'pvp') matches = true;
+    if (q.category === 'coop' && actionType === 'coop') matches = true;
+    if (q.category === 'shadows_tower' && (actionType === 'quick' || actionType === 'tower' || actionType === 'eclipse')) matches = true;
+
+    if (matches && !q.completed) {
+      const newProgress = Math.min(q.target, (q.progress || 0) + 1);
+      changed = true;
+      return {
+        ...q,
+        progress: newProgress,
+        completed: newProgress >= q.target
+      };
+    }
+    return q;
+  });
+
+  if (changed) {
+    updatedHero = { ...updatedHero, dailyQuests: quests };
+    saveHeroProfile(updatedHero);
+  }
+  return updatedHero;
+}
+
+/**
+ * Reclama la recompensa de una misión diaria completada
+ */
+export function claimDailyQuestReward(hero, questId) {
+  if (!hero || !hero.dailyQuests) return { updatedHero: hero, reward: null };
+  const questIndex = hero.dailyQuests.findIndex(q => q.id === questId);
+  if (questIndex === -1) return { updatedHero: hero, reward: null };
+
+  const quest = hero.dailyQuests[questIndex];
+  if (!quest.completed || quest.claimed) return { updatedHero: hero, reward: null };
+
+  const template = DAILY_QUESTS_TEMPLATE.find(t => t.id === questId);
+  const reward = template ? template.reward : { polvoEstelar: 40, exp: 40 };
+
+  const updatedQuests = [...hero.dailyQuests];
+  updatedQuests[questIndex] = { ...quest, claimed: true };
+
+  const updatedHero = {
+    ...hero,
+    dailyQuests: updatedQuests,
+    polvoEstelar: (hero.polvoEstelar || 0) + (reward.polvoEstelar || 0),
+    exp: (hero.exp || 0) + (reward.exp || 0),
+    pvpPoints: (hero.pvpPoints || 0) + (reward.pvpPoints || 0),
+    potions: (hero.potions || 0) + (reward.potions || 0)
+  };
+
+  saveHeroProfile(updatedHero);
+  return { updatedHero, reward };
+}
+
+/**
+ * Reclama el Cofre Maestro Diario al completar al menos 3 misiones
+ */
+export function claimDailyMasterChest(hero) {
+  if (!hero || hero.dailyMasterChestClaimed) return { updatedHero: hero, reward: null, gainedItem: null };
+  const completedCount = (hero.dailyQuests || []).filter(q => q.completed).length;
+  if (completedCount < 3) return { updatedHero: hero, reward: null, gainedItem: null };
+
+  let newInventory = [...(hero.inventory || [])];
+  let gainedItem = null;
+  if (DAILY_MASTER_CHEST_REWARD.itemDropId) {
+    const item = EQUIPMENT_CATALOG.find(i => i.id === DAILY_MASTER_CHEST_REWARD.itemDropId);
+    if (item) {
+      gainedItem = { ...item, id: `${item.id}_master_${Date.now()}` };
+      newInventory.push(gainedItem);
+    }
+  }
+
+  const updatedHero = {
+    ...hero,
+    dailyMasterChestClaimed: true,
+    polvoEstelar: (hero.polvoEstelar || 0) + DAILY_MASTER_CHEST_REWARD.polvoEstelar,
+    exp: (hero.exp || 0) + DAILY_MASTER_CHEST_REWARD.exp,
+    potions: (hero.potions || 0) + DAILY_MASTER_CHEST_REWARD.potions,
+    inventory: newInventory
+  };
+
+  saveHeroProfile(updatedHero);
+  return { updatedHero, reward: DAILY_MASTER_CHEST_REWARD, gainedItem };
+}
+
 

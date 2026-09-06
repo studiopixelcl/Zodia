@@ -4,11 +4,12 @@ import {
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
   HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
-  Swords, RefreshCw
+  Swords, RefreshCw, Calendar, Gift
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
 import { SkillTreeModal } from './SkillTreeModal';
+import { DailyRewardsModal } from './DailyRewardsModal';
 import { BattleArena } from './BattleArena';
 import { 
   getOrCreateHeroProfile, 
@@ -26,7 +27,11 @@ import {
   getPvpRankInfo,
   generatePvpRivals,
   COOP_RAID_BOSSES,
-  PARTNER_ASSIST_SKILLS
+  PARTNER_ASSIST_SKILLS,
+  getTodayDateString,
+  getDailyResetInfo,
+  initializeOrSyncDailyQuests,
+  recordDailyQuestProgress
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
@@ -37,6 +42,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'eclipse' | 'tower' | 'shadows' | 'coop' | 'pvp'
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
+  const [isDailyRewardsOpen, setIsDailyRewardsOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
@@ -120,16 +126,41 @@ export function ChroniclesGame({ profile, onBack }) {
     }
   };
 
+  // Inicializar o sincronizar misiones diarias y bienvenida de racha
+  useEffect(() => {
+    if (!hero) return;
+    const synced = initializeOrSyncDailyQuests(hero);
+    if (synced !== hero) {
+      setHero(synced);
+    }
+    const resetInfo = getDailyResetInfo(synced || hero);
+    if (resetInfo.canClaimStreak) {
+      const timer = setTimeout(() => {
+        setIsDailyRewardsOpen(true);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Manejar el resultado de la batalla
-  const handleBattleEnd = ({ victory, exp = 0, gold = 0, dropId = null }) => {
+  const handleBattleEnd = ({ victory, exp = 0, gold = 0, dropId = null, pvpPointsGained = 25 }) => {
     if (!victory) {
       setActiveBattle(null);
       return;
     }
 
-    let newExp = (hero.exp || 0) + exp;
-    let newLevel = hero.level || 1;
-    let newExpNext = hero.expNext || 150;
+    // Registrar progreso en misiones diarias
+    const heroWithQuests = recordDailyQuestProgress(hero, activeBattle?.mode);
+
+    // Bono de Primera Victoria del Día (x1.5 EXP y Polvo)
+    const todayStr = getTodayDateString();
+    const isFirstWinToday = hero.lastFirstWinDate !== todayStr;
+    const finalExp = isFirstWinToday ? Math.round(exp * 1.5) : exp;
+    const finalGold = isFirstWinToday ? Math.round(gold * 1.5) : gold;
+
+    let newExp = (heroWithQuests.exp || 0) + finalExp;
+    let newLevel = heroWithQuests.level || 1;
+    let newExpNext = heroWithQuests.expNext || 150;
     let leveledUp = false;
 
     // Calcular subida de nivel
@@ -140,7 +171,7 @@ export function ChroniclesGame({ profile, onBack }) {
       leveledUp = true;
     }
 
-    let newInventory = [...(hero.inventory || [])];
+    let newInventory = [...(heroWithQuests.inventory || [])];
     let droppedItem = null;
     if (dropId) {
       const found = EQUIPMENT_CATALOG.find(i => i.id === dropId);
@@ -150,29 +181,29 @@ export function ChroniclesGame({ profile, onBack }) {
       }
     }
 
-    let newMaxHouse = hero.maxHouseCleared || 0;
+    let newMaxHouse = heroWithQuests.maxHouseCleared || 0;
     const isHouseClearedNow = activeBattle.mode === 'houses' && activeBattle.houseNumber > newMaxHouse;
     if (isHouseClearedNow) {
       newMaxHouse = activeBattle.houseNumber;
     }
 
-    let newMaxTowerFloor = hero.maxTowerFloor || 1;
+    let newMaxTowerFloor = heroWithQuests.maxTowerFloor || 1;
     if (activeBattle.mode === 'tower' && activeBattle.floorNumber >= newMaxTowerFloor) {
       newMaxTowerFloor = activeBattle.floorNumber + 1;
     }
 
-    let newEclipseCleared = [...(hero.eclipseCleared || [])];
+    let newEclipseCleared = [...(heroWithQuests.eclipseCleared || [])];
     if (activeBattle.mode === 'eclipse' && activeBattle.challengeId && !newEclipseCleared.includes(activeBattle.challengeId)) {
       newEclipseCleared.push(activeBattle.challengeId);
     }
 
     // Manejo de PvP: Puntos de Gloria y Ascenso de Rango
-    let newPvpPoints = hero.pvpPoints || 0;
-    let newPvpRank = hero.pvpRank || 'Polvo Cósmico I';
+    let newPvpPoints = heroWithQuests.pvpPoints || 0;
+    let newPvpRank = heroWithQuests.pvpRank || 'Polvo Cósmico I';
     let pvpPromo = null;
 
     if (activeBattle.mode === 'pvp') {
-      const ptsGained = data.pvpPointsGained || activeBattle.enemy?.gloryPoints || 35;
+      const ptsGained = pvpPointsGained || activeBattle.enemy?.gloryPoints || 35;
       newPvpPoints += ptsGained;
       const rankInfo = getPvpRankInfo(newPvpPoints);
       if (rankInfo.name !== newPvpRank) {
@@ -182,17 +213,18 @@ export function ChroniclesGame({ profile, onBack }) {
     }
 
     const updatedHero = {
-      ...hero,
+      ...heroWithQuests,
       level: newLevel,
       exp: newExp,
       expNext: newExpNext,
-      polvoEstelar: (hero.polvoEstelar || 0) + gold,
+      polvoEstelar: (heroWithQuests.polvoEstelar || 0) + finalGold,
       inventory: newInventory,
       maxHouseCleared: newMaxHouse,
       maxTowerFloor: newMaxTowerFloor,
       eclipseCleared: newEclipseCleared,
       pvpPoints: newPvpPoints,
-      pvpRank: newPvpRank
+      pvpRank: newPvpRank,
+      lastFirstWinDate: isFirstWinToday ? todayStr : (heroWithQuests.lastFirstWinDate || null)
     };
 
     setHero(updatedHero);
@@ -377,6 +409,11 @@ export function ChroniclesGame({ profile, onBack }) {
     );
   }
 
+  const dailyResetInfo = getDailyResetInfo(hero);
+  const pendingQuestsCount = (hero?.dailyQuests || []).filter(q => q.completed && !q.claimed).length;
+  const hasDailyMasterChest = (hero?.dailyQuests || []).filter(q => q.completed).length >= 3 && !hero?.dailyMasterChestClaimed;
+  const hasDailyAlert = dailyResetInfo.canClaimStreak || pendingQuestsCount > 0 || hasDailyMasterChest;
+
   return (
     <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
       
@@ -392,6 +429,17 @@ export function ChroniclesGame({ profile, onBack }) {
         </button>
 
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsDailyRewardsOpen(true)}
+            className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-400/50 font-bold transition-all shadow-sm relative group"
+            title="Recompensas y Desafíos Diarios"
+          >
+            <Gift size={13} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+            <span>Diario</span>
+            {hasDailyAlert && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping absolute -top-0.5 -right-0.5" />
+            )}
+          </button>
           <button
             onClick={() => setIsSkillTreeOpen(true)}
             className="flex items-center gap-1 text-[11px] text-amber-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
@@ -430,6 +478,18 @@ export function ChroniclesGame({ profile, onBack }) {
           </button>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsDailyRewardsOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-400/60 font-bold transition-all shadow-md relative"
+            >
+              <Gift size={14} className="text-amber-400" />
+              <span>Desafíos Diarios</span>
+              {hasDailyAlert && (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] text-white font-bold animate-pulse">
+                  {dailyResetInfo.canClaimStreak ? '¡Listo!' : pendingQuestsCount + (hasDailyMasterChest ? 1 : 0)}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setIsSkillTreeOpen(true)}
               className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-amber-200 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 font-bold transition-all shadow-sm"
@@ -1237,6 +1297,18 @@ export function ChroniclesGame({ profile, onBack }) {
         onClose={() => setIsSkillTreeOpen(false)}
         hero={hero}
         onUpdateHero={(updated) => setHero(updated)}
+      />
+
+      {/* Modal de Recompensas Diarias y Misiones del Oráculo */}
+      <DailyRewardsModal
+        isOpen={isDailyRewardsOpen}
+        onClose={() => setIsDailyRewardsOpen(false)}
+        hero={hero}
+        onHeroUpdate={(updated) => {
+          setHero(updated);
+          saveHeroProfile(updated);
+        }}
+        transitBuff={transitBuff}
       />
     </div>
   );
