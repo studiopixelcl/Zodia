@@ -4,14 +4,17 @@ import {
   Heart, Sword, Shield, Zap, Sparkles, Flame, 
   Droplet, Wind, Mountain, AlertCircle, ArrowLeft,
   Trophy, RotateCcw, Skull, CheckCircle2, Star, Crown,
-  Sun, Moon, Compass, Target, Crosshair, ChevronDown, ChevronUp
+  Sun, Moon, Compass, Target, Crosshair, ChevronDown, ChevronUp,
+  Swords, Users
 } from 'lucide-react';
 import { 
   ELEMENTAL_AFFINITIES, 
   ZODIAC_HERO_CLASSES, 
   getZodiacIcon, 
   isValidImageUrl, 
-  getEquippedSkills 
+  getEquippedSkills,
+  PARTNER_ASSIST_SKILLS,
+  getPvpRankInfo
 } from './rpg-data';
 import { 
   calculateHeroTotalStats, 
@@ -115,12 +118,31 @@ export function BattleArena({
   const enemy2EffectsRef = useRef([]);
   const enemy2StaggerRef = useRef(3);
 
+  // Detección de modos especiales
+  const isCoop = mode === 'coop' && !!partner;
+  const isPvp = mode === 'pvp';
+
+  // Configuración de Sinastría y Asistencia de Compañero
+  const synastry = isCoop ? getSynastryCompatibility(hero.sign, partner.sign) : null;
+  const partnerAssistSkill = isCoop ? (PARTNER_ASSIST_SKILLS[partner.sign] || PARTNER_ASSIST_SKILLS['Leo']) : null;
+  const partnerElemMeta = isCoop ? (ELEMENTAL_AFFINITIES[partner.element || 'Fuego'] || ELEMENTAL_AFFINITIES['Fuego']) : null;
+  const partnerMaxHp = isCoop ? Math.round(heroStats.maxHp * 0.95) : 0;
+  const [partnerHp, setPartnerHp] = useState(partnerMaxHp);
+
+  // Configuración de PvP: Rango, Postura y Pociones del Rival
+  const enemyRankInfo = isPvp ? getPvpRankInfo(enemy.gloryPoints ? enemy.gloryPoints * 10 : (hero.pvpPoints || 100)) : null;
+  const [enemyStance, setEnemyStance] = useState(enemy.stance || 'solar');
+  const [enemyPotionsLeft, setEnemyPotionsLeft] = useState(1);
+  const [enemyUltimateGauge, setEnemyUltimateGauge] = useState(0);
+
   // Estados de animación y turno
   const [turn, setTurn] = useState('player'); // 'player' | 'enemy' | 'busy'
   const [animState, setAnimState] = useState({
     playerAttacking: false,
     playerCasting: false,
     playerHit: false,
+    partnerAttacking: false,
+    partnerHit: false,
     enemy1Attacking: false,
     enemy1Hit: false,
     enemy2Attacking: false,
@@ -131,18 +153,18 @@ export function BattleArena({
   const [isLogExpanded, setIsLogExpanded] = useState(false);
   const [floatingTexts, setFloatingTexts] = useState([]);
   const [battleLog, setBattleLog] = useState([
-    hasDualEnemies 
-      ? `🌌 ¡DESAFÍO 1vs2! ${hero.name} se enfrenta a los gemelos ${enemy.name} y ${enemy2.name}.`
-      : `🌌 ¡Comienza el combate cósmico entre ${hero.name} y ${enemy.name || enemy.guardianName}!`,
+    isPvp
+      ? `⚔️ ¡DUELO DEL COLISEO ASTRAL! ${hero.name} se enfrenta al gladiador [${enemy.name} - ${enemy.title || 'Campeón'}].`
+      : isCoop
+        ? `🌌 ¡INCURSIÓN DE SINASTRÍA! ${hero.name} y su compañero ${partner.name} (${synastry?.score}% compatibilidad) desafían a [${enemy.name}].`
+        : hasDualEnemies 
+          ? `🌌 ¡DESAFÍO 1vs2! ${hero.name} se enfrenta a los gemelos ${enemy.name} y ${enemy2.name}.`
+          : `🌌 ¡Comienza el combate cósmico entre ${hero.name} y ${enemy.name || enemy.guardianName}!`,
     mutator ? `⚠️ Anomalía de Torre activa: [${mutator.name}] - ${mutator.desc}` : null,
     hasHeroTransitBoost ? `✨ ¡La Luna en ${transitBuff.moonSign} potencia tus habilidades de ${hero.element} (+15%)!` : null
   ].filter(Boolean));
 
   const [battleOutcome, setBattleOutcome] = useState(null); // 'victory' | 'defeat' | null
-
-  // Cálculo de sinastría en caso de modo cooperativo
-  const isCoop = mode === 'coop' && partner;
-  const synastry = isCoop ? getSynastryCompatibility(hero.sign, partner.sign) : null;
 
   // Función para agregar textos flotantes
   const spawnFloatingText = (text, target = 'enemy1', type = 'damage') => {
@@ -420,7 +442,98 @@ export function BattleArena({
   };
 
   // ==========================================
-  // TURNO DEL JUGADOR: 3. ULTIMATE CÓSMICA (AOE EN 1v2)
+  // TURNO DEL JUGADOR: 2.5 ASISTENCIA ASTRAL DEL COMPAÑERO (COOP)
+  // ==========================================
+  const handlePartnerAssist = () => {
+    if (turn !== 'player' || battleOutcome || !isCoop || playerEther < 2) return;
+    setTurn('busy');
+    setPlayerEther(e => Math.max(0, e - 2));
+
+    const skill = partnerAssistSkill;
+    const target = getTargetData();
+
+    playBattleAttackSound();
+    setAnimState(p => ({ ...p, partnerAttacking: true }));
+
+    setTimeout(() => {
+      setAnimState(p => ({ ...p, partnerAttacking: false }));
+
+      if (skill.type === 'attack' || skill.type === 'hybrid') {
+        const { damage, isCrit } = calculateDamage(
+          { atk: Math.round(heroStats.atk * 1.1), element: skill.element, critRate: skill.critGuaranteed ? 1.0 : 0.25 },
+          { def: Math.round((target.enemyObj.def || 30) * (skill.pierceDef ? 0.5 : 1)), element: target.elem },
+          skill.multiplier || 1.35,
+          false,
+          transitBuff.moonElement,
+          { attackerPosition: 'frontline', stance: playerStance, isStaggered: target.staggerRef.current <= 0 }
+        );
+
+        if (isCrit) playBattleCritSound();
+        else playBattleHitSound();
+
+        setActiveVfx({ type: 'skill', target: target.targetKey, element: skill.element });
+        setTimeout(() => setActiveVfx(null), 500);
+
+        setAnimState(p => ({ ...p, [target.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
+        setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
+
+        const nextHp = Math.max(0, target.hpRef.current - damage);
+        target.hpRef.current = nextHp;
+        target.setHp(nextHp);
+
+        spawnFloatingText(isCrit ? `¡CRÍTICO DE DÚO! -${damage}` : `-${damage}`, target.targetKey, isCrit ? 'crit' : 'damage');
+
+        if (skill.staggerBreak) {
+          const nextStagger = Math.max(0, target.staggerRef.current - skill.staggerBreak);
+          target.staggerRef.current = nextStagger;
+          target.setStagger(nextStagger);
+        }
+
+        if (skill.status) {
+          target.effectsRef.current.push({ ...skill.status });
+          target.setEffects([...target.effectsRef.current]);
+        }
+      }
+
+      if (skill.type === 'heal' || skill.type === 'hybrid') {
+        const heal = Math.round(heroStats.maxHp * (skill.healPercent || 0.30));
+        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + heal);
+        playerHpRef.current = nextPlayerHp;
+        setPlayerHp(nextPlayerHp);
+        setPartnerHp(p => Math.min(partnerMaxHp, p + heal));
+        playBattleHealSound();
+        spawnFloatingText(`+${heal} HP Dúo`, 'player', 'heal');
+
+        if (skill.cleanse) {
+          playerEffectsRef.current = [];
+          setPlayerEffects([]);
+        }
+      }
+
+      if (skill.type === 'shield') {
+        const shieldAmt = skill.shieldAmount || 140;
+        playerShieldRef.current += shieldAmt;
+        setPlayerShield(playerShieldRef.current);
+        playBattleShieldSound();
+        spawnFloatingText(`🛡️ +${shieldAmt} Escudo`, 'player', 'shield');
+      }
+
+      if (skill.etherBonus) {
+        setPlayerEther(e => Math.min(5, e + skill.etherBonus));
+        spawnFloatingText(`+${skill.etherBonus} Éter`, 'player', 'shield');
+      }
+
+      // Aumentar carga de Ultimate del Dúo (+25%)
+      setPlayerUltimate(u => Math.min(100, u + 25));
+
+      logMessage(`💫 ¡ASISTENCIA DE SINASTRÍA! ${partner.name} ejecutó [${skill.name}]: ${skill.desc}`);
+
+      checkPostAttackOutcome();
+    }, 550);
+  };
+
+  // ==========================================
+  // TURNO DEL JUGADOR: 3. ULTIMATE CÓSMICA (AOE EN 1v2 / SINASTRÍA DÚO)
   // ==========================================
   const handlePlayerUltimate = () => {
     if (turn !== 'player' || battleOutcome || playerUltimate < 100) return;
@@ -428,7 +541,12 @@ export function BattleArena({
     setPlayerUltimate(0);
 
     playBattleCritSound();
-    setAnimState(p => ({ ...p, playerCasting: true, screenShake: true }));
+    setAnimState(p => ({ 
+      ...p, 
+      playerCasting: true, 
+      partnerAttacking: isCoop, 
+      screenShake: true 
+    }));
     setActiveVfx({ type: 'ultimate', target: 'all' });
     setTimeout(() => setActiveVfx(null), 850);
 
@@ -569,17 +687,52 @@ export function BattleArena({
         return;
       }
 
-      // 3. IA Ataca al jugador
-      const action = chooseEnemyAction(enemyData.enemyObj, enemyData.hpRef.current, enemyData.maxHp, 2);
+      // 3. IA Ataca al jugador (Con lógica táctica PvP)
+      if (isPvp && enemyData.idx === 0) {
+        // 3a. Uso de poción de emergencia por el rival
+        if (enemyData.hpRef.current / enemyData.maxHp < 0.35 && enemyPotionsLeft > 0) {
+          const potionHeal = Math.round(enemyData.maxHp * 0.35);
+          const newHp = Math.min(enemyData.maxHp, enemyData.hpRef.current + potionHeal);
+          enemyData.hpRef.current = newHp;
+          enemyData.setHp(newHp);
+          setEnemyPotionsLeft(0);
+          playBattleHealSound();
+          spawnFloatingText(`+${potionHeal} HP`, enemyData.targetKey, 'heal');
+          logMessage(`🧪 [${enemyData.enemyObj.name}] usó una Poción Astral de emergencia restaurando ${potionHeal} HP.`);
+        }
+
+        // 3b. Cambio de postura táctica del rival
+        if (enemyData.hpRef.current / enemyData.maxHp < 0.40 && enemyStance !== 'lunar') {
+          setEnemyStance('lunar');
+          logMessage(`🌙 [${enemyData.enemyObj.name}] cambia a Postura Lunar para aumentar su defensa.`);
+        } else if (playerHpRef.current / heroStats.maxHp < 0.35 && enemyStance !== 'solar') {
+          setEnemyStance('solar');
+          logMessage(`☀️ [${enemyData.enemyObj.name}] adopta Postura Solar agresiva buscando el remate.`);
+        }
+      }
+
+      let isRivalUlt = false;
+      if (isPvp && enemyData.idx === 0 && enemyUltimateGauge >= 100) {
+        isRivalUlt = true;
+        setEnemyUltimateGauge(0);
+      } else if (isPvp && enemyData.idx === 0) {
+        setEnemyUltimateGauge(u => Math.min(100, u + 25));
+      }
+
+      const action = isRivalUlt
+        ? { type: 'ultimate', name: `Cataclismo de ${enemyData.enemyObj.sign || 'Gladiador'}` }
+        : chooseEnemyAction(enemyData.enemyObj, enemyData.hpRef.current, enemyData.maxHp, 2);
+
       playBattleAttackSound();
       setAnimState(p => ({ ...p, [enemyData.idx === 0 ? 'enemy1Attacking' : 'enemy2Attacking']: true }));
 
       setTimeout(() => {
         const isSkill = action.type === 'skill';
-        const mult = isSkill ? 1.35 : 1.0;
+        let mult = isSkill ? 1.35 : 1.0;
+        if (isRivalUlt) mult = 2.3;
 
         const { damage, isCrit } = calculateDamage(
-          { atk: enemyData.enemyObj.atk || 55, element: enemyData.elem, critRate: 0.12 },
+          { atk: enemyData.enemyObj.atk || 55, element: enemyData.elem, critRate: isRivalUlt ? 0.4 : 0.12 },
           { def: heroStats.def, element: hero.element },
           mult,
           false,
@@ -587,7 +740,7 @@ export function BattleArena({
           {
             attackerPosition: 'frontline',
             defenderPosition: playerPosition,
-            stance: playerStance,
+            stance: isPvp && enemyData.idx === 0 ? enemyStance : playerStance,
             mutator
           }
         );
@@ -595,10 +748,10 @@ export function BattleArena({
         if (isCrit) playBattleCritSound();
         else playBattleHitSound();
 
-        setActiveVfx({ type: isSkill ? 'skill' : 'slash', target: 'player', element: enemyData.elem });
+        setActiveVfx({ type: isRivalUlt ? 'ultimate' : (isSkill ? 'skill' : 'slash'), target: 'player', element: enemyData.elem });
         setTimeout(() => setActiveVfx(null), 500);
 
-        setAnimState(p => ({ ...p, enemy1Attacking: false, enemy2Attacking: false, playerHit: true, screenShake: isCrit }));
+        setAnimState(p => ({ ...p, enemy1Attacking: false, enemy2Attacking: false, playerHit: true, screenShake: isCrit || isRivalUlt }));
         setTimeout(() => setAnimState(p => ({ ...p, playerHit: false, screenShake: false })), 400);
 
         // Absorción por escudo del jugador
@@ -619,6 +772,17 @@ export function BattleArena({
           spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDmg}` : `-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
         }
 
+        // En Modo Cooperativo: El compañero puede interceptar parte del daño para proteger al héroe
+        if (isCoop && partnerHp > 0 && finalDmg > 20 && Math.random() < 0.35) {
+          const interceptedDmg = Math.round(finalDmg * 0.40);
+          finalDmg -= interceptedDmg;
+          setPartnerHp(p => Math.max(0, p - interceptedDmg));
+          setAnimState(p => ({ ...p, partnerHit: true }));
+          setTimeout(() => setAnimState(p => ({ ...p, partnerHit: false })), 400);
+          spawnFloatingText(`🛡️ Interceptado -${interceptedDmg}`, 'player', 'shield');
+          logMessage(`🛡️ ¡${partner.name} interceptó ${interceptedDmg} de daño para salvaguardar a ${hero.name}!`);
+        }
+
         // Reflejo de daño si el jugador tiene el efecto activo
         const reflectIndex = playerEffectsRef.current.findIndex(e => e.type === 'reflect');
         if (reflectIndex !== -1 && finalDmg > 0) {
@@ -634,7 +798,11 @@ export function BattleArena({
         playerHpRef.current = nextPlayerHp;
         setPlayerHp(nextPlayerHp);
 
-        logMessage(`⚡ [${enemyData.enemyObj.name}] usó [${action.name}] causando ${finalDmg} de daño.`);
+        if (isRivalUlt) {
+          logMessage(`⚡ ¡¡ALINEACIÓN RIVAL!! [${enemyData.enemyObj.name}] desató [${action.name}] causando ${finalDmg} de daño catastrófico.`);
+        } else {
+          logMessage(`⚡ [${enemyData.enemyObj.name}] usó [${action.name}] causando ${finalDmg} de daño.`);
+        }
 
         if (nextPlayerHp <= 0) {
           handleDefeat();
@@ -770,7 +938,7 @@ export function BattleArena({
           </div>
 
           <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold uppercase tracking-wider">
-            {mode === 'eclipse' ? '⚡ Desafío 1 vs 2' : mode === 'tower' ? '🗼 Torre del Caos' : mode === 'houses' ? 'Sendero 12 Casas' : 'Duelo Astral'}
+            {isPvp ? '⚔️ Coliseo Astral PvP' : isCoop ? '🤝 Incursión Sinastría' : mode === 'eclipse' ? '⚡ Desafío 1 vs 2' : mode === 'tower' ? '🗼 Torre del Caos' : mode === 'houses' ? 'Sendero 12 Casas' : 'Duelo Astral'}
           </span>
         </div>
       </div>
@@ -784,6 +952,29 @@ export function BattleArena({
         {/* Telón estelar y runas celestiales */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-black pointer-events-none" />
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-4/5 h-28 bg-gradient-to-b from-purple-500/10 via-cyan-500/5 to-transparent blur-2xl pointer-events-none" />
+
+        {/* BANNER TÁCTICO PARA PVP O COOP */}
+        {isPvp && (
+          <div className="relative z-10 w-full max-w-md mx-auto mb-2 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-950/60 via-amber-950/60 to-red-950/60 border border-amber-500/40 flex items-center justify-between text-xs shadow-lg">
+            <div className="flex items-center gap-1.5 text-amber-300 font-bold uppercase tracking-wider text-[10px]">
+              <Swords size={14} className="text-amber-400" /> Duelo de Clasificación
+            </div>
+            <div className="text-[10px] font-mono text-gray-200">
+              Victoria: <span className="text-amber-400 font-bold">+{enemy.gloryPoints || 35} Pts de Gloria</span>
+            </div>
+          </div>
+        )}
+
+        {isCoop && (
+          <div className="relative z-10 w-full max-w-md mx-auto mb-2 py-1.5 px-3 rounded-xl bg-gradient-to-r from-teal-950/60 via-emerald-950/60 to-cyan-950/60 border border-teal-500/40 flex items-center justify-between text-xs shadow-lg">
+            <div className="flex items-center gap-1.5 text-teal-300 font-bold uppercase tracking-wider text-[10px]">
+              <Users size={14} className="text-teal-400" /> Incursión Cooperativa Dúo
+            </div>
+            <div className="text-[10px] font-mono text-cyan-200">
+              Vínculo con <strong className="text-white">{partner.name}</strong>: <span className="text-amber-300 font-bold">{synastry?.score}% Sinastría</span>
+            </div>
+          </div>
+        )}
 
         {/* ------------------------------------------------------------- */}
         {/* 1. SECCIÓN SUPERIOR: EL / LOS ENEMIGOS ASTRALES */}
@@ -812,6 +1003,11 @@ export function BattleArena({
                     <span className={`text-[8px] px-1.5 py-0.2 rounded font-bold uppercase ${enemy1ElemMeta.text} ${enemy1ElemMeta.bg}`}>
                       {enemy1Elem}
                     </span>
+                    {isPvp && enemyRankInfo && (
+                      <span className={`text-[8px] px-1.5 py-0.2 rounded font-bold border ${enemyRankInfo.badgeColor} hidden sm:inline`}>
+                        {enemyRankInfo.name}
+                      </span>
+                    )}
                   </div>
                   <span className="font-mono font-bold text-red-300 shrink-0 text-[10px]">{enemy1Hp}/{enemy1MaxHp}</span>
                 </div>
@@ -824,9 +1020,17 @@ export function BattleArena({
                   />
                 </div>
 
-                {/* Tenacidad Astral (Ruptura) */}
+                {/* Tenacidad Astral (Ruptura) y Postura en PvP */}
                 <div className="flex items-center justify-between mt-1 text-[9px]">
-                  <span className="text-gray-400 truncate">{enemy.role || 'Guardián'}</span>
+                  <span className="text-gray-400 truncate">
+                    {isPvp ? (
+                      <span className="text-amber-300 font-bold">
+                        {enemy.title || 'Gladiador Astral'} ({enemyStance === 'solar' ? '☀️ Solar' : enemyStance === 'lunar' ? '🌙 Lunar' : '🧭 Estelar'})
+                      </span>
+                    ) : (
+                      enemy.role || 'Guardián'
+                    )}
+                  </span>
                   <div className="flex items-center gap-0.5 shrink-0">
                     {enemy1Stagger > 0 ? (
                       [...Array(3)].map((_, i) => (
@@ -854,11 +1058,15 @@ export function BattleArena({
                             : ''
                   } ${activeTarget === 0 && enemy1Hp > 0 ? 'ring-2 ring-amber-400 shadow-amber-500/30' : ''}`}
                 >
-                  <img 
-                    src={getZodiacIcon(enemy.guardianSign || enemy.sign || 'Aries')} 
-                    alt="" 
-                    className="w-10 h-10 sm:w-14 sm:h-14 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
-                  />
+                  {isPvp && isValidImageUrl(enemy.avatarUrl) ? (
+                    <img src={enemy.avatarUrl} alt="" className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
+                  ) : (
+                    <img 
+                      src={getZodiacIcon(enemy.guardianSign || enemy.sign || 'Aries')} 
+                      alt="" 
+                      className="w-10 h-10 sm:w-14 sm:h-14 object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]" 
+                    />
+                  )}
 
                   {/* Retícula de Objetivo Fijado */}
                   {activeTarget === 0 && enemy1Hp > 0 && (
@@ -1059,106 +1267,175 @@ export function BattleArena({
         </div>
 
         {/* ------------------------------------------------------------- */}
-        {/* 3. SECCIÓN INFERIOR: EL HÉROE ASTRAL (JUGADOR) */}
+        {/* 3. SECCIÓN INFERIOR: FORMACIÓN DEL HÉROE O DÚO SINASTRÍA */}
         {/* ------------------------------------------------------------- */}
-        <div className="relative z-10 w-full flex flex-col items-center max-w-sm mx-auto">
+        <div className="relative z-10 w-full flex flex-col items-center max-w-md mx-auto">
           
-          {/* Avatar y Pedestal del Héroe */}
-          <div className="relative flex flex-col items-center">
+          {/* Fila de Avatares: Solo Héroe o Héroe + Nexo + Compañero */}
+          <div className={`w-full flex items-center justify-center ${isCoop ? 'gap-2 sm:gap-4' : ''}`}>
             
-            {/* Avatar del Héroe */}
-            <div 
-              className={`w-18 h-18 sm:w-22 sm:h-22 rounded-2xl sm:rounded-3xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} bg-gradient-to-b from-black to-indigo-950 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
-                animState.playerAttacking 
-                  ? 'animate-battle-lunge-up z-30' 
-                  : animState.playerCasting 
-                    ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
-                    : animState.playerHit 
-                      ? 'animate-battle-hurt-down bg-red-950/60' 
-                      : 'animate-hero-battle-float'
-              }`}
-            >
-              {isValidImageUrl(hero.avatarUrl) ? (
-                <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
-              ) : (
-                <img src={getZodiacIcon(hero.sign)} alt={hero.sign} className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" />
-              )}
-
-              {/* Badge de Postura Activa */}
-              <div className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
-                {playerStance === 'solar' && <span className="text-amber-400 flex items-center gap-0.5"><Sun size={9} /> Solar</span>}
-                {playerStance === 'lunar' && <span className="text-purple-400 flex items-center gap-0.5"><Moon size={9} /> Lunar</span>}
-                {playerStance === 'stellar' && <span className="text-cyan-400 flex items-center gap-0.5"><Compass size={9} /> Estelar</span>}
-              </div>
-
-              {/* Badge de Fila */}
-              <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
-                {playerPosition === 'frontline' ? (
-                  <span className="text-orange-400 flex items-center gap-0.5"><Sword size={9} /> Vanguardia</span>
+            {/* AVATAR Y PEDESTAL DEL HÉROE */}
+            <div className="relative flex flex-col items-center">
+              <div 
+                className={`w-18 h-18 sm:w-22 sm:h-22 rounded-2xl sm:rounded-3xl border-2 ${heroElemMeta.border} ${heroElemMeta.aura} bg-gradient-to-b from-black to-indigo-950 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
+                  animState.playerAttacking 
+                    ? 'animate-battle-lunge-up z-30' 
+                    : animState.playerCasting 
+                      ? 'scale-110 -translate-y-3 ring-4 ring-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.8)] z-30'
+                      : animState.playerHit 
+                        ? 'animate-battle-hurt-down bg-red-950/60' 
+                        : 'animate-hero-battle-float'
+                }`}
+              >
+                {isValidImageUrl(hero.avatarUrl) ? (
+                  <img src={hero.avatarUrl} alt={hero.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
                 ) : (
-                  <span className="text-blue-400 flex items-center gap-0.5"><Shield size={9} /> Retaguardia</span>
+                  <img src={getZodiacIcon(hero.sign)} alt={hero.sign} className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" />
+                )}
+
+                {/* Badge de Postura Activa */}
+                <div className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
+                  {playerStance === 'solar' && <span className="text-amber-400 flex items-center gap-0.5"><Sun size={9} /> Solar</span>}
+                  {playerStance === 'lunar' && <span className="text-purple-400 flex items-center gap-0.5"><Moon size={9} /> Lunar</span>}
+                  {playerStance === 'stellar' && <span className="text-cyan-400 flex items-center gap-0.5"><Compass size={9} /> Estelar</span>}
+                </div>
+
+                {/* Badge de Fila */}
+                <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-white/20 text-[8px] font-bold shadow-md flex items-center gap-0.5">
+                  {playerPosition === 'frontline' ? (
+                    <span className="text-orange-400 flex items-center gap-0.5"><Sword size={9} /> Vanguardia</span>
+                  ) : (
+                    <span className="text-blue-400 flex items-center gap-0.5"><Shield size={9} /> Retaguardia</span>
+                  )}
+                </div>
+
+                {/* Slash / Magic Burst sobre Jugador */}
+                {activeVfx && activeVfx.target === 'player' && (
+                  <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
+                    {activeVfx.type === 'slash' && (
+                      <div className="animate-slash-sweep w-28 sm:w-36 h-2.5 bg-gradient-to-r from-transparent via-red-200 to-amber-100 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full rotate-[-35deg]" />
+                    )}
+                    {activeVfx.type === 'skill' && (
+                      <div className="animate-magic-burst-ring w-20 h-20 rounded-full border-4 border-amber-400 bg-gradient-to-r from-red-500/30 via-purple-500/20 to-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.9)] flex items-center justify-center">
+                        <Sparkles size={24} className="text-red-300 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Slash / Magic Burst sobre Jugador cuando el enemigo ataca */}
-              {activeVfx && activeVfx.target === 'player' && (
-                <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
-                  {activeVfx.type === 'slash' && (
-                    <div className="animate-slash-sweep w-28 sm:w-36 h-2.5 bg-gradient-to-r from-transparent via-red-200 to-amber-100 shadow-[0_0_20px_rgba(239,68,68,1)] rounded-full rotate-[-35deg]" />
-                  )}
-                  {activeVfx.type === 'skill' && (
-                    <div className="animate-magic-burst-ring w-20 h-20 rounded-full border-4 border-amber-400 bg-gradient-to-r from-red-500/30 via-purple-500/20 to-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.9)] flex items-center justify-center">
-                      <Sparkles size={24} className="text-red-300 animate-spin" />
-                    </div>
-                  )}
+              {/* Pedestal Rúnico de Luz */}
+              <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-cyan-500/20 via-indigo-500/40 to-cyan-500/20 border border-cyan-400/40 animate-pedestal-pulse -mt-2.5 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center">
+                <div className="w-14 h-1.5 rounded-[50%] bg-cyan-400/30 blur-xs" />
+              </div>
+
+              {/* Textos Flotantes sobre el Héroe */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
+                {floatingTexts.filter(t => t.target === 'player').map(t => (
+                  <span 
+                    key={t.id} 
+                    className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
+                      t.type === 'heal' 
+                        ? 'text-emerald-300 text-sm sm:text-base scale-110' 
+                        : t.type === 'shield' 
+                          ? 'text-cyan-300' 
+                          : 'text-red-400'
+                    }`}
+                  >
+                    {t.text}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* NEXO CÓSMICO DE SINASTRÍA (SI ES CO-OP) */}
+            {isCoop && (
+              <div className="flex flex-col items-center justify-center shrink-0 px-0.5">
+                <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-r from-amber-500/20 to-teal-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse">
+                  <Sparkles size={14} />
                 </div>
-              )}
-            </div>
+                <span className="text-[8px] font-mono font-bold text-amber-300 mt-0.5">
+                  {synastry?.score}% Dúo
+                </span>
+                <div className="w-10 sm:w-14 h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-teal-400 rounded-full animate-pulse shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
+              </div>
+            )}
 
-            {/* Pedestal Rúnico de Luz */}
-            <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-cyan-500/20 via-indigo-500/40 to-cyan-500/20 border border-cyan-400/40 animate-pedestal-pulse -mt-2.5 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center">
-              <div className="w-14 h-1.5 rounded-[50%] bg-cyan-400/30 blur-xs" />
-            </div>
-
-            {/* Textos Flotantes sobre el Héroe */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-30">
-              {floatingTexts.filter(t => t.target === 'player').map(t => (
-                <span 
-                  key={t.id} 
-                  className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
-                    t.type === 'heal' 
-                      ? 'text-emerald-300 text-sm sm:text-base scale-110' 
-                      : t.type === 'shield' 
-                        ? 'text-cyan-300' 
-                        : 'text-red-400'
+            {/* AVATAR Y PEDESTAL DEL COMPAÑERO (SI ES CO-OP) */}
+            {isCoop && (
+              <div className="relative flex flex-col items-center">
+                <div 
+                  className={`w-18 h-18 sm:w-22 sm:h-22 rounded-2xl sm:rounded-3xl border-2 ${partnerElemMeta?.border || 'border-teal-400'} bg-gradient-to-b from-black to-teal-950/80 p-1 relative flex items-center justify-center transition-all duration-300 shadow-xl ${
+                    animState.partnerAttacking 
+                      ? 'animate-battle-lunge-up z-30' 
+                      : animState.partnerHit 
+                        ? 'animate-battle-hurt-down bg-red-950/60' 
+                        : 'animate-hero-battle-float'
                   }`}
                 >
-                  {t.text}
-                </span>
-              ))}
-            </div>
+                  {isValidImageUrl(partner.image) ? (
+                    <img src={partner.image} alt={partner.name} className="w-full h-full object-cover rounded-xl sm:rounded-2xl" />
+                  ) : (
+                    <img src={getZodiacIcon(partner.sign || 'Leo')} alt={partner.sign} className="w-12 h-12 sm:w-16 sm:h-16 object-contain filter drop-shadow-[0_0_10px_rgba(20,184,166,0.5)]" />
+                  )}
+
+                  {/* Badge de Signo de Compañero */}
+                  <div className="absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-teal-400/40 text-[8px] font-bold shadow-md flex items-center gap-0.5 text-teal-300">
+                    <Users size={9} /> {partner.sign}
+                  </div>
+
+                  {/* Badge de Habilidad de Apoyo */}
+                  <div className="absolute -bottom-2 -left-2 px-1.5 py-0.5 rounded-full bg-black/80 border border-amber-400/40 text-[7px] font-bold shadow-md flex items-center gap-0.5 text-amber-300 truncate max-w-[85px]">
+                    ⚡ {partnerAssistSkill?.name}
+                  </div>
+                </div>
+
+                {/* Pedestal Rúnico del Compañero */}
+                <div className="w-24 sm:w-32 h-5 sm:h-7 rounded-[50%] bg-gradient-to-r from-teal-500/20 via-emerald-500/40 to-teal-500/20 border border-teal-400/40 animate-pedestal-pulse -mt-2.5 shadow-[0_0_20px_rgba(20,184,166,0.4)] flex items-center justify-center">
+                  <div className="w-14 h-1.5 rounded-[50%] bg-teal-400/30 blur-xs" />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* HUD FLOTANTE DEL HÉROE */}
+          {/* HUD FLOTANTE DEL HÉROE (+ INTEGRACIÓN COMPAÑERO EN CO-OP) */}
           <div className="w-full mt-2 bg-black/75 p-2 rounded-xl border border-cyan-500/30 backdrop-blur-sm shadow-md">
             <div className="flex items-center justify-between text-[11px] mb-1">
               <div className="flex items-center gap-1.5 truncate">
                 <span className="font-bold text-white mystic-font truncate">{hero.name}</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">N.{hero.level}</span>
                 <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${heroElemMeta.text} ${heroElemMeta.bg}`}>{hero.element}</span>
+                {isCoop && (
+                  <span className="text-[9px] text-teal-300 font-bold ml-1 truncate">
+                    + {partner.name}
+                  </span>
+                )}
               </div>
               <div className="text-right font-mono text-[10px] text-gray-300 shrink-0">
                 <span className="font-bold text-cyan-300">{playerHp}</span>/{heroStats.maxHp}
               </div>
             </div>
 
-            {/* Barra de Vida fluida */}
+            {/* Barra de Vida fluida del Jugador */}
             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.2">
               <div 
                 className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
                 style={{ width: `${Math.max(0, (playerHp / heroStats.maxHp) * 100)}%` }}
               />
             </div>
+
+            {/* Si es Co-op: Vida y Estado de Asistencia del Compañero */}
+            {isCoop && (
+              <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px]">
+                <div className="flex items-center gap-1 text-teal-300 truncate">
+                  <span className="font-bold">APOYO DE {partner.name}:</span>
+                  <span className="text-gray-400 truncate">[{partnerAssistSkill?.name}]</span>
+                </div>
+                <div className="font-mono text-[10px] text-teal-300 shrink-0 font-bold">
+                  {partnerHp}/{partnerMaxHp} HP
+                </div>
+              </div>
+            )}
 
             {/* Recursos: Escudo y Éter */}
             <div className="flex items-center justify-between mt-1 text-[9px]">
@@ -1264,9 +1541,9 @@ export function BattleArena({
       </div>
 
       {/* ========================================================================= */}
-      {/* CONSOLA DE ACCIONES DE COMBATE (5 COMANDOS) */}
+      {/* CONSOLA DE ACCIONES DE COMBATE (5 O 6 COMANDOS SEGÚN MODO) */}
       {/* ========================================================================= */}
-      <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className={`mt-3 grid ${isCoop ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} gap-2`}>
         {/* 1. Ataque Básico */}
         <button
           onClick={handlePlayerBasicAttack}
@@ -1340,7 +1617,31 @@ export function BattleArena({
           </div>
         )}
 
-        {/* 4. Poción Astral */}
+        {/* 4. ASISTENCIA DE SINASTRÍA DEL COMPAÑERO (SOLO EN CO-OP) */}
+        {isCoop && (
+          <button
+            onClick={handlePartnerAssist}
+            disabled={turn !== 'player' || playerEther < 2 || !!battleOutcome}
+            className={`p-2.5 rounded-2xl bg-gradient-to-br from-teal-950/80 to-black border ${
+              playerEther >= 2 ? 'border-teal-400 hover:border-teal-300 shadow-md shadow-teal-950/60' : 'border-white/10'
+            } text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <Users size={16} className="text-teal-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-300 font-mono font-bold">
+                -2 Éter
+              </span>
+            </div>
+            <div>
+              <div className="text-xs font-bold text-teal-200 truncate">{partnerAssistSkill?.name || 'Asistencia'}</div>
+              <div className="text-[9px] text-teal-400/80 truncate">
+                ⚡ Apoyo de {partner.name}
+              </div>
+            </div>
+          </button>
+        )}
+
+        {/* 5. Poción Astral */}
         <button
           onClick={handleUsePotion}
           disabled={turn !== 'player' || potionsLeft <= 0 || !!battleOutcome}
@@ -1356,7 +1657,7 @@ export function BattleArena({
           </div>
         </button>
 
-        {/* 5. Ultimate Astral / Cataclismo AoE */}
+        {/* 6. Ultimate Astral / Cataclismo AoE / Ataque de Dúo */}
         <button
           onClick={handlePlayerUltimate}
           disabled={turn !== 'player' || playerUltimate < 100 || !!battleOutcome}
@@ -1374,10 +1675,10 @@ export function BattleArena({
           </div>
           <div>
             <div className={`text-xs font-bold truncate ${playerUltimate >= 100 ? 'text-white' : 'text-gray-400'}`}>
-              {isCoop ? synastry.attackName : heroClass.ultimate.name}
+              {isCoop ? synastry?.attackName : heroClass.ultimate.name}
             </div>
             <div className={`text-[9px] truncate ${playerUltimate >= 100 ? 'text-amber-100' : 'text-gray-500'}`}>
-              {hasDualEnemies ? '¡Golpea a Ambos!' : 'Alineación'}
+              {isCoop ? '¡Ataque Dúo!' : hasDualEnemies ? '¡Golpea a Ambos!' : 'Alineación'}
             </div>
           </div>
         </button>
@@ -1422,22 +1723,40 @@ export function BattleArena({
                 <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center mx-auto mb-4 text-amber-300 shadow-xl shadow-amber-500/20 animate-bounce">
                   <Trophy size={32} />
                 </div>
-                <h3 className="mystic-font text-2xl text-white font-bold mb-1">¡VICTORIA CÓSMICA!</h3>
+                <h3 className="mystic-font text-2xl text-white font-bold mb-1">
+                  {isPvp ? '¡TRIUNFO EN EL COLISEO!' : isCoop ? '¡INCURSIÓN PURIFICADA!' : '¡VICTORIA CÓSMICA!'}
+                </h3>
                 <p className="text-xs text-gray-300 mb-4">
-                  {hasDualEnemies 
-                    ? 'Has doblegado a los dos guardianes en combate de desventaja táctica.' 
-                    : 'Has purificado la sombra y conquistado la energía astral.'}
+                  {isPvp
+                    ? `Has derrotado al gladiador [${enemy.name}] en duelo de clasificación cósmica.`
+                    : isCoop
+                      ? `Tú y ${partner.name} desataron su sinastría y abatieron al Titán.`
+                      : hasDualEnemies 
+                        ? 'Has doblegado a los dos guardianes en combate de desventaja táctica.' 
+                        : 'Has purificado la sombra y conquistado la energía astral.'}
                 </p>
 
                 {/* Recompensas */}
                 <div className="p-3 rounded-2xl bg-white/5 border border-white/10 mb-5 space-y-1.5 text-xs text-left">
+                  {isPvp && (
+                    <div className="flex justify-between text-amber-400 font-bold border-b border-white/10 pb-1.5 mb-1.5">
+                      <span className="flex items-center gap-1"><Trophy size={14} /> Puntos de Gloria PvP:</span>
+                      <span className="font-mono">+{enemy.gloryPoints || 35} Pts</span>
+                    </div>
+                  )}
+                  {isCoop && (
+                    <div className="flex justify-between text-teal-300 font-bold border-b border-white/10 pb-1.5 mb-1.5">
+                      <span className="flex items-center gap-1"><Users size={14} /> Bono de Sinastría:</span>
+                      <span className="font-mono">+{Math.round((enemy.stardustReward || 100) * 1.5)} ✦ Polvo Dúo</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-cyan-300">
                     <span>Experiencia Ganada:</span>
                     <span className="font-bold font-mono">+{totalExpReward} EXP</span>
                   </div>
                   <div className="flex justify-between text-amber-300">
                     <span>Polvo Estelar:</span>
-                    <span className="font-bold font-mono">+{totalGoldReward} ✦</span>
+                    <span className="font-bold font-mono">+{isCoop ? Math.round(totalGoldReward * 1.5) : totalGoldReward} ✦</span>
                   </div>
                 </div>
 
@@ -1445,7 +1764,8 @@ export function BattleArena({
                   onClick={() => onBattleEnd({ 
                     victory: true, 
                     exp: totalExpReward, 
-                    gold: totalGoldReward,
+                    gold: isCoop ? Math.round(totalGoldReward * 1.5) : totalGoldReward,
+                    pvpPointsGained: isPvp ? (enemy.gloryPoints || 35) : 0,
                     dropId: enemy.dropChance 
                   })}
                   className="btn-mystic w-full py-3 rounded-xl text-white text-xs font-bold uppercase tracking-wider shadow-lg"

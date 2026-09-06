@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
-  HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target
+  HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
+  Swords, RefreshCw
 } from 'lucide-react';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
@@ -20,7 +21,12 @@ import {
   extractProfilePhoto,
   ECLIPSE_TWINS_CHALLENGES,
   TOWER_MUTATORS,
-  generateTowerFloor
+  generateTowerFloor,
+  PVP_RANKS,
+  getPvpRankInfo,
+  generatePvpRivals,
+  COOP_RAID_BOSSES,
+  PARTNER_ASSIST_SKILLS
 } from './rpg-data';
 import { getSynastryCompatibility, getDailyTransitBuff } from './rpg-engine';
 import { playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
@@ -28,13 +34,16 @@ import { apiFetch } from '../../../lib/api';
 
 export function ChroniclesGame({ profile, onBack }) {
   const [hero, setHero] = useState(() => getOrCreateHeroProfile(profile));
-  const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'shadows' | 'coop'
+  const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'eclipse' | 'tower' | 'shadows' | 'coop' | 'pvp'
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
+  const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
   const [realMatches, setRealMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [selectedRaidId, setSelectedRaidId] = useState(COOP_RAID_BOSSES[0].id);
+  const [pvpRivals, setPvpRivals] = useState([]);
 
   const transitBuff = getDailyTransitBuff();
 
@@ -98,6 +107,19 @@ export function ChroniclesGame({ profile, onBack }) {
     return () => clearTimeout(timer);
   }, [hero]);
 
+  // Generar rivales de PvP cuando el héroe o vínculos cambien
+  useEffect(() => {
+    if (hero) {
+      setPvpRivals(generatePvpRivals(hero, realMatches));
+    }
+  }, [hero?.level, realMatches.length]);
+
+  const handleRefreshPvpRivals = () => {
+    if (hero) {
+      setPvpRivals(generatePvpRivals(hero, realMatches));
+    }
+  };
+
   // Manejar el resultado de la batalla
   const handleBattleEnd = ({ victory, exp = 0, gold = 0, dropId = null }) => {
     if (!victory) {
@@ -144,6 +166,21 @@ export function ChroniclesGame({ profile, onBack }) {
       newEclipseCleared.push(activeBattle.challengeId);
     }
 
+    // Manejo de PvP: Puntos de Gloria y Ascenso de Rango
+    let newPvpPoints = hero.pvpPoints || 0;
+    let newPvpRank = hero.pvpRank || 'Polvo Cósmico I';
+    let pvpPromo = null;
+
+    if (activeBattle.mode === 'pvp') {
+      const ptsGained = data.pvpPointsGained || activeBattle.enemy?.gloryPoints || 35;
+      newPvpPoints += ptsGained;
+      const rankInfo = getPvpRankInfo(newPvpPoints);
+      if (rankInfo.name !== newPvpRank) {
+        pvpPromo = rankInfo;
+      }
+      newPvpRank = rankInfo.name;
+    }
+
     const updatedHero = {
       ...hero,
       level: newLevel,
@@ -153,7 +190,9 @@ export function ChroniclesGame({ profile, onBack }) {
       inventory: newInventory,
       maxHouseCleared: newMaxHouse,
       maxTowerFloor: newMaxTowerFloor,
-      eclipseCleared: newEclipseCleared
+      eclipseCleared: newEclipseCleared,
+      pvpPoints: newPvpPoints,
+      pvpRank: newPvpRank
     };
 
     setHero(updatedHero);
@@ -172,6 +211,20 @@ export function ChroniclesGame({ profile, onBack }) {
         body: JSON.stringify({
           title: '⚔️ ¡Ascenso Cósmico!',
           body: `¡Tu héroe ha alcanzado el Nivel ${newLevel} en Chronicles of the Zodia!`,
+          type: 'astral'
+        })
+      }).catch(() => {});
+    } else if (pvpPromo) {
+      playBattleVictorySound();
+      setPvpPromoInfo(pvpPromo);
+      setTimeout(() => setPvpPromoInfo(null), 4000);
+
+      apiFetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: '🏆 ¡Ascenso en el Coliseo Astral!',
+          body: `¡Has ascendido al rango ${pvpPromo.name} con ${newPvpPoints} Puntos de Gloria!`,
           type: 'astral'
         })
       }).catch(() => {});
@@ -251,61 +304,57 @@ export function ChroniclesGame({ profile, onBack }) {
     });
   };
 
-  // Iniciar Incursión Cooperativa de Sinastría
-  const startCoopBattle = (allySign) => {
-    const allyClass = ZODIAC_HERO_CLASSES[allySign];
-    const partner = {
-      name: `Aliado Astral (${allySign})`,
-      sign: allySign,
-      element: allyClass.element
-    };
+  // Iniciar Incursión Cooperativa contra el Jefe Titánico
+  const startCoopRaid = (partnerData, raidId = selectedRaidId) => {
+    const raid = COOP_RAID_BOSSES.find(r => r.id === raidId) || COOP_RAID_BOSSES[0];
+    const bossHp = raid.hpBase + hero.level * raid.hpPerLevel;
+    const bossAtk = raid.atkBase + hero.level * raid.atkPerLevel;
+    const bossDef = raid.defBase + hero.level * raid.defPerLevel;
 
     const titanBoss = {
-      name: 'Titán de la Nebulosa Oscura',
-      sign: 'Ofiuco',
-      element: 'Agua',
-      hp: 2200 + hero.level * 220,
-      atk: 75 + hero.level * 8,
-      def: 42 + hero.level * 4,
+      name: raid.name,
+      title: raid.title,
+      sign: raid.sign,
+      element: raid.element,
+      hp: bossHp,
+      atk: bossAtk,
+      def: bossDef,
       spd: 35,
-      rewardExp: 350 + hero.level * 50,
-      rewardGold: 400 + hero.level * 60,
-      dropChance: 'wp_03'
+      rewardExp: raid.rewardExpBase + hero.level * 40,
+      rewardGold: raid.rewardGoldBase + hero.level * 45,
+      stardustReward: raid.stardustReward,
+      dropChance: raid.dropChance
     };
 
     setActiveBattle({
       enemy: titanBoss,
       mode: 'coop',
-      partner
+      partner: partnerData
     });
   };
 
-  // Iniciar Incursión con un Match Real de Zodia
+  const startCoopBattle = (allySign) => {
+    startCoopRaid({
+      name: `Aliado Astral (${allySign})`,
+      sign: allySign,
+      element: ZODIAC_HERO_CLASSES[allySign]?.element || 'Fuego'
+    });
+  };
+
   const startCoopBattleWithMatch = (match) => {
-    const partner = {
+    startCoopRaid({
       name: match.name,
       sign: match.sign || 'Leo',
       element: match.element || 'Fuego',
-      image: match.image || match.photos?.[0] || null
-    };
+      image: extractProfilePhoto(match)
+    });
+  };
 
-    const titanBoss = {
-      name: 'Titán de la Nebulosa Oscura',
-      sign: 'Ofiuco',
-      element: 'Agua',
-      hp: 1200 + hero.level * 150,
-      atk: 75 + hero.level * 8,
-      def: 35 + hero.level * 4,
-      spd: 35,
-      rewardExp: 350 + hero.level * 50,
-      rewardGold: 400 + hero.level * 60,
-      dropChance: 'wp_03'
-    };
-
+  // Iniciar Duelo en el Coliseo Astral PvP
+  const startPvpBattle = (rival) => {
     setActiveBattle({
-      enemy: titanBoss,
-      mode: 'coop',
-      partner
+      enemy: rival,
+      mode: 'pvp'
     });
   };
 
@@ -444,8 +493,8 @@ export function ChroniclesGame({ profile, onBack }) {
         onOpenSkillTree={() => setIsSkillTreeOpen(true)}
       />
 
-      {/* Selector de Pestañas / Modos (5 Modos) */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      {/* Selector de Pestañas / Modos (6 Modos) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
         <button
           onClick={() => setActiveTab('houses')}
           className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
@@ -499,11 +548,23 @@ export function ChroniclesGame({ profile, onBack }) {
           className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
             activeTab === 'coop'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-black shadow-lg shadow-emerald-500/20'
-              : 'glass-panel text-gray-400 hover:text-white border border-white/10'
+              : 'glass-panel text-teal-400/80 hover:text-teal-300 border border-teal-500/20'
           }`}
         >
           <Users size={15} />
           <span>Sinastría</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('pvp')}
+          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'pvp'
+              ? 'bg-gradient-to-r from-red-500 to-amber-500 text-black shadow-lg shadow-red-500/20'
+              : 'glass-panel text-amber-400/90 hover:text-amber-300 border border-amber-500/20'
+          }`}
+        >
+          <Swords size={15} className="text-amber-400" />
+          <span>Coliseo PvP</span>
         </button>
       </div>
 
@@ -862,15 +923,56 @@ export function ChroniclesGame({ profile, onBack }) {
 
       {/* 3. MODO: COOPERATIVO DE SINASTRÍA */}
       {activeTab === 'coop' && (
-        <div className="glass-panel p-6 rounded-3xl border border-amber-500/30 bg-gradient-to-b from-amber-950/20 via-black to-black space-y-6">
+        <div className="glass-panel p-6 rounded-3xl border border-teal-500/30 bg-gradient-to-b from-teal-950/20 via-black to-black space-y-6">
           <div className="text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto mb-3 text-amber-300 shadow-xl">
+            <div className="w-16 h-16 rounded-3xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center mx-auto mb-3 text-teal-300 shadow-xl">
               <Users size={30} />
             </div>
             <h3 className="mystic-font text-xl text-white font-bold mb-1">Incursión de Sinastría Cósmica</h3>
             <p className="text-xs text-gray-300 leading-relaxed font-light">
-              Únete a una resonancia o signo aliado para desatar un <strong className="text-amber-300">Ataque de Eclipse Combinado</strong> contra el Titán de la Nebulosa.
+              Elige a un Titán Ancestral y únete a un match o aliado para desplegar una <strong className="text-teal-300">formación dual en batalla</strong> con asistencia táctica y ataques de eclipse combinados.
             </p>
+          </div>
+
+          {/* Selector de Jefes de Raid Titánica */}
+          <div>
+            <h4 className="text-xs font-bold text-teal-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Crown size={14} /> Selecciona el Titán de Incursión
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {COOP_RAID_BOSSES.map(raid => {
+                const isSelected = selectedRaidId === raid.id;
+                const raidElem = ELEMENTAL_AFFINITIES[raid.element] || ELEMENTAL_AFFINITIES['Agua'];
+                return (
+                  <div
+                    key={raid.id}
+                    onClick={() => setSelectedRaidId(raid.id)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-teal-400 bg-teal-950/40 shadow-lg shadow-teal-500/20 ring-1 ring-teal-400'
+                        : 'border-white/10 bg-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${raidElem.bg} ${raidElem.text}`}>
+                          {raid.element}
+                        </span>
+                        <span className="text-[10px] font-mono text-gray-400 font-bold">Niv. {raid.minLevel}+</span>
+                      </div>
+                      <div className="text-xs font-bold text-white mystic-font truncate">{raid.name}</div>
+                      <div className="text-[10px] text-teal-300/80 font-mono mb-2">{raid.title}</div>
+                      <p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{raid.description}</p>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-gray-400">Recompensa:</span>
+                      <span className="text-amber-300 font-bold font-mono">+{raid.stardustReward} ✦ Polvo Dúo</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Vínculos Reales de Zodia (Matches) */}
@@ -879,20 +981,21 @@ export function ChroniclesGame({ profile, onBack }) {
               <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Sparkles size={14} /> Tus Conexiones Cósmicas (Matches de Zodia)
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 {realMatches.map(match => {
                   const syn = getSynastryCompatibility(hero.sign, match.sign || 'Leo');
+                  const photo = extractProfilePhoto(match);
                   return (
                     <div 
                       key={match.id}
                       onClick={() => startCoopBattleWithMatch(match)}
-                      className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between group"
+                      className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/30 hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between group shadow-sm hover:shadow-amber-500/10"
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-amber-400/50 bg-black flex items-center justify-center shrink-0">
-                          {extractProfilePhoto(match) ? (
+                          {photo ? (
                             <img 
-                              src={extractProfilePhoto(match)} 
+                              src={photo} 
                               alt="" 
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -913,7 +1016,7 @@ export function ChroniclesGame({ profile, onBack }) {
                             <span className="text-xs font-bold text-white truncate max-w-[120px]">{match.name}</span>
                             <span className="text-[10px] text-amber-400 font-mono font-bold">({match.sign})</span>
                           </div>
-                          <div className="text-[10px] text-gray-300 font-mono">
+                          <div className="text-[10px] text-teal-300 font-mono">
                             ⚡ {syn.score}% Compatibilidad
                           </div>
                           <div className="text-[9px] text-gray-400 truncate max-w-[150px]">
@@ -922,7 +1025,7 @@ export function ChroniclesGame({ profile, onBack }) {
                         </div>
                       </div>
 
-                      <button className="px-3 py-1.5 rounded-xl bg-amber-500 group-hover:bg-amber-400 text-black text-xs font-extrabold uppercase transition-all shadow-md">
+                      <button className="px-3 py-1.5 rounded-xl bg-teal-500 group-hover:bg-teal-400 text-black text-xs font-extrabold uppercase transition-all shadow-md">
                         Invitar
                       </button>
                     </div>
@@ -935,18 +1038,18 @@ export function ChroniclesGame({ profile, onBack }) {
           {/* Selector de Signos Aliados del Zodíaco */}
           <div>
             <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Star size={14} className="text-cyan-400" /> Aliados Celestiales del Zodíaco
+              <Star size={14} className="text-cyan-400" /> Aliados Celestiales y Asistencias de Signo
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {['Leo', 'Acuario', 'Sagitario', 'Piscis'].map(allySign => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {['Leo', 'Aries', 'Escorpio', 'Tauro', 'Cáncer', 'Acuario'].map(allySign => {
                 const syn = getSynastryCompatibility(hero.sign, allySign);
-                const allyClass = ZODIAC_HERO_CLASSES[allySign];
+                const assist = PARTNER_ASSIST_SKILLS[allySign];
 
                 return (
                   <div 
                     key={allySign}
                     onClick={() => startCoopBattle(allySign)}
-                    className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400 cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden"
+                    className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-teal-400 cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-white">{allySign}</span>
@@ -954,14 +1057,153 @@ export function ChroniclesGame({ profile, onBack }) {
                         <img src={getZodiacIcon(allySign)} alt={allySign} className="w-full h-full object-contain" />
                       </div>
                     </div>
-                    <div className="text-[10px] text-amber-300 font-mono font-bold">
+                    <div className="text-[10px] text-teal-300 font-mono font-bold">
                       {syn.score}% Sinastría
                     </div>
-                    <div className="text-[9px] text-gray-400 truncate mt-1">
-                      {syn.attackName}
+                    <div className="text-[9px] text-amber-300 font-mono truncate mt-0.5">
+                      ⚡ {assist?.name}
                     </div>
-                    <button className="mt-2.5 w-full py-1.5 rounded-xl bg-amber-500/20 group-hover:bg-amber-500 text-amber-300 group-hover:text-black text-[10px] font-bold uppercase transition-all">
+                    <div className="text-[8px] text-gray-400 line-clamp-2 mt-1 leading-tight">
+                      {assist?.desc}
+                    </div>
+                    <button className="mt-2.5 w-full py-1.5 rounded-xl bg-teal-500/20 group-hover:bg-teal-500 text-teal-300 group-hover:text-black text-[10px] font-bold uppercase transition-all">
                       Iniciar Dúo
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. MODO: COLISEO ASTRAL PVP */}
+      {activeTab === 'pvp' && (
+        <div className="space-y-5">
+          {/* Tarjeta de Rango y Gloria del Jugador */}
+          {(() => {
+            const rankInfo = getPvpRankInfo(hero.pvpPoints || 0);
+            return (
+              <div className="glass-panel p-5 rounded-3xl border border-amber-500/30 bg-gradient-to-r from-red-950/30 via-black to-amber-950/30">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-xl shadow-amber-500/20">
+                      <Swords size={28} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">Rango en el Coliseo:</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-md font-bold border ${rankInfo.badgeColor}`}>
+                          {rankInfo.name}
+                        </span>
+                      </div>
+                      <div className="mystic-font text-xl text-white font-bold mt-0.5">
+                        {hero.pvpPoints || 0} <span className="text-amber-400 text-sm font-sans font-normal">Puntos de Gloria</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {rankInfo.nextRank && (
+                    <div className="w-full sm:w-48 text-right">
+                      <div className="text-[10px] text-gray-400 mb-1 flex justify-between">
+                        <span>Ascenso a {rankInfo.nextRank.name}</span>
+                        <span className="font-mono text-amber-300 font-bold">{rankInfo.progress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full transition-all"
+                          style={{ width: `${rankInfo.progress}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-gray-500 font-mono mt-0.5 block">
+                        Faltan {Math.max(0, rankInfo.nextRank.minPts - (hero.pvpPoints || 0))} pts para ascender
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Roster de Rivales Disponibles */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pl-1">
+              <div>
+                <h3 className="mystic-font text-base text-white font-bold flex items-center gap-2">
+                  <Target size={16} className="text-red-400" /> Gladiadores del Coliseo
+                </h3>
+                <p className="text-xs text-gray-400">Desafía a estos oponentes en duelos de clasificación táctica.</p>
+              </div>
+              <button
+                onClick={handleRefreshPvpRivals}
+                className="flex items-center gap-1.5 text-xs text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-amber-500/30 transition-all shadow-sm"
+                title="Buscar nuevos gladiadores en la arena"
+              >
+                <RefreshCw size={13} />
+                <span>Nuevos Rivales</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {pvpRivals.map(rival => {
+                const rivalElem = ELEMENTAL_AFFINITIES[rival.element] || ELEMENTAL_AFFINITIES['Fuego'];
+                return (
+                  <div
+                    key={rival.id}
+                    className="glass-panel p-4 rounded-2xl border border-white/10 hover:border-amber-400 transition-all flex flex-col justify-between group relative overflow-hidden bg-gradient-to-b from-black via-gray-950 to-black"
+                  >
+                    <div>
+                      {/* Cabecera del Rival */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase ${rivalElem.bg} ${rivalElem.text}`}>
+                          {rival.element}
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 font-bold">
+                          +{rival.gloryPoints} Gloria
+                        </span>
+                      </div>
+
+                      {/* Avatar y Datos */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 bg-black flex items-center justify-center shrink-0 relative">
+                          {rival.avatarUrl ? (
+                            <img src={rival.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={getZodiacIcon(rival.sign)} alt="" className="w-8 h-8 object-contain" />
+                          )}
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black border border-white/30 p-0.5 flex items-center justify-center">
+                            <img src={getZodiacIcon(rival.sign)} alt="" className="w-full h-full object-contain" />
+                          </div>
+                        </div>
+                        <div className="truncate">
+                          <div className="flex items-center gap-1 truncate">
+                            <span className="text-xs font-bold text-white truncate">{rival.name}</span>
+                            <span className="text-[9px] text-cyan-300 font-mono font-bold">N.{rival.level}</span>
+                          </div>
+                          <div className="text-[10px] text-amber-300 font-mono truncate">{rival.title}</div>
+                          <div className="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1">
+                            <span>Postura:</span>
+                            <span className="text-gray-300 font-bold">
+                              {rival.stance === 'solar' ? '☀️ Solar' : rival.stance === 'lunar' ? '🌙 Lunar' : '🧭 Estelar'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Estadísticas de Poder */}
+                      <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/5 text-[9px] font-mono text-gray-400 mb-3">
+                        <div>HP: <span className="text-white font-bold">{rival.hp}</span></div>
+                        <div>ATQ: <span className="text-orange-300 font-bold">{rival.atk}</span></div>
+                        <div>DEF: <span className="text-blue-300 font-bold">{rival.def}</span></div>
+                        <div>VEL: <span className="text-cyan-300 font-bold">{rival.spd}</span></div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => startPvpBattle(rival)}
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-400 hover:to-amber-400 text-black text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      <Swords size={14} /> Desafiar
                     </button>
                   </div>
                 );

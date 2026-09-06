@@ -1809,3 +1809,278 @@ export function generateTowerFloor(floorNumber, heroLevel = 1) {
     rewardGold: 110 + floorNumber * 40
   };
 }
+
+// ==========================================
+// RANGOS Y PROGRESIÓN PVP: COLISEO ASTRAL
+// ==========================================
+export const PVP_RANKS = [
+  { id: 'polvo_1', name: 'Polvo Cósmico I', minPts: 0, maxPts: 99, badgeColor: 'text-gray-400 border-gray-500 bg-gray-500/10', tier: 'Polvo' },
+  { id: 'polvo_2', name: 'Polvo Cósmico II', minPts: 100, maxPts: 199, badgeColor: 'text-zinc-300 border-zinc-400 bg-zinc-500/10', tier: 'Polvo' },
+  { id: 'bronce_1', name: 'Gladiador de Bronce I', minPts: 200, maxPts: 349, badgeColor: 'text-amber-600 border-amber-600 bg-amber-600/10', tier: 'Bronce' },
+  { id: 'bronce_2', name: 'Gladiador de Bronce II', minPts: 350, maxPts: 499, badgeColor: 'text-amber-500 border-amber-500 bg-amber-500/10', tier: 'Bronce' },
+  { id: 'plata_1', name: 'Centurión de Plata I', minPts: 500, maxPts: 649, badgeColor: 'text-slate-200 border-slate-300 bg-slate-300/10', tier: 'Plata' },
+  { id: 'plata_2', name: 'Centurión de Plata II', minPts: 650, maxPts: 799, badgeColor: 'text-slate-100 border-slate-200 bg-slate-200/10', tier: 'Plata' },
+  { id: 'oro_1', name: 'Guardián Dorado I', minPts: 800, maxPts: 999, badgeColor: 'text-yellow-400 border-yellow-400 bg-yellow-400/10', tier: 'Oro' },
+  { id: 'oro_2', name: 'Guardián Dorado II', minPts: 1000, maxPts: 1199, badgeColor: 'text-yellow-300 border-yellow-300 bg-yellow-300/15', tier: 'Oro' },
+  { id: 'diamante_1', name: 'Heraldo de Diamante', minPts: 1200, maxPts: 1499, badgeColor: 'text-cyan-300 border-cyan-400 bg-cyan-400/15', tier: 'Diamante' },
+  { id: 'cosmico', name: 'Soberano Cósmico', minPts: 1500, maxPts: 99999, badgeColor: 'text-fuchsia-400 border-fuchsia-400 bg-fuchsia-400/20', tier: 'Cósmico' }
+];
+
+export function getPvpRankInfo(points = 0) {
+  const currentRank = [...PVP_RANKS].reverse().find(r => points >= r.minPts) || PVP_RANKS[0];
+  const nextRank = PVP_RANKS[PVP_RANKS.indexOf(currentRank) + 1] || null;
+  const progress = nextRank 
+    ? Math.min(100, Math.max(0, Math.round(((points - currentRank.minPts) / (nextRank.minPts - currentRank.minPts)) * 100)))
+    : 100;
+
+  return {
+    ...currentRank,
+    nextRank,
+    progress,
+    points
+  };
+}
+
+export function generatePvpRivals(hero, realMatches = []) {
+  const heroLevel = hero?.level || 1;
+  const signs = Object.keys(ZODIAC_HERO_CLASSES);
+  const titles = [
+    'Vanguardia de Orión',
+    'Cazador del Vacío',
+    'Hechicera del Eclipse',
+    'Guerrero de la Nebulosa',
+    'Paladín de Casiopea',
+    'Espadachín Solar',
+    'Místico de Andrómeda',
+    'Heraldo Estelar'
+  ];
+  const stances = ['solar', 'lunar', 'stellar'];
+  const rivals = [];
+
+  // Si hay matches reales, incluir 1-2 como rivales de honor
+  if (realMatches && realMatches.length > 0) {
+    const match = realMatches[Math.floor(Math.random() * realMatches.length)];
+    const matchSign = match.sign || 'Leo';
+    const matchClass = ZODIAC_HERO_CLASSES[matchSign] || ZODIAC_HERO_CLASSES['Leo'];
+    const photo = match.image || match.photos?.[0] || match.photo || null;
+
+    rivals.push({
+      id: `rival_match_${match.id || 'real'}`,
+      isRealMatch: true,
+      name: match.name || 'Conexión Astral',
+      sign: matchSign,
+      element: matchClass.element,
+      level: Math.max(1, heroLevel + (Math.random() > 0.5 ? 1 : 0)),
+      avatarUrl: photo,
+      title: 'Vínculo Rival de Zodia',
+      stance: stances[Math.floor(Math.random() * stances.length)],
+      hp: Math.round(matchClass.baseStats.hp * 1.5 + heroLevel * 65),
+      atk: Math.round(matchClass.baseStats.atk * 1.1 + heroLevel * 6),
+      def: Math.round(matchClass.baseStats.def * 1.05 + heroLevel * 4),
+      spd: matchClass.baseStats.spd + 5,
+      gloryPoints: 35 + Math.floor(Math.random() * 15),
+      rewardExp: 140 + heroLevel * 25,
+      rewardGold: 160 + heroLevel * 30
+    });
+  }
+
+  // Generar gladiadores astrales para completar 3-4 contrincantes
+  const needed = Math.max(3, 4 - rivals.length);
+  for (let i = 0; i < needed; i++) {
+    const sign = signs[(i * 4 + (heroLevel % 5)) % signs.length];
+    const heroClass = ZODIAC_HERO_CLASSES[sign];
+    const levelDiff = i === 0 ? -1 : (i === 1 ? 0 : 1);
+    const rivalLevel = Math.max(1, heroLevel + levelDiff);
+    const scaling = 1 + (rivalLevel - 1) * 0.12;
+
+    rivals.push({
+      id: `rival_bot_${i}_${Date.now()}`,
+      isRealMatch: false,
+      name: `Gladiador ${sign}`,
+      sign,
+      element: heroClass.element,
+      level: rivalLevel,
+      avatarUrl: null,
+      title: titles[(i + heroLevel) % titles.length],
+      stance: stances[i % stances.length],
+      hp: Math.round((heroClass.baseStats.hp * 1.5 + 80) * scaling),
+      atk: Math.round((heroClass.baseStats.atk + 8) * scaling),
+      def: Math.round((heroClass.baseStats.def + 6) * scaling),
+      spd: Math.round(heroClass.baseStats.spd * (1 + i * 0.05)),
+      gloryPoints: 30 + (i * 10) + Math.floor(Math.random() * 8),
+      rewardExp: 120 + rivalLevel * 25,
+      rewardGold: 140 + rivalLevel * 30
+    });
+  }
+
+  return rivals;
+}
+
+// ==========================================
+// INCURSIONES COOPERATIVAS (RAID BOSSES)
+// ==========================================
+export const COOP_RAID_BOSSES = [
+  {
+    id: 'raid_dark_nebula',
+    name: 'Titán de la Nebulosa Oscura',
+    title: 'Monarca del Vacío Sombrío',
+    sign: 'Ofiuco',
+    element: 'Agua',
+    minLevel: 1,
+    description: 'Especialista en Mareas del Abismo que absorben el Éter. La cooperación equilibrada de elementos es vital para romper su núcleo.',
+    hpBase: 1800,
+    hpPerLevel: 220,
+    atkBase: 70,
+    atkPerLevel: 8,
+    defBase: 38,
+    defPerLevel: 4,
+    rewardExpBase: 320,
+    rewardGoldBase: 350,
+    stardustReward: 80,
+    dropChance: 'wp_03',
+    badge: 'border-cyan-500/40 bg-cyan-950/30'
+  },
+  {
+    id: 'raid_solar_phoenix',
+    name: 'Fénix del Eclipse Solar',
+    title: 'Avatar de las Llamas Eternas',
+    sign: 'Leo',
+    element: 'Fuego',
+    minLevel: 3,
+    description: 'Se envuelve en una corona de plasma solar infligiendo daño constante por quemadura. Requiere coordinación defensiva y escudos.',
+    hpBase: 2600,
+    hpPerLevel: 280,
+    atkBase: 88,
+    atkPerLevel: 10,
+    defBase: 44,
+    defPerLevel: 5,
+    rewardExpBase: 480,
+    rewardGoldBase: 500,
+    stardustReward: 120,
+    dropChance: 'ar_03',
+    badge: 'border-amber-500/40 bg-amber-950/30'
+  },
+  {
+    id: 'raid_ouroboros',
+    name: 'Ouroboros del Vacío Astral',
+    title: 'Devorador de Constelaciones',
+    sign: 'Escorpio',
+    element: 'Tierra',
+    minLevel: 5,
+    description: 'Titán milenario que altera la gravedad y genera un Vórtice de Ruptura. Otorga las reliquias más codiciadas del cosmos.',
+    hpBase: 3600,
+    hpPerLevel: 340,
+    atkBase: 105,
+    atkPerLevel: 12,
+    defBase: 52,
+    defPerLevel: 6,
+    rewardExpBase: 650,
+    rewardGoldBase: 700,
+    stardustReward: 180,
+    dropChance: 'rl_03',
+    badge: 'border-purple-500/40 bg-purple-950/30'
+  }
+];
+
+// ==========================================
+// HABILIDADES DE ASISTENCIA COOPERATIVA (SINASTRÍA)
+// ==========================================
+export const PARTNER_ASSIST_SKILLS = {
+  Aries: {
+    name: 'Embestida de Cometa',
+    type: 'attack',
+    element: 'Fuego',
+    desc: 'Inflige daño físico pesado y desestabiliza al objetivo (-1 Tenacidad).',
+    multiplier: 1.4,
+    staggerBreak: 1
+  },
+  Tauro: {
+    name: 'Muro de Cuarzo Astral',
+    type: 'shield',
+    element: 'Tierra',
+    desc: 'Otorga un escudo de 140 puntos al Héroe y regenera +1 Éter.',
+    shieldAmount: 140,
+    etherBonus: 1
+  },
+  Géminis: {
+    name: 'Doble Reflejo de Éter',
+    type: 'buff',
+    element: 'Aire',
+    desc: 'Otorga +2 puntos de Éter instantáneos y aumenta el daño del próximo turno un 25%.',
+    etherBonus: 2,
+    damageBuff: 0.25
+  },
+  Cáncer: {
+    name: 'Manto de Marea Sanadora',
+    type: 'heal',
+    element: 'Agua',
+    desc: 'Restaura un 30% de la vida máxima del Héroe y limpia estados alterados.',
+    healPercent: 0.30,
+    cleanse: true
+  },
+  Leo: {
+    name: 'Llamarada Solar Real',
+    type: 'attack',
+    element: 'Fuego',
+    desc: 'Inflige daño de Fuego devastador y aplica 2 turnos de Quemadura.',
+    multiplier: 1.5,
+    status: { type: 'burn', turns: 2, dot: 45 }
+  },
+  Virgo: {
+    name: 'Precisión Geométrica',
+    type: 'crit_buff',
+    element: 'Tierra',
+    desc: 'Garantiza Golpe Crítico en la siguiente acción y reduce la defensa enemiga.',
+    critGuaranteed: true,
+    defShred: 15
+  },
+  Libra: {
+    name: 'Balanza Cósmica',
+    type: 'hybrid',
+    element: 'Aire',
+    desc: 'Absorbe 80 de vida del enemigo y la transfiere como curación al Héroe.',
+    multiplier: 0.9,
+    healAmount: 90
+  },
+  Escorpio: {
+    name: 'Picadura del Abismo',
+    type: 'attack',
+    element: 'Agua',
+    desc: 'Aplica Veneno Mortal que corroe al enemigo durante 3 turnos.',
+    multiplier: 1.2,
+    status: { type: 'poison', turns: 3, dot: 55 }
+  },
+  Sagitario: {
+    name: 'Flecha del Cénit',
+    type: 'attack',
+    element: 'Fuego',
+    desc: 'Disparo certero que atraviesa el 50% de la defensa enemiga con alta prob. crítica.',
+    multiplier: 1.6,
+    pierceDef: 0.5
+  },
+  Capricornio: {
+    name: 'Fortaleza del Titán',
+    type: 'shield',
+    element: 'Tierra',
+    desc: 'Otorga un escudo de 180 puntos y reduce el daño recibido el próximo turno.',
+    shieldAmount: 180,
+    damageReduction: 0.25
+  },
+  Acuario: {
+    name: 'Torbellino Estelar',
+    type: 'attack',
+    element: 'Aire',
+    desc: 'Ráfaga cósmica que inflige daño y reduce la velocidad y ataque del enemigo.',
+    multiplier: 1.3,
+    atkDebuff: 10
+  },
+  Piscis: {
+    name: 'Bendición de las Profundidades',
+    type: 'heal',
+    element: 'Agua',
+    desc: 'Restaura un 35% de vida y otorga un escudo protector de 80 puntos.',
+    healPercent: 0.35,
+    shieldAmount: 80
+  }
+};
+
