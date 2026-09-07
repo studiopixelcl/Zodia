@@ -4,7 +4,7 @@
  * modificadores elementales, sinastría de combate e inteligencia artificial.
  */
 
-import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, calculateActiveSets } from './rpg-data';
+import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, calculateActiveSets, getHeroActivePet } from './rpg-data';
 import { calculatePlanetaryPositions, calculateMoonPhase } from '../../../lib/transits';
 
 /**
@@ -166,6 +166,22 @@ export function calculateHeroTotalStats(hero) {
     if (b.critRate) { critRate += b.critRate; gearStats.critRate += b.critRate; }
   }
 
+  // Bonificaciones otorgadas por la Mascota Astral activa (Pet Companion)
+  const activePet = getHeroActivePet(hero);
+  const petBonus = activePet?.effectiveBonusStats || {};
+  const petStats = { hp: 0, patk: 0, matk: 0, atk: 0, pdef: 0, mdef: 0, def: 0, spd: 0, critRate: 0 };
+  if (activePet) {
+    if (petBonus.hp) { maxHp += petBonus.hp; petStats.hp += petBonus.hp; }
+    if (petBonus.patk) { patk += petBonus.patk; petStats.patk += petBonus.patk; }
+    if (petBonus.matk) { matk += petBonus.matk; petStats.matk += petBonus.matk; }
+    if (petBonus.pdef) { pdef += petBonus.pdef; petStats.pdef += petBonus.pdef; }
+    if (petBonus.mdef) { mdef += petBonus.mdef; petStats.mdef += petBonus.mdef; }
+    if (petBonus.spd) { spd += petBonus.spd; petStats.spd += petBonus.spd; }
+    if (petBonus.crit) { critRate += petBonus.crit; petStats.critRate += petBonus.crit; }
+    petStats.atk = Math.max(petStats.patk, petStats.matk);
+    petStats.def = Math.round((petStats.pdef + petStats.mdef) / 2);
+  }
+
   const atk = Math.max(patk, matk);
   const def = Math.round((pdef + mdef) / 2);
   gearStats.atk = Math.max(gearStats.patk, gearStats.matk);
@@ -178,6 +194,8 @@ export function calculateHeroTotalStats(hero) {
   return { 
     baseStats: { hp: baseHp, patk: basePatk, matk: baseMatk, atk: baseAtk, pdef: basePdef, mdef: baseMdef, def: baseDef, spd: baseSpd, critRate: baseCritRate },
     gearStats,
+    petStats,
+    activePet,
     activeSets,
     totalPower,
     maxHp, 

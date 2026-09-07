@@ -7,13 +7,14 @@ import {
 import { ELEMENTAL_AFFINITIES, ZODIAC_HERO_CLASSES, RARITIES, getZodiacIcon, isValidImageUrl, getEquippedSkills } from './rpg-data';
 import { calculateHeroTotalStats } from './rpg-engine';
 
-export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
+export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree, onOpenPetSanctuary }) {
   if (!hero) return null;
 
   const heroClass = ZODIAC_HERO_CLASSES[hero.sign] || ZODIAC_HERO_CLASSES['Aries'];
   const elemRules = ELEMENTAL_AFFINITIES[hero.element] || ELEMENTAL_AFFINITIES['Fuego'];
   const totalStats = calculateHeroTotalStats(hero);
   const equippedSkills = getEquippedSkills(hero);
+  const activePet = totalStats.activePet;
 
   const expPercentage = Math.min(100, Math.round((hero.exp / hero.expNext) * 100));
 
@@ -126,6 +127,38 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           <span className="text-xs font-bold text-purple-300 truncate">
             {hero.pvpRank || 'Polvo I'}
           </span>
+        </div>
+      </div>
+
+      {/* Mascota Astral Activa & Santuario */}
+      <div 
+        onClick={onOpenPetSanctuary}
+        className="p-2.5 rounded-xl bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-black/60 border border-purple-500/30 hover:border-purple-400/60 mb-3 cursor-pointer transition-all flex items-center justify-between group shadow-sm"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform">
+            {activePet?.icon || '🐾'}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-zinc-100 group-hover:text-purple-200 transition-colors">
+                {activePet?.name || 'Santuario de Mascotas'}
+              </span>
+              {activePet && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-purple-500/25 border border-purple-400/40 text-purple-300 font-bold">
+                  Nvl. {activePet.level}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-zinc-400 truncate max-w-[220px]">
+              {activePet ? `⚡ ${activePet.passiveName} (Cada ${activePet.intervalTurns}t)` : 'Toca para despertar a tu compañero'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 text-[11px] font-bold text-purple-300 group-hover:text-purple-200">
+          <span>Santuario</span>
+          <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
         </div>
       </div>
 

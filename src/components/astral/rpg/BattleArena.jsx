@@ -14,7 +14,9 @@ import {
   isValidImageUrl, 
   getEquippedSkills,
   PARTNER_ASSIST_SKILLS,
-  getPvpRankInfo
+  getPvpRankInfo,
+  ASTRAL_PETS_CATALOG,
+  ALCHEMY_CONSUMABLES_CATALOG
 } from './rpg-data';
 import { 
   calculateHeroTotalStats, 
@@ -97,6 +99,23 @@ export function BattleArena({
   const [playerEffects, setPlayerEffects] = useState([]);
   const [playerShield, setPlayerShield] = useState(0);
   const [potionsLeft, setPotionsLeft] = useState(hero.potions ?? 3);
+
+  // Mascota Astral Activa (Companion Pet)
+  const activePet = heroStats.activePet;
+  const [petTurnCount, setPetTurnCount] = useState(0);
+  const [petAnim, setPetAnim] = useState(false);
+
+  // Alquimia Táctica (Mochila de Consumibles)
+  const [consumables, setConsumables] = useState(() => hero.consumables || {
+    item_potion_hp: Math.max(3, hero.potions || 0),
+    item_ether_elixir: 2,
+    item_star_bomb: 1,
+    item_cleanse_incense: 1,
+    item_crit_stone: 1,
+    item_aegis_talisman: 1
+  });
+  const [isBackpackOpen, setIsBackpackOpen] = useState(false);
+  const [critBuffTurns, setCritBuffTurns] = useState(0); // +50% Crit buff de piedra alquímica
 
   // Estados Tácticos del Jugador
   const [playerPosition, setPlayerPosition] = useState('frontline'); // 'frontline' (Vanguardia) | 'backline' (Retaguardia)
@@ -763,18 +782,146 @@ export function BattleArena({
   };
 
   // ==========================================
-  // TURNO DEL JUGADOR: 4. USAR POCIÓN ASTRAL
+  // TURNO DEL JUGADOR: 4. USAR CONSUMIBLE DE ALQUIMIA TÁCTICA
   // ==========================================
-  const handleUsePotion = () => {
-    if (turn !== 'player' || battleOutcome || potionsLeft <= 0) return;
-    setPotionsLeft(p => p - 1);
-    const healAmount = Math.round(heroStats.maxHp * 0.45);
-    const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
-    playerHpRef.current = nextPlayerHp;
-    setPlayerHp(nextPlayerHp);
-    playBattleHealSound();
-    spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
-    logMessage(`🧪 ${hero.name} consumió una Poción Astral curando ${healAmount} HP.`);
+  const handleUseConsumable = (itemKey) => {
+    if (turn !== 'player' || battleOutcome) return;
+    const count = consumables[itemKey] || 0;
+    if (count <= 0) return;
+
+    const itemDef = ALCHEMY_CONSUMABLES_CATALOG.find(i => i.id === itemKey);
+    if (!itemDef) return;
+
+    // Decrementar cantidad
+    const nextConsumables = { ...consumables, [itemKey]: count - 1 };
+    setConsumables(nextConsumables);
+
+    const target = getTargetData();
+
+    if (itemKey === 'item_potion_hp') {
+      const healAmount = 180;
+      const nextHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
+      playerHpRef.current = nextHp;
+      setPlayerHp(nextHp);
+      safeSound(playBattleHealSound);
+      spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
+      logMessage(`🧪 ${hero.name} consumió [${itemDef.name}] (+${healAmount} HP).`);
+    } else if (itemKey === 'item_ether_elixir') {
+      setPlayerEther(e => Math.min(5, e + 2));
+      safeSound(playTurnReadySound);
+      spawnFloatingText('+2 ÉTER', 'player', 'buff');
+      logMessage(`✨ ${hero.name} bebió [${itemDef.name}] (+2 Éter instantáneo).`);
+    } else if (itemKey === 'item_star_bomb') {
+      safeSound(playBattleHeavyHitSound);
+      const dmg = 160;
+      const nextHp = Math.max(0, target.hpRef.current - dmg);
+      target.hpRef.current = nextHp;
+      target.setHp(nextHp);
+      spawnFloatingText(`💣 -${dmg}`, target.targetKey, 'crit');
+      logMessage(`💣 ${hero.name} lanzó [${itemDef.name}] causando ${dmg} de daño directo a [${target.enemyObj.name}].`);
+      if (target.hpRef.current <= 0) {
+        checkPostAttackOutcome();
+      }
+    } else if (itemKey === 'item_cleanse_incense') {
+      playerEffectsRef.current = [];
+      setPlayerEffects([]);
+      safeSound(playBattleHealSound);
+      spawnFloatingText('🌿 ¡PURIFICADO!', 'player', 'heal');
+      logMessage(`🌿 ${hero.name} encendió [${itemDef.name}] disipando anomalías activas.`);
+    } else if (itemKey === 'item_crit_stone') {
+      setCritBuffTurns(2);
+      safeSound(playTurnReadySound);
+      spawnFloatingText('💎 +50% CRÍTICO', 'player', 'buff');
+      logMessage(`💎 ${hero.name} activó [${itemDef.name}] (+50% Prob. Crítica x2 turnos).`);
+    } else if (itemKey === 'item_aegis_talisman') {
+      const shield = 220;
+      playerShieldRef.current += shield;
+      setPlayerShield(playerShieldRef.current);
+      safeSound(playBattleShieldSound);
+      spawnFloatingText(`🛡️ +${shield} Escudo`, 'player', 'shield');
+      logMessage(`🛡️ ${hero.name} activó [${itemDef.name}] (+${shield} Escudo absorbente).`);
+    }
+  };
+
+  // ==========================================
+  // HABILIDAD AUTÓNOMA DE LA MASCOTA ASTRAL
+  // ==========================================
+  const triggerPetAction = (target, onComplete) => {
+    if (!activePet) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    setPetAnim(true);
+    safeSound(playElementalSkillSound, activePet.element || 'Fuego');
+    spawnFloatingText(`🐾 ${activePet.passiveName}`, 'pet', 'buff');
+
+    setTimeout(() => {
+      try {
+        setPetAnim(false);
+        const actionPower = activePet.effectiveActionPower || {};
+
+        // 1. Daño directo al objetivo
+        if (actionPower.damage && target && target.hpRef.current > 0) {
+          const dmg = actionPower.damage;
+          const nextHp = Math.max(0, target.hpRef.current - dmg);
+          target.hpRef.current = nextHp;
+          target.setHp(nextHp);
+          spawnFloatingText(`🐾 -${dmg}`, target.targetKey, 'crit');
+        }
+
+        // 2. Curación al jugador
+        if (actionPower.heal) {
+          const heal = actionPower.heal;
+          const nextHp = Math.min(heroStats.maxHp, playerHpRef.current + heal);
+          playerHpRef.current = nextHp;
+          setPlayerHp(nextHp);
+          safeSound(playBattleHealSound);
+          spawnFloatingText(`+${heal} HP`, 'player', 'heal');
+        }
+
+        // 3. Escudo al jugador
+        if (actionPower.shield) {
+          const shield = actionPower.shield;
+          playerShieldRef.current += shield;
+          setPlayerShield(playerShieldRef.current);
+          safeSound(playBattleShieldSound);
+          spawnFloatingText(`🛡️ +${shield} Escudo`, 'player', 'shield');
+        }
+
+        // 4. Éter al jugador
+        if (actionPower.ether) {
+          setPlayerEther(e => Math.min(5, e + actionPower.ether));
+          spawnFloatingText(`+${actionPower.ether} Éter`, 'player', 'buff');
+        }
+
+        // 5. Sangrado al enemigo
+        if (actionPower.bleed && target) {
+          target.effectsRef.current.push({ type: 'bleed', dot: actionPower.bleed, turns: actionPower.bleedTurns || 2, id: Date.now() });
+          target.setEffects([...target.effectsRef.current]);
+          spawnFloatingText('🩸 Sangrado', target.targetKey, 'buff');
+        }
+
+        // 6. Purificación
+        if (actionPower.cleanse) {
+          playerEffectsRef.current = [];
+          setPlayerEffects([]);
+          spawnFloatingText('✨ Purificado', 'player', 'heal');
+        }
+
+        logMessage(`🐾 ¡Tu compañero [${activePet.name}] desató [${activePet.passiveName}]!`);
+
+        // Si el objetivo murió con el golpe de la mascota
+        if (target && target.hpRef.current <= 0) {
+          checkPostAttackOutcome();
+          return;
+        }
+      } catch (e) {
+        console.error("Error in triggerPetAction:", e);
+      }
+
+      if (onComplete) onComplete();
+    }, 700);
   };
 
   // ==========================================
@@ -793,12 +940,36 @@ export function BattleArena({
         setTimeout(() => {
           handleVictory();
         }, 1300);
+        return;
+      }
+
+      if (hasDualEnemies && isEnemy1Dead && activeTarget === 0) {
+        setDefeatingTarget('enemy1');
+        setActiveTarget(1);
+        logMessage(`💀 ¡La Sombra frontal ha caído! Ahora enfócate en [${enemy2?.name || 'Rival'}].`);
+      }
+
+      // Progresión de turnos de la Mascota Astral
+      const target = getTargetData();
+      const interval = activePet?.intervalTurns || 2;
+      const nextTurns = petTurnCount + 1;
+      setPetTurnCount(nextTurns);
+
+      if (activePet && nextTurns >= interval) {
+        setPetTurnCount(0);
+        setTimeout(() => {
+          triggerPetAction(target, () => {
+            setTimeout(() => {
+              try {
+                startEnemyTurn();
+              } catch (e) {
+                console.error("Error launching startEnemyTurn after pet:", e);
+                setTurn('player');
+              }
+            }, 450);
+          });
+        }, 400);
       } else {
-        if (hasDualEnemies && isEnemy1Dead && activeTarget === 0) {
-          setDefeatingTarget('enemy1');
-          setActiveTarget(1);
-          logMessage(`💀 ¡La Sombra frontal ha caído! Ahora enfócate en [${enemy2?.name || 'Rival'}].`);
-        }
         setTimeout(() => {
           try {
             startEnemyTurn();
@@ -1114,6 +1285,11 @@ export function BattleArena({
       if (mutator?.id === 'blood_eclipse') {
         playerEffectsRef.current = [...playerEffectsRef.current, { type: 'bleed', turns: 1, damage: 15 }];
         setPlayerEffects([...playerEffectsRef.current]);
+      }
+
+      // 5. Consumible Piedra de Enfoque Cósmico: Duración
+      if (critBuffTurns > 0) {
+        setCritBuffTurns(c => Math.max(0, c - 1));
       }
     } catch (err) {
       console.error("Error in finishEnemyRound:", err);
@@ -1559,8 +1735,50 @@ export function BattleArena({
         <div className="relative z-10 w-full flex flex-col items-center max-w-md mx-auto">
           
           {/* Fila de Avatares: Solo Héroe o Héroe + Nexo + Compañero */}
-          <div className={`w-full flex items-center justify-center ${isCoop ? 'gap-2 sm:gap-4' : ''}`}>
+          <div className={`w-full flex items-center justify-center ${isCoop ? 'gap-2 sm:gap-4' : 'gap-4 sm:gap-6'}`}>
             
+            {/* MASCOTA ASTRAL COMPAÑERA */}
+            {activePet && (
+              <div className="relative flex flex-col items-center select-none shrink-0 -mr-1 sm:mr-0">
+                <div 
+                  className={`w-12 h-12 sm:w-15 sm:h-15 rounded-2xl border border-purple-400/50 bg-gradient-to-b from-purple-950/80 to-black p-1 relative flex items-center justify-center transition-all duration-300 shadow-lg ${
+                    petAnim 
+                      ? 'scale-125 -translate-y-2 ring-2 ring-purple-300 shadow-purple-500/50 z-30' 
+                      : 'animate-bounce hover:scale-105'
+                  }`}
+                  style={{ animationDuration: '3.5s' }}
+                  title={`${activePet.name}: ${activePet.passiveName}`}
+                >
+                  <span className="text-2xl sm:text-3xl drop-shadow-md select-none">{activePet.icon}</span>
+
+                  {/* Medidor de Carga de Turnos de Mascota */}
+                  <div className="absolute -bottom-2 inset-x-0 flex justify-center">
+                    <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full border shadow-sm ${
+                      petTurnCount >= (activePet.intervalTurns - 1)
+                        ? 'bg-amber-400 text-black border-amber-200 animate-pulse'
+                        : 'bg-black/90 text-purple-300 border-purple-500/40'
+                    }`}>
+                      {petTurnCount >= (activePet.intervalTurns - 1) ? '¡LISTO!' : `${petTurnCount + 1}/${activePet.intervalTurns}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Pedestal Rúnico de la Mascota */}
+                <div className="w-14 sm:w-16 h-3 rounded-[50%] bg-purple-500/20 border border-purple-400/30 mt-1 shadow-sm flex items-center justify-center">
+                  <div className="w-8 h-1 rounded-[50%] bg-purple-400/30 blur-xs" />
+                </div>
+
+                {/* Texto flotante de la mascota */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 pointer-events-none z-30 flex flex-col items-center">
+                  {floatingTexts.filter(t => t.target === 'pet').map(t => (
+                    <span key={t.id} className="text-[10px] sm:text-xs font-black font-mono text-purple-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-bounce whitespace-nowrap">
+                      {t.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* AVATAR Y PEDESTAL DEL HÉROE */}
             <div className="relative flex flex-col items-center">
               <div 
@@ -1970,21 +2188,82 @@ export function BattleArena({
           </button>
         )}
 
-        {/* 5. Poción Astral */}
-        <button
-          onClick={handleUsePotion}
-          disabled={turn !== 'player' || potionsLeft <= 0 || !!battleOutcome}
-          className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-emerald-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between shadow-sm"
-        >
-          <div className="flex items-center justify-between mb-1">
-            <Heart size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">x{potionsLeft}</span>
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white truncate">Poción Astral</div>
-            <div className="text-[9px] text-gray-400 truncate">Restaura 45% HP</div>
-          </div>
-        </button>
+        {/* 5. Mochila de Alquimia Táctica */}
+        <div className="relative">
+          <button
+            onClick={() => setIsBackpackOpen(o => !o)}
+            disabled={turn !== 'player' || !!battleOutcome}
+            className={`w-full h-full p-2.5 rounded-2xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between shadow-sm cursor-pointer ${
+              isBackpackOpen 
+                ? 'bg-amber-950/60 border-amber-400 ring-1 ring-amber-400/50' 
+                : 'bg-white/5 hover:bg-white/15 border-white/10 hover:border-amber-400'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-base group-hover:scale-110 transition-transform">🎒</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">
+                x{Object.values(consumables).reduce((a, b) => a + (Number(b) || 0), 0)}
+              </span>
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white group-hover:text-amber-200 transition-colors truncate">
+                Mochila Alquimia
+              </div>
+              <div className="text-[9px] text-amber-400/80 truncate">
+                {isBackpackOpen ? '▲ Ocultar' : '▼ 6 Consumibles'}
+              </div>
+            </div>
+          </button>
+
+          {/* Popover / Menú Desplegable de Consumibles */}
+          {isBackpackOpen && (
+            <div className="absolute bottom-full left-0 sm:-left-12 mb-2 w-72 sm:w-80 rounded-2xl border border-amber-500/40 bg-[#0e0c18]/95 backdrop-blur-md p-3 shadow-2xl shadow-black/90 z-50 animate-fadeIn">
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
+                <span className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
+                  <span>🎒</span> Mochila de Alquimia Táctica
+                </span>
+                <button
+                  onClick={() => setIsBackpackOpen(false)}
+                  className="text-gray-400 hover:text-white text-xs px-1.5 py-0.5 rounded-md hover:bg-white/10"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto custom-scrollbar">
+                {ALCHEMY_CONSUMABLES_CATALOG.map((item) => {
+                  const count = consumables[item.id] || 0;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        handleUseConsumable(item.id);
+                        if (count <= 1) setIsBackpackOpen(false);
+                      }}
+                      disabled={count <= 0 || turn !== 'player'}
+                      className={`p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        count > 0 
+                          ? 'bg-white/5 hover:bg-amber-500/20 border-white/10 hover:border-amber-400/60 cursor-pointer' 
+                          : 'bg-white/[0.02] border-white/5 opacity-30 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-base">{item.icon}</span>
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-black/50 text-amber-300">
+                          x{count}
+                        </span>
+                      </div>
+                      <div className="mt-1">
+                        <div className="text-[11px] font-bold text-zinc-100 truncate">{item.name}</div>
+                        <div className="text-[9px] text-zinc-400 line-clamp-1">{item.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 6. Ultimate Astral / Cataclismo AoE / Ataque de Dúo */}
         <button
@@ -2095,7 +2374,8 @@ export function BattleArena({
                     exp: totalExpReward, 
                     gold: isCoop ? Math.round(totalGoldReward * 1.5) : totalGoldReward,
                     pvpPointsGained: isPvp ? (enemy.gloryPoints || 35) : 0,
-                    dropId: enemy.dropChance 
+                    dropId: enemy.dropChance,
+                    updatedConsumables: consumables
                   })}
                   className="btn-mystic w-full py-3 rounded-xl text-white text-xs font-bold uppercase tracking-wider shadow-lg"
                 >
@@ -2114,7 +2394,7 @@ export function BattleArena({
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => onBattleEnd({ victory: false })}
+                    onClick={() => onBattleEnd({ victory: false, updatedConsumables: consumables })}
                     className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-all"
                   >
                     Reintentar

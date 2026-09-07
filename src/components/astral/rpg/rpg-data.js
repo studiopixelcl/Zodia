@@ -2322,6 +2322,42 @@ export function getOrCreateHeroProfile(userProfile) {
         if (!saved.pvpRank) {
           saved.pvpRank = 'Polvo Cósmico I';
         }
+
+        // Migración Mascotas Astrales (Companion Pets)
+        if (!Array.isArray(saved.pets) || saved.pets.length === 0) {
+          let starterPetId = 'pet_phoenix';
+          if (saved.element === 'Agua') starterPetId = 'pet_leviathan';
+          else if (saved.element === 'Aire') starterPetId = 'pet_celestial_owl';
+          else if (saved.element === 'Tierra') starterPetId = 'pet_meteor_golem';
+
+          saved.pets = [{ id: starterPetId, level: 1, exp: 0 }];
+          saved.activePetId = starterPetId;
+        }
+        if (!saved.activePetId && saved.pets?.length > 0) {
+          saved.activePetId = saved.pets[0].id;
+        }
+
+        // Migración Consumibles de Alquimia (Mochila Táctica)
+        if (!saved.consumables || typeof saved.consumables !== 'object') {
+          saved.consumables = {
+            item_potion_hp: Math.max(3, saved.potions || 0),
+            item_ether_elixir: 2,
+            item_star_bomb: 1,
+            item_cleanse_incense: 1,
+            item_crit_stone: 1,
+            item_aegis_talisman: 1
+          };
+        } else {
+          if (saved.consumables.item_potion_hp === undefined) {
+            saved.consumables.item_potion_hp = Math.max(3, saved.potions || 0);
+          }
+          if (saved.consumables.item_ether_elixir === undefined) saved.consumables.item_ether_elixir = 2;
+          if (saved.consumables.item_star_bomb === undefined) saved.consumables.item_star_bomb = 1;
+          if (saved.consumables.item_cleanse_incense === undefined) saved.consumables.item_cleanse_incense = 1;
+          if (saved.consumables.item_crit_stone === undefined) saved.consumables.item_crit_stone = 1;
+          if (saved.consumables.item_aegis_talisman === undefined) saved.consumables.item_aegis_talisman = 1;
+        }
+
         saveHeroProfile(saved);
         try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch {}
         return saved;
@@ -2341,6 +2377,12 @@ function createInitialHero(userProfile, heroClass) {
   const photo = extractProfilePhoto(userProfile);
   const signTree = ZODIAC_SKILL_TREES[heroClass.sign] || ZODIAC_SKILL_TREES['Aries'];
   const initialSkill = signTree[0]?.id || 'aries_1';
+
+  let starterPetId = 'pet_phoenix';
+  if (heroClass.element === 'Agua') starterPetId = 'pet_leviathan';
+  else if (heroClass.element === 'Aire') starterPetId = 'pet_celestial_owl';
+  else if (heroClass.element === 'Tierra') starterPetId = 'pet_meteor_golem';
+
   return {
     name: userProfile?.name || 'Sintonizador Astral',
     sign: heroClass.sign,
@@ -2348,7 +2390,7 @@ function createInitialHero(userProfile, heroClass) {
     level: 1,
     exp: 0,
     expNext: 150,
-    polvoEstelar: 100, // Moneda cósmica
+    polvoEstelar: 150, // Moneda cósmica inicial
     avatarUrl: photo,
     stats: { ...heroClass.baseStats },
     equippedSkills: [initialSkill],
@@ -2361,6 +2403,20 @@ function createInitialHero(userProfile, heroClass) {
       EQUIPMENT_CATALOG.find(i => i.id === 'ar_01'),
       EQUIPMENT_CATALOG.find(i => i.id === 'rl_01')
     ],
+    // Mascotas Astrales
+    activePetId: starterPetId,
+    pets: [
+      { id: starterPetId, level: 1, exp: 0 }
+    ],
+    // Alquimia Táctica
+    consumables: {
+      item_potion_hp: 3,
+      item_ether_elixir: 2,
+      item_star_bomb: 1,
+      item_cleanse_incense: 1,
+      item_crit_stone: 1,
+      item_aegis_talisman: 1
+    },
     maxHouseCleared: 0,
     maxTowerFloor: 1,
     eclipseCleared: [],
@@ -3560,6 +3616,289 @@ export function transmuteEquipmentItems(hero, itemIds) {
     message: `¡Transmutación exitosa! Has obtenido [${newItem.name}] (${targetRarity.toUpperCase()}).`
   };
 }
+
+// ==========================================
+// MASCOTAS ASTRALES (ASTRAL COMPANIONS)
+// ==========================================
+export const ASTRAL_PETS_CATALOG = [
+  {
+    id: 'pet_phoenix',
+    name: 'Fénix Ígneo de Sagitario',
+    element: 'Fuego',
+    icon: '🦅',
+    badgeColor: 'text-amber-400 bg-amber-500/20 border-amber-500/40',
+    rarity: 'epico',
+    lore: 'Espíritu ardiente renacido en las brasas estelares. Su calor reconforta al Héroe y calcina las defensas rivales.',
+    bonusStats: { patk: 16, matk: 14, crit: 0.05, hp: 60 },
+    passiveName: 'Llamarada Viviente',
+    passiveDesc: 'Cada 2 turnos, desata una llamarada que inflige 55 de daño de Fuego y restaura 40 HP al Héroe.',
+    intervalTurns: 2,
+    actionType: 'hybrid_damage_heal',
+    actionPower: { damage: 55, heal: 40, element: 'Fuego' }
+  },
+  {
+    id: 'pet_shadow_wolf',
+    name: 'Lobo Umbrío de Plutón',
+    element: 'Agua',
+    icon: '🐺',
+    badgeColor: 'text-purple-400 bg-purple-500/20 border-purple-500/40',
+    rarity: 'raro',
+    lore: 'Cazador silencioso del vacío abisal de Escorpio. Sus colmillos abren brechas que no cicatrizan.',
+    bonusStats: { patk: 22, spd: 8, crit: 0.06 },
+    passiveName: 'Mordisco Sombrío',
+    passiveDesc: 'Cada 2 turnos, embiste causando 70 de daño físico y aplicando Sangrado (20 dmg x 2 turnos).',
+    intervalTurns: 2,
+    actionType: 'damage_bleed',
+    actionPower: { damage: 70, bleed: 20, bleedTurns: 2 }
+  },
+  {
+    id: 'pet_leviathan',
+    name: 'Cría de Leviatán Abisal',
+    element: 'Agua',
+    icon: '🐋',
+    badgeColor: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40',
+    rarity: 'epico',
+    lore: 'Vástago de los océanos cósmicos de Cáncer y Piscis. Rodea al Héroe en una marea curativa impenetrable.',
+    bonusStats: { hp: 160, mdef: 18, pdef: 14 },
+    passiveName: 'Manto de Marea',
+    passiveDesc: 'Cada 2 turnos, invoca un Escudo de 80 puntos y sana 50 HP al Héroe.',
+    intervalTurns: 2,
+    actionType: 'shield_heal',
+    actionPower: { shield: 80, heal: 50 }
+  },
+  {
+    id: 'pet_celestial_owl',
+    name: 'Búho Astral de Pallas',
+    element: 'Aire',
+    icon: '🦉',
+    badgeColor: 'text-sky-400 bg-sky-500/20 border-sky-500/40',
+    rarity: 'raro',
+    lore: 'Guardián del intelecto y los vientos de Géminis y Libra. Desbloquea reservas de éter en momentos cruciales.',
+    bonusStats: { matk: 24, spd: 10, mdef: 14 },
+    passiveName: 'Pulso de Sabiduría',
+    passiveDesc: 'Cada 2 turnos, canaliza energía cósmica: otorga +1 Éter extra y causa 45 de daño mágico.',
+    intervalTurns: 2,
+    actionType: 'ether_damage',
+    actionPower: { ether: 1, damage: 45, element: 'Aire' }
+  },
+  {
+    id: 'pet_meteor_golem',
+    name: 'Minigólem de Meteorito',
+    element: 'Tierra',
+    icon: '🗿',
+    badgeColor: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40',
+    rarity: 'raro',
+    lore: 'Condensación de rocas espaciales y polvo tectónico de Tauro y Capricornio. Su dureza es insuperable.',
+    bonusStats: { pdef: 26, mdef: 20, hp: 120 },
+    passiveName: 'Choque Tectónico',
+    passiveDesc: 'Cada 2 turnos, estremece el suelo infligiendo 60 de daño y reduciendo la defensa rival.',
+    intervalTurns: 2,
+    actionType: 'damage_shred',
+    actionPower: { damage: 60, defShred: 8 }
+  },
+  {
+    id: 'pet_cosmic_dragon',
+    name: 'Dragón del Éter Infinito',
+    element: 'Aire',
+    icon: '🐲',
+    badgeColor: 'text-fuchsia-400 bg-fuchsia-500/20 border-fuchsia-500/40',
+    rarity: 'legendario',
+    lore: 'Entidad primordial nacida en la corona de Ofiuco y las estrellas lejanas. Soberano supremo de las bestias astrales.',
+    bonusStats: { patk: 28, matk: 32, pdef: 20, mdef: 20, hp: 200, crit: 0.08, spd: 12 },
+    passiveName: 'Aliento de Supernova',
+    passiveDesc: 'Cada 3 turnos, desata una supernova: 120 de daño total, otorga +1 Éter y purga estados alterados.',
+    intervalTurns: 3,
+    actionType: 'supernova',
+    actionPower: { damage: 120, ether: 1, cleanse: true }
+  }
+];
+
+// ==========================================
+// CONSUMIBLES DE ALQUIMIA TÁCTICA
+// ==========================================
+export const ALCHEMY_CONSUMABLES_CATALOG = [
+  {
+    id: 'item_potion_hp',
+    name: 'Poción de Rocío Astral',
+    icon: '🧪',
+    category: 'Curación',
+    rarity: 'comun',
+    cost: 30,
+    desc: 'Restaura 180 HP al Héroe al instante.',
+    effect: { type: 'heal', value: 180 }
+  },
+  {
+    id: 'item_ether_elixir',
+    name: 'Elixir de Éter Puro',
+    icon: '✨',
+    category: 'Energía',
+    rarity: 'raro',
+    cost: 45,
+    desc: 'Restaura +2 puntos de Éter inmediatamente para ejecutar habilidades supremas.',
+    effect: { type: 'ether', value: 2 }
+  },
+  {
+    id: 'item_star_bomb',
+    name: 'Bomba de Polvo Estelar',
+    icon: '💣',
+    category: 'Ofensivo',
+    rarity: 'raro',
+    cost: 50,
+    desc: 'Detona un proyectil alquímico que inflige 160 de daño directo ineludible al enemigo.',
+    effect: { type: 'damage', value: 160 }
+  },
+  {
+    id: 'item_cleanse_incense',
+    name: 'Incienso Purificador',
+    icon: '🌿',
+    category: 'Purificación',
+    rarity: 'comun',
+    cost: 35,
+    desc: 'Disipa al instante todas las quemaduras, venenos, sangrados y aturdimientos activos.',
+    effect: { type: 'cleanse' }
+  },
+  {
+    id: 'item_crit_stone',
+    name: 'Piedra de Enfoque Cósmico',
+    icon: '💎',
+    category: 'Potenciador',
+    rarity: 'epico',
+    cost: 65,
+    desc: 'Agudiza los sentidos astrales: otorga +50% probabilidad de crítico durante 2 turnos.',
+    effect: { type: 'crit_buff', value: 0.50, turns: 2 }
+  },
+  {
+    id: 'item_aegis_talisman',
+    name: 'Talismán Égida de Orión',
+    icon: '🛡️',
+    category: 'Defensa',
+    rarity: 'raro',
+    cost: 55,
+    desc: 'Genera una barrera estelar que absorbe hasta 220 de daño durante 3 turnos.',
+    effect: { type: 'shield', value: 220, turns: 3 }
+  }
+];
+
+export function getHeroActivePet(hero) {
+  if (!hero || !hero.activePetId) return null;
+  const basePet = ASTRAL_PETS_CATALOG.find(p => p.id === hero.activePetId);
+  if (!basePet) return null;
+
+  const heroPet = (hero.pets || []).find(p => p.id === hero.activePetId) || { level: 1, exp: 0 };
+  const level = heroPet.level || 1;
+  const levelMult = 1 + (level - 1) * 0.15; // +15% bono por nivel
+
+  const effectiveBonusStats = {};
+  for (const [key, val] of Object.entries(basePet.bonusStats || {})) {
+    if (key === 'crit') {
+      effectiveBonusStats[key] = +(val + (level - 1) * 0.01).toFixed(3);
+    } else {
+      effectiveBonusStats[key] = Math.round(val * levelMult);
+    }
+  }
+
+  const effectiveActionPower = { ...(basePet.actionPower || {}) };
+  if (effectiveActionPower.damage) effectiveActionPower.damage = Math.round(effectiveActionPower.damage * levelMult);
+  if (effectiveActionPower.heal) effectiveActionPower.heal = Math.round(effectiveActionPower.heal * levelMult);
+  if (effectiveActionPower.shield) effectiveActionPower.shield = Math.round(effectiveActionPower.shield * levelMult);
+  if (effectiveActionPower.bleed) effectiveActionPower.bleed = Math.round(effectiveActionPower.bleed * levelMult);
+
+  return {
+    ...basePet,
+    level,
+    exp: heroPet.exp || 0,
+    effectiveBonusStats,
+    effectiveActionPower
+  };
+}
+
+export function levelUpPet(hero, petId) {
+  if (!hero) return { success: false, hero, message: 'Héroe no encontrado' };
+  const pets = [...(hero.pets || [])];
+  const petIndex = pets.findIndex(p => p.id === petId);
+  if (petIndex === -1) return { success: false, hero, message: 'Mascota no encontrada en el santuario' };
+
+  const pet = pets[petIndex];
+  const cost = (pet.level || 1) * 75; // 75 polvo por nivel
+  if ((hero.polvoEstelar || 0) < cost) {
+    return { success: false, hero, message: `Necesitas ${cost} de Polvo Estelar para subirla de nivel.` };
+  }
+
+  pets[petIndex] = {
+    ...pet,
+    level: (pet.level || 1) + 1
+  };
+
+  const updatedHero = {
+    ...hero,
+    polvoEstelar: hero.polvoEstelar - cost,
+    pets
+  };
+
+  saveHeroProfile(updatedHero);
+  return {
+    success: true,
+    hero: updatedHero,
+    newLevel: pets[petIndex].level,
+    message: `¡Mascota ascendida a Nivel ${pets[petIndex].level}!`
+  };
+}
+
+export function equipPet(hero, petId) {
+  if (!hero) return hero;
+  const updatedHero = {
+    ...hero,
+    activePetId: petId
+  };
+  saveHeroProfile(updatedHero);
+  return updatedHero;
+}
+
+export function unlockPet(hero, petId, cost = 200) {
+  if (!hero) return { success: false, hero, message: 'Héroe inválido' };
+  if ((hero.polvoEstelar || 0) < cost) {
+    return { success: false, hero, message: `Necesitas ${cost} de Polvo Estelar para despertar esta mascota.` };
+  }
+  const pets = [...(hero.pets || [])];
+  if (pets.some(p => p.id === petId)) {
+    return { success: false, hero, message: 'Ya posees esta mascota astral.' };
+  }
+
+  pets.push({ id: petId, level: 1, exp: 0 });
+  const updatedHero = {
+    ...hero,
+    polvoEstelar: hero.polvoEstelar - cost,
+    pets,
+    activePetId: hero.activePetId || petId
+  };
+
+  saveHeroProfile(updatedHero);
+  return { success: true, hero: updatedHero, message: '¡Mascota Astral sintonizada con éxito!' };
+}
+
+export function buyConsumableItem(hero, itemId, amount = 1) {
+  if (!hero) return { success: false, hero, message: 'Héroe inválido' };
+  const item = ALCHEMY_CONSUMABLES_CATALOG.find(i => i.id === itemId);
+  if (!item) return { success: false, hero, message: 'Consumible desconocido' };
+
+  const totalCost = (item.cost || 30) * amount;
+  if ((hero.polvoEstelar || 0) < totalCost) {
+    return { success: false, hero, message: `Necesitas ${totalCost} de Polvo Estelar.` };
+  }
+
+  const consumables = { ...(hero.consumables || {}) };
+  consumables[itemId] = (consumables[itemId] || 0) + amount;
+
+  const updatedHero = {
+    ...hero,
+    polvoEstelar: hero.polvoEstelar - totalCost,
+    consumables
+  };
+
+  saveHeroProfile(updatedHero);
+  return { success: true, hero: updatedHero, message: `Has adquirido ${amount}x ${item.name}` };
+}
+
 
 
 

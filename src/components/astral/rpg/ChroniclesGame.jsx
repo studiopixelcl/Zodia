@@ -11,6 +11,7 @@ import { LootInventoryModal } from './LootInventoryModal';
 import { SkillTreeModal } from './SkillTreeModal';
 import { DailyRewardsModal } from './DailyRewardsModal';
 import { CosmicForgeModal } from './CosmicForgeModal';
+import PetSanctuaryModal from './PetSanctuaryModal';
 import { BattleArena } from './BattleArena';
 import { 
   getOrCreateHeroProfile, 
@@ -45,6 +46,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [isDailyRewardsOpen, setIsDailyRewardsOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
+  const [isPetSanctuaryOpen, setIsPetSanctuaryOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
@@ -152,8 +154,13 @@ export function ChroniclesGame({ profile, onBack }) {
   }, []);
 
   // Manejar el resultado de la batalla
-  const handleBattleEnd = ({ victory, exp = 0, gold = 0, dropId = null, pvpPointsGained = 25 }) => {
+  const handleBattleEnd = ({ victory, exp = 0, gold = 0, dropId = null, pvpPointsGained = 25, updatedConsumables = null }) => {
     if (!victory) {
+      if (updatedConsumables) {
+        const heroWithConsumables = { ...hero, consumables: updatedConsumables };
+        setHero(heroWithConsumables);
+        saveHeroProfile(heroWithConsumables);
+      }
       setActiveBattle(null);
       return;
     }
@@ -233,6 +240,7 @@ export function ChroniclesGame({ profile, onBack }) {
       eclipseCleared: newEclipseCleared,
       pvpPoints: newPvpPoints,
       pvpRank: newPvpRank,
+      consumables: updatedConsumables || heroWithQuests.consumables || hero.consumables,
       lastFirstWinDate: isFirstWinToday ? todayStr : (heroWithQuests.lastFirstWinDate || null)
     };
 
@@ -507,102 +515,128 @@ export function ChroniclesGame({ profile, onBack }) {
       </div>
 
       {/* HUB DE ACCIONES PRINCIPALES (BOTONES GRANDES E INTUITIVOS) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Botón 1: Equipo e Inventario */}
         <button
           onClick={() => setIsInventoryOpen(true)}
-          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-cyan-950/60 to-[#091522]/80 hover:from-cyan-900/70 hover:to-[#0c1e33] border border-cyan-500/40 hover:border-cyan-400 text-left transition-all duration-300 shadow-lg shadow-cyan-950/30 hover:shadow-cyan-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-cyan-950/60 to-[#091522]/80 hover:from-cyan-900/70 hover:to-[#0c1e33] border border-cyan-500/40 hover:border-cyan-400 text-left transition-all duration-300 shadow-lg shadow-cyan-950/30 hover:shadow-cyan-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-all shadow-md">
-              <Package size={24} />
+          <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-all shadow-md">
+              <Package size={20} />
             </div>
             <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-              {Object.values(hero?.equipment || {}).filter(Boolean).length}/4
+              {Object.values(hero?.equipped || {}).filter(Boolean).length}/3
             </span>
           </div>
-          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-cyan-200 transition-colors">
+          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-cyan-200 transition-colors">
             Equipo Astral
           </h3>
-          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
-            Armas, armaduras y reliquias
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+            Armas y reliquias
           </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
+          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
             <span>Gestionar</span>
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </div>
         </button>
 
         {/* Botón 2: Árbol de Habilidades */}
         <button
           onClick={() => setIsSkillTreeOpen(true)}
-          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-[#1f1606]/80 hover:from-amber-900/70 hover:to-[#2b1f09] border border-amber-500/40 hover:border-amber-400 text-left transition-all duration-300 shadow-lg shadow-amber-950/30 hover:shadow-amber-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-amber-950/60 to-[#1f1606]/80 hover:from-amber-900/70 hover:to-[#2b1f09] border border-amber-500/40 hover:border-amber-400 text-left transition-all duration-300 shadow-lg shadow-amber-950/30 hover:shadow-amber-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 group-hover:scale-110 group-hover:bg-amber-500/30 transition-all shadow-md">
-              <Zap size={24} />
+          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 group-hover:scale-110 group-hover:bg-amber-500/30 transition-all shadow-md">
+              <Zap size={20} />
             </div>
             <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              {hero?.skills?.length || 2}/6 Skills
+              {hero?.equippedSkills?.length || 1}/2
             </span>
           </div>
-          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-amber-200 transition-colors">
+          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-amber-200 transition-colors">
             Árbol de Skills
           </h3>
-          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
-            Poderes cósmicos y talentos
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+            Poderes cósmicos
           </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
             <span>Aprender</span>
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </div>
         </button>
 
         {/* Botón 3: Forja Cósmica */}
         <button
           onClick={() => setIsForgeOpen(true)}
-          className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-orange-950/60 to-[#1c0e05]/80 hover:from-orange-900/70 hover:to-[#291408] border border-orange-500/40 hover:border-orange-400 text-left transition-all duration-300 shadow-lg shadow-orange-950/30 hover:shadow-orange-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-orange-950/60 to-[#1c0e05]/80 hover:from-orange-900/70 hover:to-[#291408] border border-orange-500/40 hover:border-orange-400 text-left transition-all duration-300 shadow-lg shadow-orange-950/30 hover:shadow-orange-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-300 group-hover:scale-110 group-hover:bg-orange-500/30 transition-all shadow-md">
-              <Hammer size={24} />
+          <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-300 group-hover:scale-110 group-hover:bg-orange-500/30 transition-all shadow-md">
+              <Hammer size={20} />
             </div>
             <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/40">
               Refinar
             </span>
           </div>
-          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-orange-200 transition-colors">
+          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-orange-200 transition-colors">
             Forja Cósmica
           </h3>
-          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
-            Mejora equipo hasta +10
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+            Refinar hasta +10
           </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-orange-400 group-hover:translate-x-1 transition-transform">
+          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-orange-400 group-hover:translate-x-1 transition-transform">
             <span>Refinar</span>
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </div>
         </button>
 
-        {/* Botón 4: Desafíos y Recompensas Diarias */}
+        {/* Botón 4: Santuario de Mascotas & Alquimia */}
+        <button
+          onClick={() => setIsPetSanctuaryOpen(true)}
+          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-pink-950/60 to-[#22071d]/80 hover:from-pink-900/70 hover:to-[#310b2a] border border-pink-500/40 hover:border-pink-400 text-left transition-all duration-300 shadow-lg shadow-pink-950/30 hover:shadow-pink-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
+        >
+          <div className="absolute top-0 right-0 w-20 h-20 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-xl group-hover:scale-110 group-hover:bg-pink-500/30 transition-all shadow-md">
+              🐾
+            </div>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/40">
+              {hero?.pets?.length || 1} Mascotas
+            </span>
+          </div>
+          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-pink-200 transition-colors">
+            Santuario & Alquimia
+          </h3>
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+            Mascotas y pociones
+          </p>
+          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-pink-400 group-hover:translate-x-1 transition-transform">
+            <span>Visitar</span>
+            <ChevronRight size={12} />
+          </div>
+        </button>
+
+        {/* Botón 5: Desafíos y Recompensas Diarias */}
         <button
           onClick={() => setIsDailyRewardsOpen(true)}
-          className={`group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer ${
+          className={`group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer ${
             hasDailyAlert 
               ? 'border-amber-400 shadow-amber-500/20' 
               : 'border-purple-500/40 hover:border-purple-400 shadow-purple-950/30 hover:shadow-purple-500/20'
           }`}
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 group-hover:scale-110 group-hover:bg-purple-500/30 transition-all shadow-md">
-              <Gift size={24} className={hasDailyAlert ? 'text-amber-300 animate-bounce' : 'text-purple-300'} />
+          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 group-hover:scale-110 group-hover:bg-purple-500/30 transition-all shadow-md">
+              <Gift size={20} className={hasDailyAlert ? 'text-amber-300 animate-bounce' : 'text-purple-300'} />
             </div>
             {hasDailyAlert ? (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">
-                ¡RECLAMAR!
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">
+                ¡PREMIOS!
               </span>
             ) : (
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
@@ -610,15 +644,15 @@ export function ChroniclesGame({ profile, onBack }) {
               </span>
             )}
           </div>
-          <h3 className="font-bold text-white text-sm sm:text-base group-hover:text-purple-200 transition-colors">
+          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-purple-200 transition-colors">
             Misiones Diarias
           </h3>
-          <p className="text-[11px] text-gray-400 mt-1 line-clamp-1">
-            Rachas, cofres y recompensas
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
+            Rachas y cofres
           </p>
-          <div className="mt-3 flex items-center gap-1 text-[11px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-            <span>{hasDailyAlert ? 'Reclamar premios' : 'Ver misiones'}</span>
-            <ChevronRight size={14} />
+          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+            <span>{hasDailyAlert ? 'Reclamar' : 'Ver'}</span>
+            <ChevronRight size={12} />
           </div>
         </button>
       </div>
@@ -656,6 +690,7 @@ export function ChroniclesGame({ profile, onBack }) {
         hero={hero} 
         onOpenInventory={() => setIsInventoryOpen(true)} 
         onOpenSkillTree={() => setIsSkillTreeOpen(true)}
+        onOpenPetSanctuary={() => setIsPetSanctuaryOpen(true)}
       />
 
       {/* Selector de Pestañas / Modos (6 Modos) */}
@@ -1430,6 +1465,18 @@ export function ChroniclesGame({ profile, onBack }) {
           saveHeroProfile(updated);
         }}
       />
+
+      {/* Modal del Santuario de Mascotas Astrales y Boticario */}
+      {isPetSanctuaryOpen && (
+        <PetSanctuaryModal
+          hero={hero}
+          onClose={() => setIsPetSanctuaryOpen(false)}
+          onUpdateHero={(updated) => {
+            setHero(updated);
+            saveHeroProfile(updated);
+          }}
+        />
+      )}
     </div>
   );
 }
