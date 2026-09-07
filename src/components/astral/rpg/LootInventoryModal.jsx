@@ -414,6 +414,11 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                                 
                                 {/* Atributos y Set */}
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  {item.categoryTag && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/60 border border-white/10 text-cyan-300 font-bold">
+                                      {item.categoryTag}
+                                    </span>
+                                  )}
                                   {setDef && (
                                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-gray-300 font-medium flex items-center gap-0.5">
                                       {renderSetIcon(item.setId, 10)}
@@ -423,12 +428,14 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                                   {(() => {
                                     const eff = getItemEffectiveStats(item);
                                     return (
-                                      <div className="flex gap-2 text-[10px] font-mono text-cyan-300">
-                                        {eff.atk > 0 && <span>+{eff.atk} ATK</span>}
-                                        {eff.hp > 0 && <span>+{eff.hp} HP</span>}
-                                        {eff.def > 0 && <span>+{eff.def} DEF</span>}
-                                        {eff.spd > 0 && <span>+{eff.spd} VEL</span>}
-                                        {eff.crit > 0 && <span>+{Math.round(eff.crit * 100)}% CRÍT</span>}
+                                      <div className="flex gap-2 text-[10px] font-mono flex-wrap">
+                                        {eff.patk > 0 && <span className="text-orange-300">+{eff.patk} PATK</span>}
+                                        {eff.matk > 0 && <span className="text-purple-300">+{eff.matk} MATK</span>}
+                                        {eff.hp > 0 && <span className="text-red-300">+{eff.hp} HP</span>}
+                                        {eff.pdef > 0 && <span className="text-blue-300">+{eff.pdef} PDEF</span>}
+                                        {eff.mdef > 0 && <span className="text-indigo-300">+{eff.mdef} MDEF</span>}
+                                        {eff.spd > 0 && <span className="text-yellow-300">+{eff.spd} VEL</span>}
+                                        {eff.crit > 0 && <span className="text-cyan-300">+{Math.round(eff.crit * 100)}% CRÍT</span>}
                                       </div>
                                     );
                                   })()}
@@ -495,36 +502,54 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                 </div>
               </div>
 
-              <div className="grid grid-cols-5 gap-1.5 text-center">
-                <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-gray-400 block">ATQ</span>
-                  <span className="text-xs font-mono font-bold text-orange-400">
-                    +{gearStats.atk}
-                  </span>
+              {/* Grid 2 filas para físico y mágico */}
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-orange-300 block font-semibold">ATQ FÍS</span>
+                    <span className="text-xs font-mono font-bold text-orange-400">
+                      +{gearStats.patk}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-purple-300 block font-semibold">ATQ MÁG</span>
+                    <span className="text-xs font-mono font-bold text-purple-400">
+                      +{gearStats.matk}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-red-300 block font-semibold">VIDA</span>
+                    <span className="text-xs font-mono font-bold text-red-400">
+                      +{gearStats.hp}
+                    </span>
+                  </div>
                 </div>
-                <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-gray-400 block">VIDA</span>
-                  <span className="text-xs font-mono font-bold text-red-400">
-                    +{gearStats.hp}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-gray-400 block">DEF</span>
-                  <span className="text-xs font-mono font-bold text-blue-400">
-                    +{gearStats.def}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-gray-400 block">VEL</span>
-                  <span className="text-xs font-mono font-bold text-yellow-400">
-                    +{gearStats.spd}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-[9px] text-gray-400 block">CRÍT</span>
-                  <span className="text-xs font-mono font-bold text-cyan-400">
-                    +{Math.round(gearStats.critRate * 100)}%
-                  </span>
+
+                <div className="grid grid-cols-4 gap-1.5 text-center">
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-blue-300 block font-semibold">DEF FÍS</span>
+                    <span className="text-xs font-mono font-bold text-blue-400">
+                      +{gearStats.pdef}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-indigo-300 block font-semibold">DEF MÁG</span>
+                    <span className="text-xs font-mono font-bold text-indigo-400">
+                      +{gearStats.mdef}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-yellow-300 block font-semibold">VEL</span>
+                    <span className="text-xs font-mono font-bold text-yellow-400">
+                      +{gearStats.spd}
+                    </span>
+                  </div>
+                  <div className="p-1.5 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] text-cyan-300 block font-semibold">CRÍT</span>
+                    <span className="text-xs font-mono font-bold text-cyan-400">
+                      +{Math.round(gearStats.critRate * 100)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -716,6 +741,11 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                               <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-white/10 text-gray-300 font-light">
                                 {rarityMeta.name}
                               </span>
+                              {item.categoryTag && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 font-bold">
+                                  {item.categoryTag}
+                                </span>
+                              )}
                               {setDef && (
                                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-900/40 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-0.5">
                                   {renderSetIcon(item.setId, 10)}
@@ -732,12 +762,14 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                             {(() => {
                               const eff = getItemEffectiveStats(item);
                               return (
-                                <div className="flex gap-2.5 text-[10px] font-mono text-cyan-300 mt-1 flex-wrap">
-                                  {eff.atk > 0 && <span>+ATK {eff.atk}</span>}
-                                  {eff.hp > 0 && <span>+HP {eff.hp}</span>}
-                                  {eff.def > 0 && <span>+DEF {eff.def}</span>}
-                                  {eff.spd > 0 && <span>+VEL {eff.spd}</span>}
-                                  {eff.crit > 0 && <span>+CRÍT {Math.round(eff.crit * 100)}%</span>}
+                                <div className="flex gap-2.5 text-[10px] font-mono mt-1 flex-wrap">
+                                  {eff.patk > 0 && <span className="text-orange-300">+{eff.patk} PATK</span>}
+                                  {eff.matk > 0 && <span className="text-purple-300">+{eff.matk} MATK</span>}
+                                  {eff.hp > 0 && <span className="text-red-300">+{eff.hp} HP</span>}
+                                  {eff.pdef > 0 && <span className="text-blue-300">+{eff.pdef} PDEF</span>}
+                                  {eff.mdef > 0 && <span className="text-indigo-300">+{eff.mdef} MDEF</span>}
+                                  {eff.spd > 0 && <span className="text-yellow-300">+{eff.spd} VEL</span>}
+                                  {eff.crit > 0 && <span className="text-cyan-300">+{Math.round(eff.crit * 100)}% CRÍT</span>}
                                 </div>
                               );
                             })()}
@@ -821,11 +853,13 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                 const candidatePwr = calculateItemPower(selectedItem);
                 const deltaPwr = candidatePwr - currentPwr;
 
-                // Estadísticas para comparar
+                // Estadísticas para comparar (Físicas y Mágicas divididas)
                 const statKeys = [
-                  { key: 'atk', label: 'Ataque (ATQ)' },
+                  { key: 'patk', label: 'ATQ Físico (PATK)' },
+                  { key: 'matk', label: 'ATQ Mágico (MATK)' },
+                  { key: 'pdef', label: 'DEF Física (PDEF)' },
+                  { key: 'mdef', label: 'DEF Mágica (MDEF)' },
                   { key: 'hp', label: 'Vida (HP)' },
-                  { key: 'def', label: 'Defensa (DEF)' },
                   { key: 'spd', label: 'Velocidad (VEL)' },
                   { key: 'crit', label: 'Prob. Crítica (CRÍT)', isPercent: true }
                 ];
@@ -837,7 +871,7 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                       {/* LADO IZQUIERDO: OBJETO ACTUALMENTE EQUIPADO */}
                       <div className={`p-4 rounded-2xl border ${
                         currentEquipped 
-                          ? `${currentRarity.border} ${currentRarity.bg}` 
+                           ? `${currentRarity.border} ${currentRarity.bg}` 
                           : 'border-dashed border-white/20 bg-black/40'
                       }`}>
                         <div className="flex items-center justify-between mb-2">
@@ -861,9 +895,16 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                                 <h4 className={`text-xs sm:text-sm font-bold truncate ${currentRarity.color}`}>
                                   {currentEquipped.name}
                                 </h4>
-                                <span className="text-[10px] text-gray-400 block">
-                                  {currentRarity.name}
-                                </span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-gray-400">
+                                    {currentRarity.name}
+                                  </span>
+                                  {currentEquipped.categoryTag && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/60 border border-white/10 text-cyan-300 font-bold">
+                                      {currentEquipped.categoryTag}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <p className="text-[10px] text-gray-400 leading-tight mb-3">
@@ -906,9 +947,16 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                             <h4 className={`text-xs sm:text-sm font-bold truncate ${candidateRarity.color}`}>
                               {selectedItem.name}
                             </h4>
-                            <span className="text-[10px] text-gray-400 block">
-                              {candidateRarity.name}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-gray-400">
+                                {candidateRarity.name}
+                              </span>
+                              {selectedItem.categoryTag && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold">
+                                  {selectedItem.categoryTag}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <p className="text-[10px] text-gray-400 leading-tight mb-3">

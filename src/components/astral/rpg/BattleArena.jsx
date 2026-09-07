@@ -321,10 +321,23 @@ export function BattleArena({
       try {
         const tgt = getTargetData();
         const isStaggered = tgt.staggerRef.current <= 0;
+        const basicDamageType = heroClass.basicAttack?.damageType || (heroClass.primaryDamageType === 'magical' ? 'magical' : 'physical');
+        const isMagical = basicDamageType === 'magical';
 
-        const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
-          { atk: heroStats.atk, element: hero.element, critRate: heroStats.critRate },
-          { def: tgt.enemyObj.def || 25, element: tgt.elem },
+        const { damage, isCrit, hasTransitBoost, isSuperEffective, damageType: finalDmgType } = calculateDamage(
+          { 
+            patk: heroStats.patk,
+            matk: heroStats.matk,
+            atk: heroStats.atk, 
+            element: hero.element, 
+            critRate: heroStats.critRate 
+          },
+          { 
+            pdef: tgt.enemyObj.pdef || tgt.enemyObj.def || 25,
+            mdef: tgt.enemyObj.mdef || tgt.enemyObj.def || 25,
+            def: tgt.enemyObj.def || 25, 
+            element: tgt.elem 
+          },
           1.0,
           false,
           transitBuff.moonElement,
@@ -333,14 +346,15 @@ export function BattleArena({
             defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
             stance: playerStance,
             isStaggered,
-            mutator
+            mutator,
+            damageType: basicDamageType
           }
         );
 
         if (isCrit) safeSound(playBattleCritSound);
         else safeSound(playBattleHitSound);
 
-        setActiveVfx({ type: 'slash', target: tgt.targetKey });
+        setActiveVfx({ type: isMagical ? 'skill' : 'slash', target: tgt.targetKey, element: hero.element });
         setTimeout(() => setActiveVfx(null), 500);
 
         setAnimState(p => ({ ...p, playerAttacking: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
@@ -358,6 +372,9 @@ export function BattleArena({
 
         // Absorción por escudo
         let finalDamage = damage;
+        const iconPrefix = isMagical ? '🔮 ' : '⚔️ ';
+        const floatType = isCrit ? 'crit' : (isMagical ? 'magic' : 'damage');
+
         if (tgt.shieldRef.current > 0) {
           if (damage <= tgt.shieldRef.current) {
             tgt.shieldRef.current -= damage;
@@ -368,10 +385,10 @@ export function BattleArena({
             finalDamage = damage - tgt.shieldRef.current;
             tgt.shieldRef.current = 0;
             tgt.setShield(0);
-            spawnFloatingText(`-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+            spawnFloatingText(`${iconPrefix}-${finalDamage}`, tgt.targetKey, floatType);
           }
         } else {
-          spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+          spawnFloatingText(isCrit ? `${iconPrefix}¡CRÍTICO! -${finalDamage}` : `${iconPrefix}-${finalDamage}`, tgt.targetKey, floatType);
         }
 
         const nextHp = Math.max(0, tgt.hpRef.current - finalDamage);
@@ -382,7 +399,7 @@ export function BattleArena({
         setPlayerEther(e => Math.min(5, e + 1));
         setPlayerUltimate(u => Math.min(100, u + (playerStance === 'solar' ? 22 : 18)));
 
-        logMessage(`⚔️ ${hero.name} golpeó a [${tgt.enemyObj.name}] causando ${finalDamage} de daño.${isCrit ? ' ¡Crítico!' : ''}${hasTransitBoost ? ' (Bono Tránsito)' : ''}`);
+        logMessage(`${iconPrefix}${hero.name} asestó [${heroClass.basicAttack.name}] infligiendo ${finalDamage} de daño ${isMagical ? 'mágico' : 'físico'}.${isCrit ? ' ¡Crítico!' : ''}${hasTransitBoost ? ' (Bono Tránsito)' : ''}`);
 
         // Comprobar si los enemigos fueron derrotados
         checkPostAttackOutcome();
@@ -414,10 +431,23 @@ export function BattleArena({
       try {
         const tgt = getTargetData();
         const isStaggered = tgt.staggerRef.current <= 0;
+        const skillDamageType = skill.damageType || (heroClass.primaryDamageType === 'magical' ? 'magical' : 'physical');
+        const isMagical = skillDamageType === 'magical';
 
         const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
-          { atk: heroStats.atk, element: hero.element, critRate: (heroStats.critRate || 0.15) + (skill.critBonus || 0) },
-          { def: tgt.enemyObj.def || 25, element: tgt.elem },
+          { 
+            patk: heroStats.patk,
+            matk: heroStats.matk,
+            atk: heroStats.atk, 
+            element: hero.element, 
+            critRate: (heroStats.critRate || 0.15) + (skill.critBonus || 0) 
+          },
+          { 
+            pdef: tgt.enemyObj.pdef || tgt.enemyObj.def || 25,
+            mdef: tgt.enemyObj.mdef || tgt.enemyObj.def || 25,
+            def: tgt.enemyObj.def || 25, 
+            element: tgt.elem 
+          },
           skill.multiplier || 1.4,
           false,
           transitBuff.moonElement,
@@ -426,14 +456,15 @@ export function BattleArena({
             defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
             stance: playerStance,
             isStaggered,
-            mutator
+            mutator,
+            damageType: skillDamageType
           }
         );
 
         if (isCrit) safeSound(playBattleCritSound);
         else safeSound(playBattleHitSound);
 
-        setActiveVfx({ type: 'skill', target: tgt.targetKey, element: hero.element });
+        setActiveVfx({ type: isMagical ? 'skill' : 'slash', target: tgt.targetKey, element: hero.element });
         setTimeout(() => setActiveVfx(null), 650);
 
         setAnimState(p => ({ ...p, playerCasting: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: true }));
@@ -518,10 +549,13 @@ export function BattleArena({
         const nextHp = Math.max(0, tgt.hpRef.current - damage);
         tgt.hpRef.current = nextHp;
         tgt.setHp(nextHp);
-        spawnFloatingText(`-${damage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+
+        const floatType = isCrit ? 'crit' : (isMagical ? 'magic' : 'damage');
+        const iconPrefix = isMagical ? '🔮 ' : '⚔️ ';
+        spawnFloatingText(`${iconPrefix}-${damage}`, tgt.targetKey, floatType);
         setPlayerUltimate(u => Math.min(100, u + 24));
 
-        logMessage(`✨ ${hero.name} desató [${skill.name}] contra [${tgt.enemyObj.name}] infligiendo ${damage} de daño.`);
+        logMessage(`${iconPrefix}${hero.name} desató [${skill.name}] infligiendo ${damage} de daño ${isMagical ? 'mágico' : 'físico'}${isCrit ? ' ¡CRÍTICO!' : ''} contra [${tgt.enemyObj.name}].`);
 
         checkPostAttackOutcome();
       } catch (err) {
@@ -667,21 +701,39 @@ export function BattleArena({
         setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 600);
 
         // En 1v2, la Ultimate golpea a AMBOS enemigos simultáneamente (AoE Cataclísmico)
+        const ultDamageType = heroClass.ultimate?.damageType || (heroClass.primaryDamageType === 'magical' ? 'magical' : 'physical');
         const hitEnemy = (enemyData, isSecond = false) => {
           if (enemyData.hpRef.current <= 0) return 0;
           const { damage } = calculateDamage(
-            { atk: heroStats.atk, element: hero.element, critRate: 1.0 },
-            { def: Math.round((enemyData.enemyObj.def || 25) * 0.35), element: enemyData.elem },
+            { 
+              patk: heroStats.patk,
+              matk: heroStats.matk,
+              atk: heroStats.atk, 
+              element: hero.element, 
+              critRate: 1.0 
+            },
+            { 
+              pdef: Math.round((enemyData.enemyObj.pdef || enemyData.enemyObj.def || 25) * 0.35),
+              mdef: Math.round((enemyData.enemyObj.mdef || enemyData.enemyObj.def || 25) * 0.35),
+              def: Math.round((enemyData.enemyObj.def || 25) * 0.35), 
+              element: enemyData.elem 
+            },
             isSecond ? ultMultiplier * 0.85 : ultMultiplier,
             true,
             transitBuff.moonElement,
-            { attackerPosition: playerPosition, stance: playerStance, isStaggered: enemyData.staggerRef.current <= 0, mutator }
+            { 
+              attackerPosition: playerPosition, 
+              stance: playerStance, 
+              isStaggered: enemyData.staggerRef.current <= 0, 
+              mutator,
+              damageType: ultDamageType
+            }
           );
 
           const nextHp = Math.max(0, enemyData.hpRef.current - damage);
           enemyData.hpRef.current = nextHp;
           enemyData.setHp(nextHp);
-          spawnFloatingText(`¡ALINEACIÓN! -${damage}`, enemyData.targetKey, 'crit');
+          spawnFloatingText(`¡ALINEACIÓN! ${ultDamageType === 'magical' ? '🔮' : '⚔️'} -${damage}`, enemyData.targetKey, 'crit');
 
           // Rotura garantizada de guardia al recibir Ultimate
           enemyData.staggerRef.current = 0;
@@ -859,9 +911,24 @@ export function BattleArena({
             let mult = isSkill ? 1.35 : 1.0;
             if (isRivalUlt) mult = 2.3;
 
+            const enemyDamageType = enemyData.enemyObj?.primaryDamageType 
+              || (['Agua', 'Aire'].includes(enemyData.elem) || isSkill ? 'magical' : 'physical');
+            const isEnemyMagical = enemyDamageType === 'magical';
+
             const { damage, isCrit } = calculateDamage(
-              { atk: enemyData.enemyObj?.atk || 55, element: enemyData.elem, critRate: isRivalUlt ? 0.4 : 0.12 },
-              { def: heroStats.def || 20, element: hero.element },
+              { 
+                patk: enemyData.enemyObj?.patk || enemyData.enemyObj?.atk || 55,
+                matk: enemyData.enemyObj?.matk || enemyData.enemyObj?.atk || 55,
+                atk: enemyData.enemyObj?.atk || 55, 
+                element: enemyData.elem, 
+                critRate: isRivalUlt ? 0.4 : 0.12 
+              },
+              { 
+                pdef: heroStats.pdef,
+                mdef: heroStats.mdef,
+                def: heroStats.def || 20, 
+                element: hero.element 
+              },
               mult,
               false,
               null,
@@ -869,7 +936,8 @@ export function BattleArena({
                 attackerPosition: 'frontline',
                 defenderPosition: playerPosition,
                 stance: isPvp && enemyData.idx === 0 ? enemyStance : playerStance,
-                mutator
+                mutator,
+                damageType: enemyDamageType
               }
             );
 
@@ -884,6 +952,9 @@ export function BattleArena({
 
             // Absorción por escudo del jugador
             let finalDmg = damage;
+            const iconPrefix = isEnemyMagical ? '🔮 ' : '⚔️ ';
+            const floatType = isCrit ? 'crit' : (isEnemyMagical ? 'magic' : 'damage');
+
             if (playerShieldRef.current > 0) {
               if (damage <= playerShieldRef.current) {
                 playerShieldRef.current -= damage;
@@ -895,10 +966,10 @@ export function BattleArena({
                 finalDmg = damage - playerShieldRef.current;
                 playerShieldRef.current = 0;
                 setPlayerShield(0);
-                spawnFloatingText(`-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+                spawnFloatingText(`${iconPrefix}-${finalDmg}`, 'player', floatType);
               }
             } else {
-              spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDmg}` : `-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+              spawnFloatingText(isCrit ? `${iconPrefix}¡CRÍTICO! -${finalDmg}` : `${iconPrefix}-${finalDmg}`, 'player', floatType);
             }
 
             // En Modo Cooperativo: El compañero puede interceptar parte del daño para proteger al héroe
@@ -1303,10 +1374,12 @@ export function BattleArena({
                       key={t.id} 
                       className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
                         t.type === 'crit' 
-                          ? 'text-amber-300 text-sm sm:text-base scale-110' 
+                          ? 'text-amber-300 text-sm sm:text-base scale-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.9)]' 
                           : t.type === 'shield' 
                             ? 'text-blue-300' 
-                            : 'text-red-400'
+                            : t.type === 'magic'
+                              ? 'text-purple-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.9)]'
+                              : 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.8)]'
                       }`}
                     >
                       {t.text}
@@ -1428,10 +1501,12 @@ export function BattleArena({
                         key={t.id} 
                         className={`text-xs sm:text-sm font-black font-mono animate-bounce drop-shadow-[0_2px_8px_rgba(0,0,0,1)] ${
                           t.type === 'crit' 
-                            ? 'text-amber-300 text-sm sm:text-base scale-110' 
+                            ? 'text-amber-300 text-sm sm:text-base scale-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.9)]' 
                             : t.type === 'shield' 
                               ? 'text-blue-300' 
-                              : 'text-red-400'
+                              : t.type === 'magic'
+                                ? 'text-purple-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.9)]'
+                                : 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.8)]'
                         }`}
                       >
                         {t.text}
@@ -1556,7 +1631,11 @@ export function BattleArena({
                         ? 'text-emerald-300 text-sm sm:text-base scale-110' 
                         : t.type === 'shield' 
                           ? 'text-cyan-300' 
-                          : 'text-red-400'
+                          : t.type === 'crit'
+                            ? 'text-rose-400 text-sm sm:text-base scale-110 drop-shadow-[0_0_10px_rgba(244,63,94,0.9)]'
+                            : t.type === 'magic'
+                              ? 'text-purple-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.9)]'
+                              : 'text-red-400'
                     }`}
                   >
                     {t.text}
@@ -1782,8 +1861,13 @@ export function BattleArena({
           className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 hover:border-cyan-400 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed group flex flex-col justify-between shadow-sm"
         >
           <div className="flex items-center justify-between mb-1">
-            <Sword size={16} className="text-orange-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">+1 Éter</span>
+            <Sword size={16} className={heroClass.basicAttack?.damageType === 'magical' ? "text-purple-400 group-hover:scale-110 transition-transform" : "text-orange-400 group-hover:scale-110 transition-transform"} />
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-white/10 text-gray-300">
+                {heroClass.basicAttack?.damageType === 'magical' ? '🔮 MÁG' : '⚔️ FÍS'}
+              </span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">+1 Éter</span>
+            </div>
           </div>
           <div>
             <div className="text-xs font-bold text-white truncate">{heroClass.basicAttack.name}</div>
@@ -1801,9 +1885,16 @@ export function BattleArena({
         >
           <div className="flex items-center justify-between mb-1">
             <Sparkles size={16} className="text-purple-400 group-hover:scale-110 transition-transform" />
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
-              -{skillSlot1?.etherCost || 2} Éter
-            </span>
+            <div className="flex items-center gap-1">
+              {skillSlot1?.damageType && (
+                <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-white/10 text-gray-300">
+                  {skillSlot1.damageType === 'magical' ? '🔮 MÁG' : '⚔️ FÍS'}
+                </span>
+              )}
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono font-bold">
+                -{skillSlot1?.etherCost || 2} Éter
+              </span>
+            </div>
           </div>
           <div>
             <div className="text-xs font-bold text-purple-200 truncate">{skillSlot1?.name || 'Habilidad 1'}</div>
@@ -1824,9 +1915,16 @@ export function BattleArena({
           >
             <div className="flex items-center justify-between mb-1">
               <Zap size={16} className="text-cyan-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">
-                -{skillSlot2.etherCost} Éter
-              </span>
+              <div className="flex items-center gap-1">
+                {skillSlot2?.damageType && (
+                  <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-white/10 text-gray-300">
+                    {skillSlot2.damageType === 'magical' ? '🔮 MÁG' : '⚔️ FÍS'}
+                  </span>
+                )}
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold">
+                  -{skillSlot2.etherCost} Éter
+                </span>
+              </div>
             </div>
             <div>
               <div className="text-xs font-bold text-cyan-200 truncate">{skillSlot2.name}</div>

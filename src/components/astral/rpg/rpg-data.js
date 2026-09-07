@@ -48,26 +48,32 @@ export const ELEMENTAL_AFFINITIES = {
 };
 
 export const ZODIAC_HERO_CLASSES = {
-  // FUEGO
+  // =========================================================================
+  // FUEGO: Fuerza Ofensiva, Ráfagas Críticas y Devastación Solar
+  // =========================================================================
   Aries: {
     sign: 'Aries',
     symbol: '♈',
     element: 'Fuego',
     title: 'Heraldo de Marte',
-    role: 'Asesino Crítico',
-    baseStats: { hp: 420, atk: 65, def: 25, spd: 38, critRate: 0.25 },
-    basicAttack: { name: 'Corte Ígneo', desc: 'Golpe veloz envuelto en llamas celestiales.', etherGain: 1 },
+    archetype: 'Berserker Ígneo',
+    role: 'Daño Físico Puro / Penetración',
+    primaryDamageType: 'physical',
+    baseStats: { hp: 430, patk: 76, matk: 22, pdef: 26, mdef: 20, atk: 76, def: 23, spd: 38, critRate: 0.26 },
+    basicAttack: { name: 'Corte Ígneo', desc: 'Tajo violento envuelto en llamas celestiales.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Embestida de Marte',
       etherCost: 2,
-      desc: 'Embiste ignorando el 40% de la defensa enemiga e inflige Quemadura.',
-      multiplier: 1.6,
-      effect: { type: 'burn', turns: 2, dot: 18 }
+      damageType: 'physical',
+      desc: 'Embiste quebrando el 45% de la armadura física rival e inflige Quemadura.',
+      multiplier: 1.65,
+      effect: { type: 'burn', turns: 2, dot: 20 }
     },
     ultimate: {
       name: 'Supernova de Aries',
-      desc: 'Desata el fuego primordial de la primera constelación con 100% de golpe crítico.',
-      multiplier: 2.5
+      damageType: 'physical',
+      desc: 'Desata el fuego primordial físico de la primera constelación con impacto crítico masivo.',
+      multiplier: 2.6
     }
   },
   Leo: {
@@ -75,20 +81,24 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♌',
     element: 'Fuego',
     title: 'Monarca Solar',
-    role: 'Luchador / Buff',
-    baseStats: { hp: 460, atk: 58, def: 30, spd: 32, critRate: 0.18 },
-    basicAttack: { name: 'Zarpazo de Oro', desc: 'Corte desgarrador que deslumbra al rival.', etherGain: 1 },
+    archetype: 'Paladín Solar',
+    role: 'Híbrido Físico-Mágico / Resistencia',
+    primaryDamageType: 'hybrid',
+    baseStats: { hp: 490, patk: 60, matk: 56, pdef: 36, mdef: 32, atk: 60, def: 34, spd: 32, critRate: 0.18 },
+    basicAttack: { name: 'Zarpazo de Oro', desc: 'Corte físico desgarrador que deslumbra al rival.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Rugido Solar',
       etherCost: 2,
-      desc: 'Ruge con la fuerza de una corona solar, dañando y aumentando el ATK propio un 25%.',
-      multiplier: 1.4,
-      effect: { type: 'buff_atk', turns: 2, value: 1.25 }
+      damageType: 'magical',
+      desc: 'Onda expansiva mágica de calor que daña y potencia el Ataque Físico y Mágico un 30%.',
+      multiplier: 1.45,
+      effect: { type: 'buff_atk', turns: 2, value: 1.30 }
     },
     ultimate: {
       name: 'Fulgor del Rey Helios',
-      desc: 'Canaliza el núcleo solar provocando una deflagración cósmica masiva.',
-      multiplier: 2.6
+      damageType: 'magical',
+      desc: 'Canaliza el núcleo solar provocando una deflagración cósmica que ignora barreras.',
+      multiplier: 2.65
     }
   },
   Sagitario: {
@@ -96,43 +106,53 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♐',
     element: 'Fuego',
     title: 'Arquero del Firmamento',
-    role: 'Francotirador Astral',
-    baseStats: { hp: 400, atk: 70, def: 22, spd: 42, critRate: 0.30 },
-    basicAttack: { name: 'Flecha de Cometa', desc: 'Proyectil de polvo cósmico a distancia.', etherGain: 1 },
+    archetype: 'Tirador Astral de Precisión',
+    role: 'Daño Físico a Distancia / Crítico Máximo',
+    primaryDamageType: 'physical',
+    baseStats: { hp: 395, patk: 74, matk: 35, pdef: 22, mdef: 24, atk: 74, def: 23, spd: 44, critRate: 0.32 },
+    basicAttack: { name: 'Flecha de Cometa', desc: 'Proyectil de polvo cósmico afilado a distancia.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Disparo de Júpiter',
       etherCost: 2,
-      desc: 'Disparo perforante de alta precisión con probabilidad elevada de crítico brutal.',
+      damageType: 'physical',
+      desc: 'Disparo perforante de alta velocidad con +35% de probabilidad crítica asegurada.',
       multiplier: 1.7,
       critBonus: 0.35
     },
     ultimate: {
       name: 'Lluvia de Meteoros Zenit',
-      desc: 'Lanza una andanada de flechas estelares que caen como meteoritos.',
+      damageType: 'physical',
+      desc: 'Lanza una andanada de flechas estelares perforantes que caen como lluvia meteórica.',
       multiplier: 2.7
     }
   },
 
-  // TIERRA
+  // =========================================================================
+  // TIERRA: Baluartes Inquebrantables, Control de Gravedad y Magia Alquímica
+  // =========================================================================
   Tauro: {
     sign: 'Tauro',
     symbol: '♉',
     element: 'Tierra',
     title: 'Coloso de Esmeralda',
-    role: 'Tanque Inquebrantable',
-    baseStats: { hp: 550, atk: 45, def: 48, spd: 20, critRate: 0.10 },
-    basicAttack: { name: 'Cornada Sísmica', desc: 'Golpe pesado que hace temblar la corteza estelar.', etherGain: 1 },
+    archetype: 'Coloso Telúrico',
+    role: 'Tanque Físico Supremo / Escudos',
+    primaryDamageType: 'physical',
+    baseStats: { hp: 580, patk: 50, matk: 20, pdef: 56, mdef: 30, atk: 50, def: 43, spd: 18, critRate: 0.10 },
+    basicAttack: { name: 'Cornada Sísmica', desc: 'Golpe pesado contundente que resquebraja el suelo.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Fortaleza de Gaia',
       etherCost: 2,
-      desc: 'Alza una muralla de piedra que otorga un escudo absorbe-daño y sana 50 HP.',
-      multiplier: 1.1,
-      effect: { type: 'shield', turns: 2, value: 120, heal: 50 }
+      damageType: 'physical',
+      desc: 'Alza una muralla de piedra protectora que otorga Escudo de 140 HP y regenera 60 HP.',
+      multiplier: 1.15,
+      effect: { type: 'shield', turns: 2, value: 140, heal: 60 }
     },
     ultimate: {
       name: 'Cataclismo Telúrico',
-      desc: 'Fragmenta el suelo astral aplastando al enemigo con rocas de meteorito.',
-      multiplier: 2.2
+      damageType: 'physical',
+      desc: 'Fragmenta el suelo astral aplastando al enemigo bajo toneladas de roca de meteorito.',
+      multiplier: 2.3
     }
   },
   Virgo: {
@@ -140,20 +160,24 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♍',
     element: 'Tierra',
     title: 'Códice Sagrado',
-    role: 'Estratega / Precisión',
-    baseStats: { hp: 440, atk: 52, def: 35, spd: 35, critRate: 0.20 },
-    basicAttack: { name: 'Juicio Etéreo', desc: 'Punta de lanza de cuarzo tallada con runas.', etherGain: 1 },
+    archetype: 'Estratega Arcano',
+    role: 'Magia de Precisión / Debuff / Sellos',
+    primaryDamageType: 'magical',
+    baseStats: { hp: 440, patk: 32, matk: 66, pdef: 30, mdef: 46, atk: 66, def: 38, spd: 36, critRate: 0.20 },
+    basicAttack: { name: 'Juicio Etéreo', desc: 'Punta de lanza de cuarzo imbuida en geometrías sagradas.', etherGain: 1, damageType: 'magical' },
     skill: {
       name: 'Cálculo de Mercurio',
       etherCost: 2,
-      desc: 'Analiza la debilidad del rival: reduce su defensa un 30% y asesta un golpe certero.',
-      multiplier: 1.35,
-      effect: { type: 'debuff_def', turns: 2, value: 0.7 }
+      damageType: 'magical',
+      desc: 'Analiza los patrones del rival: reduce su Defensa Física y Mágica un 35% y asesta un golpe mágico.',
+      multiplier: 1.4,
+      effect: { type: 'debuff_def', turns: 2, value: 0.65 }
     },
     ultimate: {
       name: 'Orden del Prisma Astral',
-      desc: 'Sella al rival en una geometría perfecta que purifica y pulveriza.',
-      multiplier: 2.4
+      damageType: 'magical',
+      desc: 'Encierra al rival en una geometría luminosa perfecta que purifica y pulveriza.',
+      multiplier: 2.5
     }
   },
   Capricornio: {
@@ -161,43 +185,53 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♑',
     element: 'Tierra',
     title: 'Guardián del Cronos',
-    role: 'Paladín / Castigo',
-    baseStats: { hp: 500, atk: 50, def: 42, spd: 25, critRate: 0.12 },
-    basicAttack: { name: 'Maza de Obsidiana', desc: 'Impacto contundente con el peso de los eones.', etherGain: 1 },
+    archetype: 'Juez Paladín de Gravedad',
+    role: 'Tanque Mágico-Físico / Control Temporal',
+    primaryDamageType: 'hybrid',
+    baseStats: { hp: 520, patk: 54, matk: 54, pdef: 48, mdef: 36, atk: 54, def: 42, spd: 24, critRate: 0.12 },
+    basicAttack: { name: 'Maza de Obsidiana', desc: 'Impacto contundente cargado con la gravedad de los eones.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Sentencia de Saturno',
       etherCost: 2,
-      desc: 'Golpe pesado que ralentiza al objetivo y absorbe parte del daño como defensa.',
-      multiplier: 1.45,
+      damageType: 'magical',
+      desc: 'Presión gravitacional que ralentiza la Velocidad rival un 40% y absorbe daño como escudo.',
+      multiplier: 1.5,
       effect: { type: 'slow_atk', turns: 2 }
     },
     ultimate: {
       name: 'Vórtice del Tiempo Cósmico',
-      desc: 'Detiene el tiempo estelar para encestar un golpe demoledor ineludible.',
-      multiplier: 2.4
+      damageType: 'magical',
+      desc: 'Detiene el flujo temporal estelar para asestar un impacto gravitacional ineludible.',
+      multiplier: 2.45
     }
   },
 
-  // AIRE
+  // =========================================================================
+  // AIRE: Velocidad Relámpago, Evasión, Arcanismo Cuántico y Tormentas
+  // =========================================================================
   Géminis: {
     sign: 'Géminis',
     symbol: '♊',
     element: 'Aire',
     title: 'Doble Espejismo',
-    role: 'Bribón Veloz',
-    baseStats: { hp: 410, atk: 62, def: 24, spd: 46, critRate: 0.22 },
-    basicAttack: { name: 'Daga Céfiro', desc: 'Corte etéreo ultrarrápido.', etherGain: 1 },
+    archetype: 'Duelista Veloz Evasivo',
+    role: 'Máxima Velocidad / Evasión / Golpe Doble',
+    primaryDamageType: 'physical',
+    baseStats: { hp: 405, patk: 66, matk: 36, pdef: 24, mdef: 24, atk: 66, def: 24, spd: 50, critRate: 0.24 },
+    basicAttack: { name: 'Daga Céfiro', desc: 'Corte etéreo ultrarrápido con el filo del viento.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Danza de Pólux y Cástor',
       etherCost: 2,
-      desc: 'Ataca 2 veces consecutivas y aumenta la probabilidad de esquivar el próximo golpe.',
+      damageType: 'physical',
+      desc: 'Asesta 2 tajos físicos consecutivos y otorga un 50% de probabilidad de esquivar el próximo golpe.',
       multiplier: 1.55,
       hits: 2,
       effect: { type: 'evasion', turns: 1 }
     },
     ultimate: {
       name: 'Paradoja de los Gemelos',
-      desc: 'Crea múltiples copias de luz estelar atacando desde todos los ángulos del cosmos.',
+      damageType: 'physical',
+      desc: 'Crea múltiples copias de luz estelar atacando desde todos los ángulos a velocidad lumínica.',
       multiplier: 2.5
     }
   },
@@ -206,20 +240,24 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♎',
     element: 'Aire',
     title: 'Juez del Equilibrio',
-    role: 'Soporte / Control',
-    baseStats: { hp: 430, atk: 54, def: 32, spd: 36, critRate: 0.16 },
-    basicAttack: { name: 'Rayo Armónico', desc: 'Ráfaga de viento y luz balanceada.', etherGain: 1 },
+    archetype: 'Árbitro del Karma y Espejo',
+    role: 'Magia Balanceada / Reflejo / Robo de Vida',
+    primaryDamageType: 'magical',
+    baseStats: { hp: 430, patk: 42, matk: 60, pdef: 32, mdef: 42, atk: 60, def: 37, spd: 36, critRate: 0.16 },
+    basicAttack: { name: 'Rayo Armónico', desc: 'Ráfaga mágica balanceada de viento y fotones celestiales.', etherGain: 1, damageType: 'magical' },
     skill: {
       name: 'Balanza del Karma',
       etherCost: 2,
-      desc: 'Equilibra las fuerzas: daña al enemigo y cura al usuario por el 50% del daño infligido.',
-      multiplier: 1.3,
+      damageType: 'magical',
+      desc: 'Equilibra las fuerzas: daña mágicamente al rival y restaura vida propia equivalente al 50% del daño.',
+      multiplier: 1.35,
       effect: { type: 'lifesteal', ratio: 0.5 }
     },
     ultimate: {
       name: 'Sentencia de las Estrellas',
-      desc: 'Convoca la balanza universal para castigar el exceso de energía enemiga.',
-      multiplier: 2.35
+      damageType: 'magical',
+      desc: 'Invoca los dos platillos cósmicos para castigar el exceso de energía enemiga.',
+      multiplier: 2.4
     }
   },
   Acuario: {
@@ -227,44 +265,54 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♒',
     element: 'Aire',
     title: 'Visionario del Éter',
-    role: 'Hechicero / Shock',
-    baseStats: { hp: 420, atk: 64, def: 26, spd: 40, critRate: 0.20 },
-    basicAttack: { name: 'Pulso Plasma', desc: 'Disparo de energía electromagnética astral.', etherGain: 1 },
+    archetype: 'Archimago de Plasma y Shock',
+    role: 'Máximo Daño Mágico Elemental / Aturdimiento',
+    primaryDamageType: 'magical',
+    baseStats: { hp: 410, patk: 24, matk: 78, pdef: 24, mdef: 38, atk: 78, def: 31, spd: 40, critRate: 0.22 },
+    basicAttack: { name: 'Pulso Plasma', desc: 'Disparo de energía electromagnética ionizada.', etherGain: 1, damageType: 'magical' },
     skill: {
       name: 'Ruptura Cuántica',
       etherCost: 2,
-      desc: 'Provoca un cortocircuito estelar que inflige daño y tiene probabilidad de aturdir al rival.',
-      multiplier: 1.5,
-      effect: { type: 'stun', chance: 0.4 }
+      damageType: 'magical',
+      desc: 'Cortocircuito estelar que inflige alto daño mágico y tiene 45% de probabilidad de electrocutar/aturdir.',
+      multiplier: 1.55,
+      effect: { type: 'stun', chance: 0.45 }
     },
     ultimate: {
       name: 'Tormenta de Urano',
-      desc: 'Invoca un vendaval de iones estelares que borra las defensas contrarias.',
-      multiplier: 2.6
+      damageType: 'magical',
+      desc: 'Invoca un huracán de plasma estelar que desintegra la resistencia mágica enemiga.',
+      multiplier: 2.7
     }
   },
 
-  // AGUA
+  // =========================================================================
+  // AGUA: Resistencia Mágica, Sanación Continua, Venenos y Mareas Infinitas
+  // =========================================================================
   Cáncer: {
     sign: 'Cáncer',
     symbol: '♋',
     element: 'Agua',
     title: 'Guardián de la Marea',
-    role: 'Sanador / Defensor',
-    baseStats: { hp: 480, atk: 48, def: 38, spd: 26, critRate: 0.12 },
-    basicAttack: { name: 'Espuma Lunar', desc: 'Ola de condensación estelar que golpea al enemigo.', etherGain: 1 },
+    archetype: 'Clérigo Protector de Selene',
+    role: 'Máxima Defensa Mágica / Curación y Escudos',
+    primaryDamageType: 'magical',
+    baseStats: { hp: 510, patk: 28, matk: 56, pdef: 32, mdef: 52, atk: 56, def: 42, spd: 24, critRate: 0.12 },
+    basicAttack: { name: 'Espuma Lunar', desc: 'Oleaje condensado de rocío estelar protector.', etherGain: 1, damageType: 'magical' },
     skill: {
       name: 'Manto de Selene',
       etherCost: 2,
-      desc: 'Invoca la bendición de la Luna: cura 95 HP y levanta un escudo de agua.',
-      multiplier: 1.0,
-      effect: { type: 'shield_heal', heal: 95, shield: 70 }
+      damageType: 'magical',
+      desc: 'Bendición de la Luna: cura 110 HP y levanta un escudo de agua bendita de 80 HP.',
+      multiplier: 1.05,
+      effect: { type: 'shield_heal', heal: 110, shield: 80 }
     },
     ultimate: {
       name: 'Tsunami de Luna Llena',
-      desc: 'Una marea mística arrolla el campo de batalla restaurando tu alma y aplastando al rival.',
-      multiplier: 2.2,
-      healSelf: 100
+      damageType: 'magical',
+      desc: 'Una marea mística barre el campo restaurando 120 HP al héroe y anegando al rival.',
+      multiplier: 2.25,
+      healSelf: 120
     }
   },
   Escorpio: {
@@ -272,20 +320,24 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♏',
     element: 'Agua',
     title: 'Sombra del Abismo',
-    role: 'Ejecutor Letal',
-    baseStats: { hp: 430, atk: 66, def: 28, spd: 34, critRate: 0.26 },
-    basicAttack: { name: 'Veneno Astral', desc: 'Punzón impregnado de fluidos de nebulosa.', etherGain: 1 },
+    archetype: 'Asesino de Sombra y Veneno',
+    role: 'Híbrido Letal / Toxinas Acumulativas / Vampirismo',
+    primaryDamageType: 'hybrid',
+    baseStats: { hp: 430, patk: 64, matk: 64, pdef: 28, mdef: 28, atk: 64, def: 28, spd: 34, critRate: 0.26 },
+    basicAttack: { name: 'Veneno Astral', desc: 'Punzón físico impregnado de fluidos tóxicos de nebulosa.', etherGain: 1, damageType: 'physical' },
     skill: {
       name: 'Aguijón de Plutón',
       etherCost: 2,
-      desc: 'Aplica veneno mortal por 3 turnos. Si el rival tiene menos del 40% de vida, daño x1.8.',
-      multiplier: 1.45,
-      effect: { type: 'poison', turns: 3, dot: 25 }
+      damageType: 'magical',
+      desc: 'Aplica toxina mortal por 3 turnos. Si el rival tiene menos del 40% de vida, daño x1.85.',
+      multiplier: 1.5,
+      effect: { type: 'poison', turns: 3, dot: 26 }
     },
     ultimate: {
       name: 'Fauces del Inframundo',
-      desc: 'Abre una grieta al vacío estelar devorando la vitalidad del oponente.',
-      multiplier: 2.65
+      damageType: 'magical',
+      desc: 'Abre una grieta al vacío devorando la vitalidad del oponente con robo de vida letal.',
+      multiplier: 2.7
     }
   },
   Piscis: {
@@ -293,21 +345,25 @@ export const ZODIAC_HERO_CLASSES = {
     symbol: '♓',
     element: 'Agua',
     title: 'Chamán de los Sueños',
-    role: 'Místico / Regenerativo',
-    baseStats: { hp: 440, atk: 56, def: 30, spd: 32, critRate: 0.18 },
-    basicAttack: { name: 'Canto Abisal', desc: 'Melodía acuática resonante que causa daño místico.', etherGain: 1 },
+    archetype: 'Chamán Místico del Éter',
+    role: 'Magia Abisal / Regeneración Infinita de Éter',
+    primaryDamageType: 'magical',
+    baseStats: { hp: 440, patk: 20, matk: 75, pdef: 26, mdef: 46, atk: 75, def: 36, spd: 32, critRate: 0.18 },
+    basicAttack: { name: 'Canto Abisal', desc: 'Melodía acuática resonante que causa daño místico directo.', etherGain: 1, damageType: 'magical' },
     skill: {
       name: 'Espejismo de Neptuno',
       etherCost: 2,
-      desc: 'Inunda la arena: regenera 40 HP por 2 turnos y drena 1 de Éter al oponente.',
-      multiplier: 1.25,
-      effect: { type: 'drain_ether', regenTurns: 2, regenValue: 40 }
+      damageType: 'magical',
+      desc: 'Inunda la arena: regenera 45 HP por 2 turnos y drena 1 de Éter al rival para sí mismo.',
+      multiplier: 1.3,
+      effect: { type: 'drain_ether', regenTurns: 2, regenValue: 45 }
     },
     ultimate: {
       name: 'Océano Cósmico Infinito',
-      desc: 'Sumerge la realidad en un mar primordial cósmico que disuelve toda hostilidad.',
-      multiplier: 2.4,
-      healSelf: 80
+      damageType: 'magical',
+      desc: 'Sumerge la realidad en un mar primordial cósmico que cura 95 HP y disuelve defensas.',
+      multiplier: 2.45,
+      healSelf: 95
     }
   }
 };
@@ -1059,14 +1115,14 @@ export const EQUIPMENT_SETS = {
       {
         requiredPieces: 2,
         title: 'Eco del Polvo (2 Piezas)',
-        desc: '+35 HP, +10 DEF',
-        stats: { hp: 35, def: 10 }
+        desc: '+35 HP, +12 PDEF, +12 MDEF',
+        stats: { hp: 35, pdef: 12, mdef: 12, def: 12 }
       },
       {
         requiredPieces: 3,
         title: 'Frecuencia Astral Completa (3 Piezas)',
-        desc: '+15 ATK, +6 VEL, +3% Crítico',
-        stats: { atk: 15, spd: 6, critRate: 0.03 }
+        desc: '+15 PATK, +15 MATK, +6 VEL, +4% Crítico',
+        stats: { patk: 15, matk: 15, atk: 15, spd: 6, critRate: 0.04 }
       }
     ]
   },
@@ -1086,14 +1142,41 @@ export const EQUIPMENT_SETS = {
       {
         requiredPieces: 2,
         title: 'Marea de Selene (2 Piezas)',
-        desc: '+25 ATK, +60 HP',
-        stats: { atk: 25, hp: 60 }
+        desc: '+30 MATK, +15 PATK, +70 HP',
+        stats: { matk: 30, patk: 15, atk: 30, hp: 70 }
       },
       {
         requiredPieces: 3,
         title: 'Corona de las Pléyades (3 Piezas)',
-        desc: '+35 ATK, +8 VEL, +7% Crítico',
-        stats: { atk: 35, spd: 8, critRate: 0.07 }
+        desc: '+45 MATK, +20 MDEF, +8 VEL, +7% Crítico',
+        stats: { matk: 45, mdef: 20, atk: 45, def: 15, spd: 8, critRate: 0.07 }
+      }
+    ]
+  },
+  set_shadow: {
+    id: 'set_shadow',
+    name: 'Velo de la Sombra y el Eclipse',
+    rarity: 'raro',
+    element: 'Fuego',
+    badge: '🌑 Sombra Umbría',
+    color: 'text-rose-400',
+    borderColor: 'border-rose-500/40',
+    bgBadge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
+    iconName: 'Flame',
+    lore: 'Forjado en la penumbra de lunas sangrientas para cazadores letales y certeros.',
+    pieces: ['wp_06', 'ar_05', 'rl_05'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Acecho Silencioso (2 Piezas)',
+        desc: '+32 PATK, +10 VEL, +6% Crítico',
+        stats: { patk: 32, atk: 32, spd: 10, critRate: 0.06 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Letalidad del Ocaso (3 Piezas)',
+        desc: '+60 PATK, +18 VEL, +14% Crítico',
+        stats: { patk: 60, atk: 60, spd: 18, critRate: 0.14 }
       }
     ]
   },
@@ -1113,14 +1196,68 @@ export const EQUIPMENT_SETS = {
       {
         requiredPieces: 2,
         title: 'Ira del Núcleo Solar (2 Piezas)',
-        desc: '+45 ATK, +30 DEF, +120 HP',
-        stats: { atk: 45, def: 30, hp: 120 }
+        desc: '+50 PATK, +20 MATK, +32 PDEF, +140 HP',
+        stats: { patk: 50, matk: 20, atk: 50, pdef: 32, mdef: 15, def: 30, hp: 140 }
       },
       {
         requiredPieces: 3,
         title: 'Corona de Titanio Cósmico (3 Piezas)',
-        desc: '+70 ATK, +40 DEF, +12% Crítico',
-        stats: { atk: 70, def: 40, critRate: 0.12 }
+        desc: '+80 PATK, +40 MATK, +45 PDEF, +14% Crítico',
+        stats: { patk: 80, matk: 40, atk: 80, pdef: 45, mdef: 25, def: 40, critRate: 0.14 }
+      }
+    ]
+  },
+  set_archmage: {
+    id: 'set_archmage',
+    name: 'Grimorio Arcano de las Esferas',
+    rarity: 'epico',
+    element: 'Aire',
+    badge: '✨ Gran Magia',
+    color: 'text-indigo-400',
+    borderColor: 'border-indigo-500/40',
+    bgBadge: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30',
+    iconName: 'Sparkles',
+    lore: 'Conocimiento vedado de las bibliotecas flotantes del éter astral.',
+    pieces: ['wp_11', 'ar_06', 'rl_06'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Sintonía de los Orbes (2 Piezas)',
+        desc: '+65 MATK, +30 MDEF, +90 HP',
+        stats: { matk: 65, atk: 65, mdef: 30, def: 18, hp: 90 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Singularidad Mágica (3 Piezas)',
+        desc: '+120 MATK, +55 MDEF, +12% Crítico, +10 VEL',
+        stats: { matk: 120, atk: 120, mdef: 55, def: 35, critRate: 0.12, spd: 10 }
+      }
+    ]
+  },
+  set_aegis: {
+    id: 'set_aegis',
+    name: 'Égida Inquebrantable del Titán',
+    rarity: 'legendario',
+    element: 'Tierra',
+    badge: '🛡️ Fortaleza Titánica',
+    color: 'text-emerald-400',
+    borderColor: 'border-emerald-500/50',
+    bgBadge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
+    iconName: 'Shield',
+    lore: 'La roca primordial inamovible capaz de repeler colisiones estelares.',
+    pieces: ['wp_09', 'ar_09', 'rl_13'],
+    bonuses: [
+      {
+        requiredPieces: 2,
+        title: 'Coraza Granítica (2 Piezas)',
+        desc: '+380 HP, +60 PDEF, +35 MDEF',
+        stats: { hp: 380, pdef: 60, mdef: 35, def: 60 }
+      },
+      {
+        requiredPieces: 3,
+        title: 'Inmortalidad Telúrica (3 Piezas)',
+        desc: '+700 HP, +100 PDEF, +70 MDEF, +45 PATK',
+        stats: { hp: 700, pdef: 100, mdef: 70, def: 100, patk: 45, atk: 45 }
       }
     ]
   },
@@ -1140,14 +1277,14 @@ export const EQUIPMENT_SETS = {
       {
         requiredPieces: 2,
         title: 'Mirada del Cazador Supremo (2 Piezas)',
-        desc: '+90 ATK, +250 HP, +10% Crítico',
-        stats: { atk: 90, hp: 250, critRate: 0.10 }
+        desc: '+95 PATK, +95 MATK, +260 HP, +10% Crítico',
+        stats: { patk: 95, matk: 95, atk: 95, hp: 260, critRate: 0.10 }
       },
       {
         requiredPieces: 3,
         title: 'Majestad Eterna del Zodíaco (3 Piezas)',
-        desc: '+150 ATK, +60 DEF, +400 HP, +15 VEL, +18% Crítico',
-        stats: { atk: 150, def: 60, hp: 400, spd: 15, critRate: 0.18 }
+        desc: '+160 PATK, +160 MATK, +65 PDEF, +65 MDEF, +420 HP, +16 VEL, +18% Crítico',
+        stats: { patk: 160, matk: 160, atk: 160, pdef: 65, mdef: 65, def: 65, hp: 420, spd: 16, critRate: 0.18 }
       }
     ]
   }
@@ -1155,12 +1292,14 @@ export const EQUIPMENT_SETS = {
 
 export function calculateItemPower(item) {
   if (!item) return 0;
-  const atk = (item.atk || 0) * 3;
-  const hp = Math.round((item.hp || 0) * 0.8);
-  const def = (item.def || 0) * 2.5;
-  const spd = (item.spd || 0) * 2;
-  const crit = Math.round((item.crit || 0) * 300);
-  return atk + hp + def + spd + crit;
+  const patk = (item.patk || item.atk || 0) * 2.2;
+  const matk = (item.matk || 0) * 2.2;
+  const hp = Math.round((item.hp || 0) * 0.7);
+  const pdef = (item.pdef || item.def || 0) * 1.8;
+  const mdef = (item.mdef || item.def || 0) * 1.8;
+  const spd = (item.spd || 0) * 2.5;
+  const crit = Math.round((item.crit || 0) * 350);
+  return Math.round(patk + matk + hp + pdef + mdef + spd + crit);
 }
 
 export function calculateActiveSets(equipped = {}) {
@@ -1184,11 +1323,15 @@ export function calculateActiveSets(equipped = {}) {
 
     const unlockedBonuses = setDef.bonuses.filter(b => count >= b.requiredPieces);
     
-    const totalBonusStats = { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0 };
+    const totalBonusStats = { hp: 0, atk: 0, patk: 0, matk: 0, def: 0, pdef: 0, mdef: 0, spd: 0, critRate: 0 };
     for (const b of unlockedBonuses) {
       if (b.stats.hp) totalBonusStats.hp += b.stats.hp;
       if (b.stats.atk) totalBonusStats.atk += b.stats.atk;
+      if (b.stats.patk) totalBonusStats.patk += b.stats.patk;
+      if (b.stats.matk) totalBonusStats.matk += b.stats.matk;
       if (b.stats.def) totalBonusStats.def += b.stats.def;
+      if (b.stats.pdef) totalBonusStats.pdef += b.stats.pdef;
+      if (b.stats.mdef) totalBonusStats.mdef += b.stats.mdef;
       if (b.stats.spd) totalBonusStats.spd += b.stats.spd;
       if (b.stats.critRate) totalBonusStats.critRate += b.stats.critRate;
     }
@@ -1210,23 +1353,659 @@ export function calculateActiveSets(equipped = {}) {
 }
 
 export const EQUIPMENT_CATALOG = [
-  // ARMAS
-  { id: 'wp_01', type: 'weapon', setId: 'set_starlight', name: 'Daga de Polvo Estelar', rarity: 'comun', atk: 12, crit: 0.03, desc: 'Forjada con remanentes de meteorito menor.' },
-  { id: 'wp_02', type: 'weapon', setId: 'set_lunar', name: 'Báculo de las Pléyades', rarity: 'raro', atk: 25, crit: 0.06, desc: 'Canaliza la luz azul de siete estrellas hermanas.' },
-  { id: 'wp_03', type: 'weapon', setId: 'set_solar', name: 'Espada de Nebulosa Solar', rarity: 'epico', atk: 45, crit: 0.10, desc: 'Emite calor puro de una supernova en nacimiento.' },
-  { id: 'wp_04', type: 'weapon', setId: 'set_cosmic', name: 'Arco Cósmico de Orión', rarity: 'legendario', atk: 75, crit: 0.18, desc: 'El arma mítica de los cazadores celestiales. Desgarra el éter.' },
+  // ==========================================
+  // ARMAS FÍSICAS (Espadas, Dagas, Martillos, Guadañas)
+  // ==========================================
+  {
+    id: 'wp_01',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: 'set_starlight',
+    name: 'Daga de Polvo Estelar',
+    rarity: 'comun',
+    patk: 14,
+    matk: 0,
+    atk: 14,
+    crit: 0.04,
+    desc: 'Forjada con remanentes de un meteorito menor. Hoja afilada para cortes veloces.'
+  },
+  {
+    id: 'wp_05',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: null,
+    name: 'Mandoble de Obsidiana Ígnea',
+    rarity: 'raro',
+    patk: 34,
+    matk: 0,
+    atk: 34,
+    pdef: 6,
+    def: 6,
+    crit: 0.05,
+    desc: 'Pesada espada de filo volcánico que despedaza defensas mediante fuerza bruta.'
+  },
+  {
+    id: 'wp_06',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: 'set_shadow',
+    name: 'Guadaña del Eclipse Umbrío',
+    rarity: 'raro',
+    patk: 38,
+    matk: 6,
+    atk: 38,
+    spd: 6,
+    crit: 0.12,
+    desc: 'Filo curvo bañado en penumbra estelar. Especializado en golpes críticos devastadores.'
+  },
+  {
+    id: 'wp_03',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: 'set_solar',
+    name: 'Espada de Nebulosa Solar',
+    rarity: 'epico',
+    patk: 54,
+    matk: 12,
+    atk: 54,
+    crit: 0.10,
+    desc: 'Emite calor puro de una supernova en nacimiento, fundiendo armaduras con cada tajo.'
+  },
+  {
+    id: 'wp_07',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: null,
+    name: 'Martillo de Meteoro Telúrico',
+    rarity: 'epico',
+    patk: 62,
+    matk: 0,
+    atk: 62,
+    pdef: 16,
+    def: 16,
+    crit: 0.06,
+    desc: 'Maza colosal tallada en roca primordial. Cada impacto hace temblar la gravedad.'
+  },
+  {
+    id: 'wp_09',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: 'set_aegis',
+    name: 'Hacha del Destructor de Eones',
+    rarity: 'epico',
+    patk: 60,
+    matk: 0,
+    atk: 60,
+    hp: 140,
+    pdef: 12,
+    def: 12,
+    crit: 0.08,
+    desc: 'Herramienta de guerra forjada para titanes guardianes; equilibra contundencia y resistencia.'
+  },
+  {
+    id: 'wp_04',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: 'set_cosmic',
+    name: 'Arco Cósmico de Orión',
+    rarity: 'legendario',
+    patk: 88,
+    matk: 24,
+    atk: 88,
+    spd: 8,
+    crit: 0.18,
+    desc: 'El arma mítica de los cazadores celestiales. Sus proyectiles desgarran el tejido dimensional.'
+  },
+  {
+    id: 'wp_08',
+    type: 'weapon',
+    subType: 'arma_fisica',
+    categoryTag: '⚔️ Físico',
+    damageType: 'physical',
+    setId: null,
+    name: 'Lanzas Gemelas de Mercurio',
+    rarity: 'legendario',
+    patk: 82,
+    matk: 20,
+    atk: 82,
+    spd: 16,
+    crit: 0.16,
+    desc: 'Par de picas argentinas ultraligeras que ejecutan ráfagas físicas imparables.'
+  },
 
-  // ARMADURAS
-  { id: 'ar_01', type: 'armor', setId: 'set_starlight', name: 'Manto de Seda Astral', rarity: 'comun', hp: 40, def: 8, desc: 'Tejido suave bendecido por la brisa cósmica.' },
-  { id: 'ar_02', type: 'armor', setId: 'set_lunar', name: 'Pechera de Roca Lunar', rarity: 'raro', hp: 90, def: 18, desc: 'Piedra basáltica extraída de la cara oculta de la Luna.' },
-  { id: 'ar_03', type: 'armor', setId: 'set_solar', name: 'Coraza del Coloso Tauro', rarity: 'epico', hp: 170, def: 35, desc: 'Forjada en el corazón de un asteroide de hierro.' },
-  { id: 'ar_04', type: 'armor', setId: 'set_cosmic', name: 'Armadura Sagrada de Casiopea', rarity: 'legendario', hp: 300, def: 55, desc: 'Brilla con la soberanía intocable de la reina estelar.' },
+  // ==========================================
+  // ARMAS MÁGICAS (Báculos, Orbes, Grimorios, Cetros)
+  // ==========================================
+  {
+    id: 'wp_10',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: null,
+    name: 'Orbe de Nebulosa Naciente',
+    rarity: 'comun',
+    patk: 2,
+    matk: 16,
+    atk: 16,
+    crit: 0.03,
+    desc: 'Esfera vítrea que almacena fotones estelares para liberar ráfagas mágicas básicas.'
+  },
+  {
+    id: 'wp_02',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: 'set_lunar',
+    name: 'Báculo de las Pléyades',
+    rarity: 'raro',
+    patk: 6,
+    matk: 32,
+    atk: 32,
+    mdef: 8,
+    crit: 0.06,
+    desc: 'Canaliza la luz azul de siete estrellas hermanas, enfriando los hechizos y elevando el foco místico.'
+  },
+  {
+    id: 'wp_13',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: null,
+    name: 'Espejo de las Mareas de Neptuno',
+    rarity: 'raro',
+    patk: 8,
+    matk: 36,
+    atk: 36,
+    mdef: 14,
+    crit: 0.05,
+    desc: 'Superficie de agua sólida que amplifica la resonancia mágica y disipa conjuros rivales.'
+  },
+  {
+    id: 'wp_11',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: 'set_archmage',
+    name: 'Grimorio de Eones Olvidados',
+    rarity: 'epico',
+    patk: 10,
+    matk: 64,
+    atk: 64,
+    spd: 8,
+    crit: 0.12,
+    desc: 'Tomo encuadernado con piel de cometa repleto de fórmulas esotéricas de altísimo calibre.'
+  },
+  {
+    id: 'wp_14',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: null,
+    name: 'Vara del Trueno Galáctico',
+    rarity: 'epico',
+    patk: 14,
+    matk: 68,
+    atk: 68,
+    crit: 0.15,
+    desc: 'Canaliza plasma de tormentas solares en descargas arcanas capaces de pulverizar barreras.'
+  },
+  {
+    id: 'wp_12',
+    type: 'weapon',
+    subType: 'arma_magica',
+    categoryTag: '🔮 Mágico',
+    damageType: 'magical',
+    setId: null,
+    name: 'Cetro de la Supernova Astral',
+    rarity: 'legendario',
+    patk: 16,
+    matk: 96,
+    atk: 96,
+    mdef: 25,
+    crit: 0.16,
+    desc: 'Contiene el remanente concentrado de un sol extinto. Desata cataclismos de magia pura.'
+  },
 
-  // RELIQUIAS
-  { id: 'rl_01', type: 'relic', setId: 'set_starlight', name: 'Fragmento de Cuarzo Místico', rarity: 'comun', hp: 25, spd: 4, desc: 'Pulso suave que afina los sentidos astrales.' },
-  { id: 'rl_02', type: 'relic', setId: 'set_lunar', name: 'Lágrima Congelada de Neptuno', rarity: 'raro', spd: 10, crit: 0.05, desc: 'Permite deslizarse entre las corrientes temporales.' },
-  { id: 'rl_03', type: 'relic', setId: 'set_solar', name: 'Anillo de los Anillos de Saturno', rarity: 'epico', def: 20, spd: 12, desc: 'Manipula la gravedad alrededor de su portador.' },
-  { id: 'rl_04', type: 'relic', setId: 'set_cosmic', name: 'Ojo Omnisciente de Ra', rarity: 'legendario', atk: 35, crit: 0.12, hp: 120, desc: 'Otorga la clarividencia de los antiguos dioses solares.' }
+  // ==========================================
+  // ARMADURAS PESADAS (PDEF Superior, Bloqueo de Impactos Físicos)
+  // ==========================================
+  {
+    id: 'ar_02',
+    type: 'armor',
+    subType: 'armadura_pesada',
+    categoryTag: '🛡️ Pesada',
+    armorType: 'heavy',
+    setId: 'set_lunar',
+    name: 'Pechera de Roca Lunar',
+    rarity: 'raro',
+    hp: 110,
+    pdef: 26,
+    mdef: 12,
+    def: 26,
+    desc: 'Piedra basáltica extraída de la cara oculta de la Luna; resiste fuertes impactos físicos.'
+  },
+  {
+    id: 'ar_03',
+    type: 'armor',
+    subType: 'armadura_pesada',
+    categoryTag: '🛡️ Pesada',
+    armorType: 'heavy',
+    setId: 'set_solar',
+    name: 'Coraza del Coloso Tauro',
+    rarity: 'epico',
+    hp: 230,
+    pdef: 52,
+    mdef: 22,
+    def: 52,
+    desc: 'Forjada en el corazón de un asteroide de hierro macizo; una muralla ante el daño físico.'
+  },
+  {
+    id: 'ar_11',
+    type: 'armor',
+    subType: 'armadura_pesada',
+    categoryTag: '🛡️ Pesada',
+    armorType: 'heavy',
+    setId: null,
+    name: 'Coraza Forjada de Vulcano',
+    rarity: 'epico',
+    hp: 260,
+    pdef: 58,
+    mdef: 18,
+    def: 58,
+    desc: 'Placas reforzadas en fraguas estelares diseñadas para detener las armas más contundentes.'
+  },
+  {
+    id: 'ar_04',
+    type: 'armor',
+    subType: 'armadura_pesada',
+    categoryTag: '🛡️ Pesada',
+    armorType: 'heavy',
+    setId: 'set_cosmic',
+    name: 'Armadura Sagrada de Casiopea',
+    rarity: 'legendario',
+    hp: 390,
+    pdef: 76,
+    mdef: 48,
+    def: 76,
+    desc: 'Brilla con la soberanía intocable de la reina estelar; neutraliza embates colosales.'
+  },
+  {
+    id: 'ar_09',
+    type: 'armor',
+    subType: 'armadura_pesada',
+    categoryTag: '🛡️ Pesada',
+    armorType: 'heavy',
+    setId: 'set_aegis',
+    name: 'Bastión Viviente del Titán',
+    rarity: 'legendario',
+    hp: 480,
+    pdef: 92,
+    mdef: 40,
+    def: 92,
+    desc: 'Armadura titánica impenetrable que convierte al portador en un monolito inamovible.'
+  },
+
+  // ==========================================
+  // TÚNICAS & MANTOS MÁGICOS (MDEF Superior, Bono MATK)
+  // ==========================================
+  {
+    id: 'ar_01',
+    type: 'armor',
+    subType: 'tunica_magica',
+    categoryTag: '✨ Túnica',
+    armorType: 'robe',
+    setId: 'set_starlight',
+    name: 'Manto de Seda Astral',
+    rarity: 'comun',
+    hp: 45,
+    pdef: 6,
+    mdef: 15,
+    def: 15,
+    matk: 6,
+    desc: 'Tejido suave bendecido por la brisa cósmica; disipa leves ráfagas de energía mágica.'
+  },
+  {
+    id: 'ar_07',
+    type: 'armor',
+    subType: 'tunica_magica',
+    categoryTag: '✨ Túnica',
+    armorType: 'robe',
+    setId: null,
+    name: 'Hábito de la Luna Sangrienta',
+    rarity: 'raro',
+    hp: 105,
+    pdef: 12,
+    mdef: 34,
+    def: 34,
+    matk: 14,
+    desc: 'Vestidura ritual consagrada en eclipses lunares; absorbe hechizos y nutre el éter propio.'
+  },
+  {
+    id: 'ar_06',
+    type: 'armor',
+    subType: 'tunica_magica',
+    categoryTag: '✨ Túnica',
+    armorType: 'robe',
+    setId: 'set_archmage',
+    name: 'Toga Arcana de los Astros',
+    rarity: 'epico',
+    hp: 170,
+    pdef: 18,
+    mdef: 58,
+    def: 58,
+    matk: 26,
+    desc: 'Grabada con runas de protección mágica suprema; genera un campo que refracta maleficios.'
+  },
+  {
+    id: 'ar_12',
+    type: 'armor',
+    subType: 'tunica_magica',
+    categoryTag: '✨ Túnica',
+    armorType: 'robe',
+    setId: null,
+    name: 'Túnica Celestial del Serafín',
+    rarity: 'legendario',
+    hp: 290,
+    pdef: 32,
+    mdef: 86,
+    def: 86,
+    matk: 42,
+    desc: 'Hilada con filamentos de luz pura; anula la mayor parte del daño mágico hostil.'
+  },
+
+  // ==========================================
+  // ARMADURAS LIGERAS / ÁGILES (Equilibrio DEF, Bono VEL y CRÍT)
+  // ==========================================
+  {
+    id: 'ar_08',
+    type: 'armor',
+    subType: 'armadura_agil',
+    categoryTag: '🍃 Ágil',
+    armorType: 'light',
+    setId: null,
+    name: 'Jubón de Plumas de Viento',
+    rarity: 'comun',
+    hp: 55,
+    pdef: 10,
+    mdef: 10,
+    def: 10,
+    spd: 6,
+    desc: 'Prenda ligera que otorga gran libertad de movimiento sin añadir peso innecesario.'
+  },
+  {
+    id: 'ar_05',
+    type: 'armor',
+    subType: 'armadura_agil',
+    categoryTag: '🍃 Ágil',
+    armorType: 'light',
+    setId: 'set_shadow',
+    name: 'Capa del Cazador de Sombras',
+    rarity: 'raro',
+    hp: 95,
+    pdef: 20,
+    mdef: 20,
+    def: 20,
+    spd: 10,
+    crit: 0.06,
+    desc: 'Se confunde con las sombras nocturnas, facilitando esquives y golpes mortales.'
+  },
+  {
+    id: 'ar_10',
+    type: 'armor',
+    subType: 'armadura_agil',
+    categoryTag: '🍃 Ágil',
+    armorType: 'light',
+    setId: null,
+    name: 'Manto Fantasmal de Quimera',
+    rarity: 'epico',
+    hp: 180,
+    pdef: 35,
+    mdef: 35,
+    def: 35,
+    spd: 14,
+    crit: 0.08,
+    desc: 'Tejido dimensional que parpadea entre planos, brindando velocidad y balance defensivo.'
+  },
+
+  // ==========================================
+  // RELIQUIAS MARCIALES / FÍSICAS (PATK, PDEF, CRÍT Físico)
+  // ==========================================
+  {
+    id: 'rl_05',
+    type: 'relic',
+    subType: 'reliquia_marcial',
+    categoryTag: '⚡ Marcial',
+    setId: 'set_shadow',
+    name: 'Colmillo del Lobo Sideral',
+    rarity: 'raro',
+    patk: 24,
+    matk: 0,
+    atk: 24,
+    spd: 7,
+    crit: 0.08,
+    desc: 'Reliquia feral que afila los instintos cazadores y eleva la probabilidad de asestar golpes críticos.'
+  },
+  {
+    id: 'rl_03',
+    type: 'relic',
+    subType: 'reliquia_marcial',
+    categoryTag: '⚡ Marcial',
+    setId: 'set_solar',
+    name: 'Anillo de los Anillos de Saturno',
+    rarity: 'epico',
+    patk: 18,
+    matk: 0,
+    atk: 18,
+    pdef: 28,
+    mdef: 16,
+    def: 28,
+    spd: 12,
+    desc: 'Manipula la gravedad local para aumentar la firmeza del portador y la inercia de sus ataques.'
+  },
+  {
+    id: 'rl_10',
+    type: 'relic',
+    subType: 'reliquia_marcial',
+    categoryTag: '⚡ Marcial',
+    setId: null,
+    name: 'Guantelete de Furia Marciana',
+    rarity: 'epico',
+    patk: 38,
+    matk: 0,
+    atk: 38,
+    hp: 90,
+    crit: 0.10,
+    desc: 'Canaliza el fervor de la guerra marciana en cada golpe cuerpo a cuerpo.'
+  },
+  {
+    id: 'rl_13',
+    type: 'relic',
+    subType: 'reliquia_marcial',
+    categoryTag: '⚡ Marcial',
+    setId: 'set_aegis',
+    name: 'Talismán Pétreo del Titán',
+    rarity: 'legendario',
+    hp: 200,
+    patk: 22,
+    matk: 0,
+    atk: 22,
+    pdef: 40,
+    mdef: 22,
+    def: 40,
+    desc: 'Fragmento del núcleo terrestre que confiere una estabilidad pétrea inquebrantable.'
+  },
+
+  // ==========================================
+  // RELIQUIAS ARCANAS / MÁGICAS (MATK, MDEF, Éter)
+  // ==========================================
+  {
+    id: 'rl_01',
+    type: 'relic',
+    subType: 'reliquia_arcana',
+    categoryTag: '🌀 Arcana',
+    setId: 'set_starlight',
+    name: 'Fragmento de Cuarzo Místico',
+    rarity: 'comun',
+    hp: 30,
+    patk: 0,
+    matk: 12,
+    atk: 12,
+    mdef: 8,
+    spd: 4,
+    desc: 'Cristal que pulsa al unísono con el éter, facilitando la canalización elemental.'
+  },
+  {
+    id: 'rl_02',
+    type: 'relic',
+    subType: 'reliquia_arcana',
+    categoryTag: '🌀 Arcana',
+    setId: 'set_lunar',
+    name: 'Lágrima Congelada de Neptuno',
+    rarity: 'raro',
+    patk: 0,
+    matk: 22,
+    atk: 22,
+    mdef: 18,
+    spd: 9,
+    crit: 0.05,
+    desc: 'Gema que condensa la frialdad oceánica, aumentando la potencia de los hechizos.'
+  },
+  {
+    id: 'rl_11',
+    type: 'relic',
+    subType: 'reliquia_arcana',
+    categoryTag: '🌀 Arcana',
+    setId: null,
+    name: 'Foco del Firmamento Índigo',
+    rarity: 'raro',
+    patk: 0,
+    matk: 26,
+    atk: 26,
+    mdef: 14,
+    hp: 60,
+    desc: 'Lente esotérica que amplifica el campo mágico personal y dispersa perturbaciones.'
+  },
+  {
+    id: 'rl_06',
+    type: 'relic',
+    subType: 'reliquia_arcana',
+    categoryTag: '🌀 Arcana',
+    setId: 'set_archmage',
+    name: 'Prisma del Ojo Arcano',
+    rarity: 'epico',
+    patk: 0,
+    matk: 44,
+    atk: 44,
+    mdef: 24,
+    crit: 0.09,
+    desc: 'Descompone el éter en frecuencias de alta intensidad para maximizar el daño mágico.'
+  },
+  {
+    id: 'rl_09',
+    type: 'relic',
+    subType: 'reliquia_arcana',
+    categoryTag: '🌀 Arcana',
+    setId: null,
+    name: 'Reloj de Arena Cuántico',
+    rarity: 'legendario',
+    patk: 0,
+    matk: 56,
+    atk: 56,
+    mdef: 32,
+    spd: 16,
+    crit: 0.10,
+    desc: 'Los granos de arena fluyen en reversa, acelerando la cadencia de conjuros celestiales.'
+  },
+
+  // ==========================================
+  // RELIQUIAS TÁCTICAS / UNIVERSALES (Híbridas, Vida, Atributos)
+  // ==========================================
+  {
+    id: 'rl_07',
+    type: 'relic',
+    subType: 'reliquia_tactica',
+    categoryTag: '💠 Táctica',
+    setId: null,
+    name: 'Brújula Astral de Navegante',
+    rarity: 'comun',
+    hp: 40,
+    pdef: 8,
+    mdef: 8,
+    def: 8,
+    spd: 7,
+    desc: 'Instrumento tradicional para sortear tormentas magnéticas y conservar la orientación.'
+  },
+  {
+    id: 'rl_08',
+    type: 'relic',
+    subType: 'reliquia_tactica',
+    categoryTag: '💠 Táctica',
+    setId: null,
+    name: 'Amuleto del Fénix Renacido',
+    rarity: 'epico',
+    hp: 160,
+    patk: 16,
+    matk: 16,
+    atk: 16,
+    pdef: 20,
+    mdef: 20,
+    def: 20,
+    spd: 9,
+    desc: 'Lleno de cenizas sagradas que renuevan el vigor del portador ante la adversidad.'
+  },
+  {
+    id: 'rl_04',
+    type: 'relic',
+    subType: 'reliquia_tactica',
+    categoryTag: '💠 Táctica',
+    setId: 'set_cosmic',
+    name: 'Ojo Omnisciente de Ra',
+    rarity: 'legendario',
+    patk: 32,
+    matk: 32,
+    atk: 32,
+    hp: 150,
+    crit: 0.12,
+    desc: 'Otorga la clarividencia de los antiguos dioses solares, potenciando tanto acero como magia.'
+  },
+  {
+    id: 'rl_12',
+    type: 'relic',
+    subType: 'reliquia_tactica',
+    categoryTag: '💠 Táctica',
+    setId: null,
+    name: 'Sello de la Corona Zodiacal',
+    rarity: 'legendario',
+    hp: 220,
+    patk: 32,
+    matk: 32,
+    atk: 32,
+    pdef: 28,
+    mdef: 28,
+    def: 28,
+    spd: 12,
+    crit: 0.08,
+    desc: 'Insignia sagrada que unifica los 12 elementos celestes en un balance total.'
+  }
 ];
 
 export const TWELVE_HOUSES_STAGES = [
@@ -1487,6 +2266,35 @@ export function getOrCreateHeroProfile(userProfile) {
         }
         if (userProfile?.name && (!saved.name || saved.name === 'Sintonizador Astral')) {
           saved.name = userProfile.name;
+        }
+        // Migrar estadísticas para incluir división de daño físico y mágico
+        if (!saved.stats || saved.stats.patk === undefined) {
+          saved.stats = {
+            ...heroClass.baseStats,
+            ...(saved.stats || {})
+          };
+          if (saved.stats.patk === undefined) saved.stats.patk = heroClass.baseStats.patk || heroClass.baseStats.atk;
+          if (saved.stats.matk === undefined) saved.stats.matk = heroClass.baseStats.matk || heroClass.baseStats.atk;
+          if (saved.stats.pdef === undefined) saved.stats.pdef = heroClass.baseStats.pdef || heroClass.baseStats.def;
+          if (saved.stats.mdef === undefined) saved.stats.mdef = heroClass.baseStats.mdef || heroClass.baseStats.def;
+        }
+        // Enriquecer items equipados e inventario con los nuevos atributos del catálogo
+        if (saved.equipped) {
+          for (const slot of ['weapon', 'armor', 'relic']) {
+            if (saved.equipped[slot]?.id) {
+              const catalogItem = EQUIPMENT_CATALOG.find(c => c.id === saved.equipped[slot].id);
+              if (catalogItem) {
+                saved.equipped[slot] = { ...catalogItem, ...saved.equipped[slot] };
+              }
+            }
+          }
+        }
+        if (Array.isArray(saved.inventory)) {
+          saved.inventory = saved.inventory.map(item => {
+            if (!item?.id) return item;
+            const catalogItem = EQUIPMENT_CATALOG.find(c => c.id === item.id);
+            return catalogItem ? { ...catalogItem, ...item } : item;
+          });
         }
         if (!Array.isArray(saved.equippedSkills) || saved.equippedSkills.length === 0) {
           const signTree = ZODIAC_SKILL_TREES[saved.sign] || ZODIAC_SKILL_TREES['Aries'];

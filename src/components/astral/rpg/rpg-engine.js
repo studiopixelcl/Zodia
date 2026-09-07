@@ -42,28 +42,53 @@ export function getDailyTransitBuff() {
  * Calcula las estadísticas efectivas de una pieza de equipo considerando su nivel de mejora (+1 a +10)
  * y cualquier gema de encantamiento elemental engarzada.
  */
+/**
+ * Calcula las estadísticas efectivas de una pieza de equipo considerando su nivel de mejora (+1 a +10)
+ * y cualquier gema de encantamiento elemental engarzada.
+ */
 export function getItemEffectiveStats(item) {
-  if (!item) return { atk: 0, def: 0, hp: 0, spd: 0, crit: 0 };
+  if (!item) return { patk: 0, matk: 0, atk: 0, pdef: 0, mdef: 0, def: 0, hp: 0, spd: 0, crit: 0 };
   const level = item.upgradeLevel || 0;
   const upgradeMultiplier = 1 + (level * 0.12); // +12% a atributos primarios por nivel
 
-  let atk = item.atk ? Math.round(item.atk * upgradeMultiplier) : 0;
-  let def = item.def ? Math.round(item.def * upgradeMultiplier) : 0;
+  let patk = item.patk ? Math.round(item.patk * upgradeMultiplier) : (item.atk && item.damageType !== 'magical' ? Math.round(item.atk * upgradeMultiplier) : 0);
+  let matk = item.matk ? Math.round(item.matk * upgradeMultiplier) : (item.atk && item.damageType === 'magical' ? Math.round(item.atk * upgradeMultiplier) : 0);
+  let pdef = item.pdef ? Math.round(item.pdef * upgradeMultiplier) : (item.def && item.armorType !== 'robe' ? Math.round(item.def * upgradeMultiplier) : 0);
+  let mdef = item.mdef ? Math.round(item.mdef * upgradeMultiplier) : (item.def && item.armorType === 'robe' ? Math.round(item.def * upgradeMultiplier) : 0);
   let hp = item.hp ? Math.round(item.hp * upgradeMultiplier) : 0;
   let spd = item.spd ? item.spd + Math.floor(level / 2) : 0;
   let crit = item.crit ? +(item.crit + (level * 0.01)).toFixed(3) : 0;
 
+  // Si no se definió pdef/mdef pero sí def (ej. legado)
+  if (!pdef && !mdef && item.def) {
+    pdef = Math.round(item.def * upgradeMultiplier);
+    mdef = Math.round(item.def * upgradeMultiplier);
+  }
+
   // Añadir bonos por gema de encantamiento si existe
   if (item.enchantment && item.enchantment.bonusStats) {
     const eb = item.enchantment.bonusStats;
-    if (eb.atk) atk += eb.atk;
-    if (eb.def) def += eb.def;
+    if (eb.patk) patk += eb.patk;
+    if (eb.matk) matk += eb.matk;
+    if (eb.atk) {
+      patk += eb.atk;
+      matk += eb.atk;
+    }
+    if (eb.pdef) pdef += eb.pdef;
+    if (eb.mdef) mdef += eb.mdef;
+    if (eb.def) {
+      pdef += eb.def;
+      mdef += eb.def;
+    }
     if (eb.hp) hp += eb.hp;
     if (eb.spd) spd += eb.spd;
     if (eb.crit) crit += eb.crit;
   }
 
-  return { atk, def, hp, spd, crit };
+  const atk = Math.max(patk, matk);
+  const def = Math.round((pdef + mdef) / 2);
+
+  return { patk, matk, atk, pdef, mdef, def, hp, spd, crit };
 }
 
 /**
@@ -72,44 +97,57 @@ export function getItemEffectiveStats(item) {
 export function calculateHeroTotalStats(hero) {
   if (!hero) {
     return {
-      baseStats: { hp: 400, atk: 50, def: 25, spd: 30, critRate: 0.15 },
-      gearStats: { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0, power: 0 },
+      baseStats: { hp: 400, patk: 50, matk: 50, atk: 50, pdef: 25, mdef: 25, def: 25, spd: 30, critRate: 0.15 },
+      gearStats: { hp: 0, patk: 0, matk: 0, atk: 0, pdef: 0, mdef: 0, def: 0, spd: 0, critRate: 0, power: 0 },
       activeSets: [],
       totalPower: 0,
       maxHp: 400,
+      patk: 50,
+      matk: 50,
       atk: 50,
+      pdef: 25,
+      mdef: 25,
       def: 25,
       spd: 30,
       critRate: 0.15
     };
   }
-  const base = hero.stats || ZODIAC_HERO_CLASSES[hero.sign]?.baseStats || { hp: 400, atk: 50, def: 25, spd: 30, critRate: 0.15 };
+  const heroClass = ZODIAC_HERO_CLASSES[hero.sign];
+  const base = hero.stats || heroClass?.baseStats || { hp: 400, patk: 50, matk: 50, atk: 50, pdef: 25, mdef: 25, def: 25, spd: 30, critRate: 0.15 };
   const level = hero.level || 1;
   const levelBonus = (level - 1) * 0.08; // 8% por nivel
 
-  const baseHp = Math.round(base.hp * (1 + levelBonus));
-  const baseAtk = Math.round(base.atk * (1 + levelBonus));
-  const baseDef = Math.round(base.def * (1 + levelBonus));
-  const baseSpd = Math.round(base.spd * (1 + levelBonus * 0.5));
+  const baseHp = Math.round((base.hp || 400) * (1 + levelBonus));
+  const basePatk = Math.round((base.patk ?? base.atk ?? 50) * (1 + levelBonus));
+  const baseMatk = Math.round((base.matk ?? base.atk ?? 50) * (1 + levelBonus));
+  const basePdef = Math.round((base.pdef ?? base.def ?? 25) * (1 + levelBonus));
+  const baseMdef = Math.round((base.mdef ?? base.def ?? 25) * (1 + levelBonus));
+  const baseAtk = Math.max(basePatk, baseMatk);
+  const baseDef = Math.round((basePdef + baseMdef) / 2);
+  const baseSpd = Math.round((base.spd || 30) * (1 + levelBonus * 0.5));
   const baseCritRate = base.critRate || 0.15;
 
   let maxHp = baseHp;
-  let atk = baseAtk;
-  let def = baseDef;
+  let patk = basePatk;
+  let matk = baseMatk;
+  let pdef = basePdef;
+  let mdef = baseMdef;
   let spd = baseSpd;
   let critRate = baseCritRate;
 
   // Estadísticas aportadas EXCLUSIVAMENTE por piezas de equipo
-  const gearStats = { hp: 0, atk: 0, def: 0, spd: 0, critRate: 0, power: 0 };
+  const gearStats = { hp: 0, patk: 0, matk: 0, atk: 0, pdef: 0, mdef: 0, def: 0, spd: 0, critRate: 0, power: 0 };
 
   const eq = hero.equipped || {};
   for (const slot of ['weapon', 'armor', 'relic']) {
     const item = eq[slot];
     if (item) {
       const eff = getItemEffectiveStats(item);
-      if (eff.atk) { atk += eff.atk; gearStats.atk += eff.atk; }
+      if (eff.patk) { patk += eff.patk; gearStats.patk += eff.patk; }
+      if (eff.matk) { matk += eff.matk; gearStats.matk += eff.matk; }
+      if (eff.pdef) { pdef += eff.pdef; gearStats.pdef += eff.pdef; }
+      if (eff.mdef) { mdef += eff.mdef; gearStats.mdef += eff.mdef; }
       if (eff.hp) { maxHp += eff.hp; gearStats.hp += eff.hp; }
-      if (eff.def) { def += eff.def; gearStats.def += eff.def; }
       if (eff.spd) { spd += eff.spd; gearStats.spd += eff.spd; }
       if (eff.crit) { critRate += eff.crit; gearStats.critRate += eff.crit; }
     }
@@ -120,23 +158,34 @@ export function calculateHeroTotalStats(hero) {
   for (const setInfo of activeSets) {
     const b = setInfo.bonusStats;
     if (b.hp) { maxHp += b.hp; gearStats.hp += b.hp; }
-    if (b.atk) { atk += b.atk; gearStats.atk += b.atk; }
-    if (b.def) { def += b.def; gearStats.def += b.def; }
+    if (b.patk) { patk += b.patk; gearStats.patk += b.patk; }
+    if (b.matk) { matk += b.matk; gearStats.matk += b.matk; }
+    if (b.pdef) { pdef += b.pdef; gearStats.pdef += b.pdef; }
+    if (b.mdef) { mdef += b.mdef; gearStats.mdef += b.mdef; }
     if (b.spd) { spd += b.spd; gearStats.spd += b.spd; }
     if (b.critRate) { critRate += b.critRate; gearStats.critRate += b.critRate; }
   }
 
+  const atk = Math.max(patk, matk);
+  const def = Math.round((pdef + mdef) / 2);
+  gearStats.atk = Math.max(gearStats.patk, gearStats.matk);
+  gearStats.def = Math.round((gearStats.pdef + gearStats.mdef) / 2);
+
   // Cálculo de Poder Cósmico (Gear Score)
-  gearStats.power = (gearStats.atk * 3) + Math.round(gearStats.hp * 0.8) + (gearStats.def * 2.5) + (gearStats.spd * 2) + Math.round(gearStats.critRate * 300);
-  const totalPower = (atk * 3) + Math.round(maxHp * 0.8) + (def * 2.5) + (spd * 2) + Math.round(critRate * 300);
+  gearStats.power = Math.round((gearStats.patk * 1.6) + (gearStats.matk * 1.6) + (gearStats.hp * 0.7) + (gearStats.pdef * 1.4) + (gearStats.mdef * 1.4) + (gearStats.spd * 2) + (gearStats.critRate * 300));
+  const totalPower = Math.round((patk * 1.6) + (matk * 1.6) + (maxHp * 0.7) + (pdef * 1.4) + (mdef * 1.4) + (spd * 2) + (critRate * 300));
 
   return { 
-    baseStats: { hp: baseHp, atk: baseAtk, def: baseDef, spd: baseSpd, critRate: baseCritRate },
+    baseStats: { hp: baseHp, patk: basePatk, matk: baseMatk, atk: baseAtk, pdef: basePdef, mdef: baseMdef, def: baseDef, spd: baseSpd, critRate: baseCritRate },
     gearStats,
     activeSets,
     totalPower,
     maxHp, 
+    patk,
+    matk,
     atk, 
+    pdef,
+    mdef,
     def, 
     spd, 
     critRate: Math.min(0.85, critRate) 
@@ -160,7 +209,8 @@ export function getElementalMultiplier(attackerElem, defenderElem) {
 }
 
 /**
- * Calcula el daño de una habilidad o ataque considerando ventajas, tránsitos, posiciones tácticas y posturas
+ * Calcula el daño de una habilidad o ataque considerando ventajas, tránsitos, posiciones tácticas y posturas.
+ * Soporta daño Físico (patk vs pdef) y Mágico (matk vs mdef).
  */
 export function calculateDamage(
   attacker, 
@@ -175,11 +225,20 @@ export function calculateDamage(
     defenderPosition = 'frontline', 
     stance = null, 
     isStaggered = false, 
-    mutator = null 
+    mutator = null,
+    damageType = 'physical'
   } = tactics;
 
-  let atk = attacker.atk || 50;
-  let def = defender.def || 25;
+  // Selección de estadísticas según tipo de daño (Físico vs Mágico)
+  const isMagical = damageType === 'magical';
+  let effectiveAtk = isMagical 
+    ? (attacker.matk ?? attacker.atk ?? 50)
+    : (attacker.patk ?? attacker.atk ?? 50);
+
+  let effectiveDef = isMagical
+    ? (defender.mdef ?? defender.def ?? 25)
+    : (defender.pdef ?? defender.def ?? 25);
+
   const attackerElem = attacker.element;
   const defenderElem = defender.element;
 
@@ -199,12 +258,13 @@ export function calculateDamage(
   if (attackerPosition === 'frontline') {
     positionMult *= 1.20; // +20% Daño ofensivo en vanguardia
   } else if (attackerPosition === 'backline') {
-    positionMult *= 0.85; // Menos daño físico a distancia
+    // La magia no tiene penalización de distancia desde retaguardia; el daño físico sí
+    positionMult *= isMagical ? 1.05 : 0.85;
   }
 
-  // Si el defensor está en Retaguardia, absorbe un 30% del impacto directo
+  // Si el defensor está en Retaguardia, absorbe un 30% del impacto físico, o 15% del mágico
   if (defenderPosition === 'backline') {
-    positionMult *= 0.70;
+    positionMult *= isMagical ? 0.85 : 0.70;
   }
 
   // Multiplicador por Ruptura Cósmica (Stagger / Rotura de Guardia)
@@ -223,8 +283,8 @@ export function calculateDamage(
   // Bono de tránsito lunar (+15% si coincide el elemento)
   const transitMult = (transitElement && attackerElem === transitElement) ? 1.15 : 1.0;
 
-  // Fórmula de mitigación de daño clásica Zodia (Equilibrada para combates tácticos)
-  const rawDamage = Math.max(16, (atk * 1.15 - def * 0.55) * skillMultiplier * stanceDamageMult * positionMult * staggerMult * mutatorMult);
+  // Fórmula de mitigación de daño Zodia Physical vs Magical
+  const rawDamage = Math.max(16, (effectiveAtk * 1.15 - effectiveDef * 0.55) * skillMultiplier * stanceDamageMult * positionMult * staggerMult * mutatorMult);
 
   // Tirada de crítico
   const critRoll = Math.random();
@@ -240,6 +300,9 @@ export function calculateDamage(
   return {
     damage: finalDamage,
     isCrit,
+    damageType: isMagical ? 'magical' : 'physical',
+    effectiveAtk,
+    effectiveDef,
     elemStatus,
     hasTransitBoost: transitElement && attackerElem === transitElement,
     isSuperEffective: elemStatus === 'super_effective',

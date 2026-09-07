@@ -73,14 +73,17 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           </div>
         </div>
 
-        {/* Nivel y Nombre */}
+        {/* Nivel, Arquetipo y Nombre */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
             <span className="text-xs px-2 py-0.5 rounded-md bg-white/10 border border-white/20 font-mono text-cyan-300 font-bold">
-              NIVEL {hero.level}
+              NV {hero.level}
             </span>
-            <span className="text-xs text-gray-400 font-light truncate">
-              {heroClass.title}
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 font-semibold truncate">
+              {heroClass.archetype || heroClass.title}
+            </span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/5 border border-white/10 text-gray-300">
+              {heroClass.primaryDamageType === 'physical' ? '⚔️ Físico' : heroClass.primaryDamageType === 'magical' ? '🔮 Mágico' : '⚖️ Híbrido'}
             </span>
           </div>
           <h3 className="mystic-font text-lg text-white font-bold truncate">
@@ -104,10 +107,10 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
       </div>
 
       {/* Recursos: Polvo Estelar y Rango PvP */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Coins size={16} className="text-amber-400" />
+            <Coins size={15} className="text-amber-400" />
             <span className="text-xs text-gray-300">Polvo Estelar</span>
           </div>
           <span className="text-sm font-bold text-amber-300 font-mono">
@@ -115,9 +118,9 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           </span>
         </div>
 
-        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+        <div className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Award size={16} className="text-purple-400" />
+            <Award size={15} className="text-purple-400" />
             <span className="text-xs text-gray-300">Rango</span>
           </div>
           <span className="text-xs font-bold text-purple-300 truncate">
@@ -126,32 +129,61 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
         </div>
       </div>
 
-      {/* Cuadrícula de Estadísticas de Batalla */}
-      <div className="grid grid-cols-5 gap-1.5 p-3 rounded-xl bg-black/40 border border-white/5 mb-4 text-center">
-        <div className="flex flex-col items-center">
-          <Heart size={14} className="text-red-400 mb-1" />
-          <span className="text-[10px] text-gray-400">VIDA</span>
-          <span className="text-xs font-bold text-white font-mono">{totalStats.maxHp}</span>
+      {/* Cuadrícula de Estadísticas de Batalla (Dividido en Físico y Mágico) */}
+      <div className="p-2.5 rounded-xl bg-black/50 border border-white/10 mb-4 space-y-2">
+        {/* Fila 1: Ofensiva y Vida */}
+        <div className="grid grid-cols-3 gap-1.5 text-center">
+          <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[10px] text-red-300 font-semibold mb-0.5">
+              <Heart size={12} className="text-red-400" /> VIDA
+            </div>
+            <span className="text-xs font-bold text-white font-mono">{totalStats.maxHp}</span>
+          </div>
+
+          <div className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[10px] text-orange-300 font-semibold mb-0.5">
+              <Sword size={12} className="text-orange-400" /> ATQ FÍS.
+            </div>
+            <span className="text-xs font-bold text-orange-200 font-mono">{totalStats.patk}</span>
+          </div>
+
+          <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[10px] text-purple-300 font-semibold mb-0.5">
+              <Sparkles size={12} className="text-purple-400" /> ATQ MÁG.
+            </div>
+            <span className="text-xs font-bold text-purple-200 font-mono">{totalStats.matk}</span>
+          </div>
         </div>
-        <div className="flex flex-col items-center">
-          <Sword size={14} className="text-orange-400 mb-1" />
-          <span className="text-[10px] text-gray-400">ATQ</span>
-          <span className="text-xs font-bold text-white font-mono">{totalStats.atk}</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <Shield size={14} className="text-blue-400 mb-1" />
-          <span className="text-[10px] text-gray-400">DEF</span>
-          <span className="text-xs font-bold text-white font-mono">{totalStats.def}</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <Zap size={14} className="text-yellow-400 mb-1" />
-          <span className="text-[10px] text-gray-400">VEL</span>
-          <span className="text-xs font-bold text-white font-mono">{totalStats.spd}</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <Crosshair size={14} className="text-cyan-400 mb-1" />
-          <span className="text-[10px] text-gray-400">CRÍT</span>
-          <span className="text-xs font-bold text-white font-mono">{Math.round(totalStats.critRate * 100)}%</span>
+
+        {/* Fila 2: Defensas, Velocidad y Crítico */}
+        <div className="grid grid-cols-4 gap-1.5 text-center">
+          <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[9px] text-blue-300 font-semibold mb-0.5">
+              <Shield size={11} className="text-blue-400" /> DEF FÍS.
+            </div>
+            <span className="text-xs font-bold text-blue-200 font-mono">{totalStats.pdef}</span>
+          </div>
+
+          <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[9px] text-indigo-300 font-semibold mb-0.5">
+              <Shield size={11} className="text-indigo-400" /> DEF MÁG.
+            </div>
+            <span className="text-xs font-bold text-indigo-200 font-mono">{totalStats.mdef}</span>
+          </div>
+
+          <div className="p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[9px] text-yellow-300 font-semibold mb-0.5">
+              <Zap size={11} className="text-yellow-400" /> VEL
+            </div>
+            <span className="text-xs font-bold text-yellow-200 font-mono">{totalStats.spd}</span>
+          </div>
+
+          <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center">
+            <div className="flex items-center gap-1 text-[9px] text-cyan-300 font-semibold mb-0.5">
+              <Crosshair size={11} className="text-cyan-400" /> CRÍT
+            </div>
+            <span className="text-xs font-bold text-cyan-200 font-mono">{Math.round(totalStats.critRate * 100)}%</span>
+          </div>
         </div>
       </div>
 
@@ -185,9 +217,16 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           {/* Arma */}
           <div 
             onClick={onOpenInventory}
-            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.weapon ? RARITIES[hero.equipped.weapon.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center`}
+            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.weapon ? RARITIES[hero.equipped.weapon.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center relative`}
           >
-            <span className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Arma</span>
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[9px] text-gray-400 uppercase tracking-wider">Arma</span>
+              {hero.equipped?.weapon?.categoryTag && (
+                <span className="text-[8px] font-bold text-gray-300 px-1 py-0.2 rounded bg-black/40">
+                  {hero.equipped.weapon.categoryTag}
+                </span>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 mb-1">
               <Sword size={16} />
             </div>
@@ -199,9 +238,16 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           {/* Armadura */}
           <div 
             onClick={onOpenInventory}
-            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.armor ? RARITIES[hero.equipped.armor.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center`}
+            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.armor ? RARITIES[hero.equipped.armor.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center relative`}
           >
-            <span className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Armadura</span>
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[9px] text-gray-400 uppercase tracking-wider">Armadura</span>
+              {hero.equipped?.armor?.categoryTag && (
+                <span className="text-[8px] font-bold text-gray-300 px-1 py-0.2 rounded bg-black/40">
+                  {hero.equipped.armor.categoryTag}
+                </span>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-1">
               <Shield size={16} />
             </div>
@@ -213,9 +259,16 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree }) {
           {/* Reliquia */}
           <div 
             onClick={onOpenInventory}
-            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.relic ? RARITIES[hero.equipped.relic.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center`}
+            className={`p-2 rounded-xl bg-white/5 border ${hero.equipped?.relic ? RARITIES[hero.equipped.relic.rarity]?.border : 'border-white/10'} hover:border-cyan-400 cursor-pointer transition-all flex flex-col items-center text-center relative`}
           >
-            <span className="text-[9px] text-gray-400 uppercase tracking-wider mb-1">Reliquia</span>
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[9px] text-gray-400 uppercase tracking-wider">Reliquia</span>
+              {hero.equipped?.relic?.categoryTag && (
+                <span className="text-[8px] font-bold text-gray-300 px-1 py-0.2 rounded bg-black/40">
+                  {hero.equipped.relic.categoryTag}
+                </span>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-1">
               <Sparkles size={16} />
             </div>
