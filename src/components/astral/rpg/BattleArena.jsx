@@ -27,9 +27,13 @@ import {
 } from './rpg-engine';
 import { 
   playBattleSlashSound, 
+  playBattleAttackSound,
   playBattleHeavyHitSound, 
+  playBattleHitSound,
   playBattleCritStrikeSound, 
+  playBattleCritSound,
   playBattleShieldClangSound, 
+  playBattleShieldSound,
   playBattleHealSound, 
   playBattleVictorySound, 
   playBattleDefeatSound,
@@ -51,6 +55,15 @@ export function BattleArena({
   onBack,
   onExitToMenu = null 
 }) {
+  // Reproductor seguro de efectos de sonido: atrapa cualquier error para no bloquear la batalla
+  const safeSound = (fn, ...args) => {
+    try {
+      if (typeof fn === 'function') fn(...args);
+    } catch (e) {
+      console.warn("Audio non-critical warning:", e);
+    }
+  };
+
   const heroStats = calculateHeroTotalStats(hero);
   const heroClass = ZODIAC_HERO_CLASSES[hero.sign] || ZODIAC_HERO_CLASSES['Aries'];
   const heroElemMeta = ELEMENTAL_AFFINITIES[hero.element] || ELEMENTAL_AFFINITIES['Fuego'];
@@ -90,16 +103,16 @@ export function BattleArena({
   const [playerStance, setPlayerStance] = useState('solar'); // 'solar' | 'lunar' | 'stellar'
 
   // Estados del Enemigo 1
-  const [enemy1MaxHp] = useState(enemy.hp || 500);
-  const [enemy1Hp, setEnemy1Hp] = useState(enemy.hp || 500);
+  const enemy1MaxHp = enemy.hp || 500;
+  const [enemy1Hp, setEnemy1Hp] = useState(enemy1MaxHp);
   const [enemy1Ether, setEnemy1Ether] = useState(1);
   const [enemy1Effects, setEnemy1Effects] = useState([]);
   const [enemy1Shield, setEnemy1Shield] = useState(0);
   const [enemy1Stagger, setEnemy1Stagger] = useState(3); // 3 golpes para ruptura
 
   // Estados del Enemigo 2
-  const [enemy2MaxHp] = useState(enemy2?.hp || 450);
-  const [enemy2Hp, setEnemy2Hp] = useState(enemy2?.hp || 450);
+  const enemy2MaxHp = enemy2?.hp || 450;
+  const [enemy2Hp, setEnemy2Hp] = useState(enemy2MaxHp);
   const [enemy2Ether, setEnemy2Ether] = useState(1);
   const [enemy2Effects, setEnemy2Effects] = useState([]);
   const [enemy2Shield, setEnemy2Shield] = useState(0);
@@ -176,19 +189,55 @@ export function BattleArena({
   const [enemy1GhostHp, setEnemy1GhostHp] = useState(enemy1Hp);
   const [enemy2GhostHp, setEnemy2GhostHp] = useState(enemy2Hp);
 
+  // Watchdog de resiliencia: Si la batalla queda congelada en 'busy' o 'enemy' por más de 4.5 segundos, forzar retorno a 'player'
   useEffect(() => {
-    const timer = setTimeout(() => setPlayerGhostHp(playerHp), 350);
-    return () => clearTimeout(timer);
+    if (turn === 'player' || battleOutcome) return;
+    const watchdog = setTimeout(() => {
+      console.warn("Watchdog activado: Turno restablecido al jugador tras tiempo de espera excesivo.");
+      setTurn('player');
+      setAnimState({
+        playerAttacking: false,
+        playerCasting: false,
+        playerHit: false,
+        partnerAttacking: false,
+        partnerHit: false,
+        enemy1Attacking: false,
+        enemy1Hit: false,
+        enemy2Attacking: false,
+        enemy2Hit: false,
+        screenShake: false
+      });
+      setActiveVfx(null);
+      try { playTurnReadySound(); } catch (e) {}
+    }, 4500);
+    return () => clearTimeout(watchdog);
+  }, [turn, battleOutcome]);
+
+  useEffect(() => {
+    if (playerHp >= playerGhostHp) {
+      setPlayerGhostHp(playerHp);
+    } else {
+      const timer = setTimeout(() => setPlayerGhostHp(playerHp), 250);
+      return () => clearTimeout(timer);
+    }
   }, [playerHp]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setEnemy1GhostHp(enemy1Hp), 350);
-    return () => clearTimeout(timer);
+    if (enemy1Hp >= enemy1GhostHp) {
+      setEnemy1GhostHp(enemy1Hp);
+    } else {
+      const timer = setTimeout(() => setEnemy1GhostHp(enemy1Hp), 250);
+      return () => clearTimeout(timer);
+    }
   }, [enemy1Hp]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setEnemy2GhostHp(enemy2Hp), 350);
-    return () => clearTimeout(timer);
+    if (enemy2Hp >= enemy2GhostHp) {
+      setEnemy2GhostHp(enemy2Hp);
+    } else {
+      const timer = setTimeout(() => setEnemy2GhostHp(enemy2Hp), 250);
+      return () => clearTimeout(timer);
+    }
   }, [enemy2Hp]);
 
   useEffect(() => {
@@ -265,77 +314,82 @@ export function BattleArena({
     if (turn !== 'player' || battleOutcome) return;
     setTurn('busy');
 
-    playBattleAttackSound();
+    safeSound(playBattleAttackSound);
     setAnimState(p => ({ ...p, playerAttacking: true }));
 
     setTimeout(() => {
-      const tgt = getTargetData();
-      const isStaggered = tgt.staggerRef.current <= 0;
+      try {
+        const tgt = getTargetData();
+        const isStaggered = tgt.staggerRef.current <= 0;
 
-      const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
-        { atk: heroStats.atk, element: hero.element, critRate: heroStats.critRate },
-        { def: tgt.enemyObj.def || 25, element: tgt.elem },
-        1.0,
-        false,
-        transitBuff.moonElement,
-        {
-          attackerPosition: playerPosition,
-          defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
-          stance: playerStance,
-          isStaggered,
-          mutator
+        const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
+          { atk: heroStats.atk, element: hero.element, critRate: heroStats.critRate },
+          { def: tgt.enemyObj.def || 25, element: tgt.elem },
+          1.0,
+          false,
+          transitBuff.moonElement,
+          {
+            attackerPosition: playerPosition,
+            defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
+            stance: playerStance,
+            isStaggered,
+            mutator
+          }
+        );
+
+        if (isCrit) safeSound(playBattleCritSound);
+        else safeSound(playBattleHitSound);
+
+        setActiveVfx({ type: 'slash', target: tgt.targetKey });
+        setTimeout(() => setActiveVfx(null), 500);
+
+        setAnimState(p => ({ ...p, playerAttacking: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
+        setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
+
+        // Reducir medidor de Tenacidad Astral (Stagger) si es crítico o super-efectivo
+        if (isCrit || isSuperEffective) {
+          tgt.staggerRef.current = Math.max(0, tgt.staggerRef.current - 1);
+          tgt.setStagger(tgt.staggerRef.current);
+          if (tgt.staggerRef.current === 0) {
+            spawnFloatingText('¡RUPTURA CÓSMICA!', tgt.targetKey, 'crit');
+            logMessage(`💥 ¡RUPTURA CÓSMICA en ${tgt.enemyObj.name}! Pierde su guardia (+50% daño recibido).`);
+          }
         }
-      );
 
-      if (isCrit) playBattleCritSound();
-      else playBattleHitSound();
-
-      setActiveVfx({ type: 'slash', target: tgt.targetKey });
-      setTimeout(() => setActiveVfx(null), 500);
-
-      setAnimState(p => ({ ...p, playerAttacking: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
-      setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
-
-      // Reducir medidor de Tenacidad Astral (Stagger) si es crítico o super-efectivo
-      if (isCrit || isSuperEffective) {
-        tgt.staggerRef.current = Math.max(0, tgt.staggerRef.current - 1);
-        tgt.setStagger(tgt.staggerRef.current);
-        if (tgt.staggerRef.current === 0) {
-          spawnFloatingText('¡RUPTURA CÓSMICA!', tgt.targetKey, 'crit');
-          logMessage(`💥 ¡RUPTURA CÓSMICA en ${tgt.enemyObj.name}! Pierde su guardia (+50% daño recibido).`);
-        }
-      }
-
-      // Absorción por escudo
-      let finalDamage = damage;
-      if (tgt.shieldRef.current > 0) {
-        if (damage <= tgt.shieldRef.current) {
-          tgt.shieldRef.current -= damage;
-          tgt.setShield(tgt.shieldRef.current);
-          finalDamage = 0;
-          spawnFloatingText(`¡Bloqueado (${damage})!`, tgt.targetKey, 'shield');
+        // Absorción por escudo
+        let finalDamage = damage;
+        if (tgt.shieldRef.current > 0) {
+          if (damage <= tgt.shieldRef.current) {
+            tgt.shieldRef.current -= damage;
+            tgt.setShield(tgt.shieldRef.current);
+            finalDamage = 0;
+            spawnFloatingText(`¡Bloqueado (${damage})!`, tgt.targetKey, 'shield');
+          } else {
+            finalDamage = damage - tgt.shieldRef.current;
+            tgt.shieldRef.current = 0;
+            tgt.setShield(0);
+            spawnFloatingText(`-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+          }
         } else {
-          finalDamage = damage - tgt.shieldRef.current;
-          tgt.shieldRef.current = 0;
-          tgt.setShield(0);
-          spawnFloatingText(`-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+          spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
         }
-      } else {
-        spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDamage}` : `-${finalDamage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+
+        const nextHp = Math.max(0, tgt.hpRef.current - finalDamage);
+        tgt.hpRef.current = nextHp;
+        tgt.setHp(nextHp);
+
+        // Recursos
+        setPlayerEther(e => Math.min(5, e + 1));
+        setPlayerUltimate(u => Math.min(100, u + (playerStance === 'solar' ? 22 : 18)));
+
+        logMessage(`⚔️ ${hero.name} golpeó a [${tgt.enemyObj.name}] causando ${finalDamage} de daño.${isCrit ? ' ¡Crítico!' : ''}${hasTransitBoost ? ' (Bono Tránsito)' : ''}`);
+
+        // Comprobar si los enemigos fueron derrotados
+        checkPostAttackOutcome();
+      } catch (err) {
+        console.error("Error in handlePlayerBasicAttack:", err);
+        setTurn('player');
       }
-
-      const nextHp = Math.max(0, tgt.hpRef.current - finalDamage);
-      tgt.hpRef.current = nextHp;
-      tgt.setHp(nextHp);
-
-      // Recursos
-      setPlayerEther(e => Math.min(5, e + 1));
-      setPlayerUltimate(u => Math.min(100, u + (playerStance === 'solar' ? 22 : 18)));
-
-      logMessage(`⚔️ ${hero.name} golpeó a [${tgt.enemyObj.name}] causando ${finalDamage} de daño.${isCrit ? ' ¡Crítico!' : ''}${hasTransitBoost ? ' (Bono Tránsito)' : ''}`);
-
-      // Comprobar si los enemigos fueron derrotados
-      checkPostAttackOutcome();
     }, 450);
   };
 
@@ -353,122 +407,127 @@ export function BattleArena({
     setTurn('busy');
     setPlayerEther(e => e - etherCost);
 
-    playElementalSkillSound(skill.element || hero.element);
+    safeSound(playElementalSkillSound, skill.element || hero.element);
     setAnimState(p => ({ ...p, playerCasting: true }));
 
     setTimeout(() => {
-      const tgt = getTargetData();
-      const isStaggered = tgt.staggerRef.current <= 0;
+      try {
+        const tgt = getTargetData();
+        const isStaggered = tgt.staggerRef.current <= 0;
 
-      const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
-        { atk: heroStats.atk, element: hero.element, critRate: (heroStats.critRate || 0.15) + (skill.critBonus || 0) },
-        { def: tgt.enemyObj.def || 25, element: tgt.elem },
-        skill.multiplier || 1.4,
-        false,
-        transitBuff.moonElement,
-        {
-          attackerPosition: playerPosition,
-          defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
-          stance: playerStance,
-          isStaggered,
-          mutator
+        const { damage, isCrit, hasTransitBoost, isSuperEffective } = calculateDamage(
+          { atk: heroStats.atk, element: hero.element, critRate: (heroStats.critRate || 0.15) + (skill.critBonus || 0) },
+          { def: tgt.enemyObj.def || 25, element: tgt.elem },
+          skill.multiplier || 1.4,
+          false,
+          transitBuff.moonElement,
+          {
+            attackerPosition: playerPosition,
+            defenderPosition: tgt.enemyObj.role === 'Retaguardia Rival' ? 'backline' : 'frontline',
+            stance: playerStance,
+            isStaggered,
+            mutator
+          }
+        );
+
+        if (isCrit) safeSound(playBattleCritSound);
+        else safeSound(playBattleHitSound);
+
+        setActiveVfx({ type: 'skill', target: tgt.targetKey, element: hero.element });
+        setTimeout(() => setActiveVfx(null), 650);
+
+        setAnimState(p => ({ ...p, playerCasting: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: true }));
+        setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
+
+        // Reducir tenacidad del rival por habilidad
+        tgt.staggerRef.current = Math.max(0, tgt.staggerRef.current - 1);
+        tgt.setStagger(tgt.staggerRef.current);
+        if (tgt.staggerRef.current === 0) {
+          spawnFloatingText('¡RUPTURA CÓSMICA!', tgt.targetKey, 'crit');
+          logMessage(`💥 ¡RUPTURA CÓSMICA en ${tgt.enemyObj.name}!`);
         }
-      );
 
-      if (isCrit) playBattleCritSound();
-      else playBattleHitSound();
+        // Efectos específicos
+        const effect = skill.effect || {};
 
-      setActiveVfx({ type: 'skill', target: tgt.targetKey, element: hero.element });
-      setTimeout(() => setActiveVfx(null), 650);
+        // Escudo
+        if (effect.type === 'shield' || effect.type === 'shield_heal' || effect.shield) {
+          let shieldVal = effect.shield || effect.value || 100;
+          if (playerPosition === 'backline') shieldVal = Math.round(shieldVal * 1.35); // +35% en Retaguardia
+          playerShieldRef.current += shieldVal;
+          setPlayerShield(playerShieldRef.current);
+          safeSound(playBattleShieldSound);
+          spawnFloatingText(`+${shieldVal} Escudo`, 'player', 'shield');
+        }
 
-      setAnimState(p => ({ ...p, playerCasting: false, [tgt.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: true }));
-      setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
+        // Sanación directa
+        if (effect.heal || effect.type === 'heal' || effect.type === 'shield_heal') {
+          let healVal = effect.heal || 120;
+          if (playerPosition === 'backline') healVal = Math.round(healVal * 1.35);
+          const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healVal);
+          playerHpRef.current = nextPlayerHp;
+          setPlayerHp(nextPlayerHp);
+          safeSound(playBattleHealSound);
+          spawnFloatingText(`+${healVal} HP`, 'player', 'heal');
+        }
 
-      // Reducir tenacidad del rival por habilidad
-      tgt.staggerRef.current = Math.max(0, tgt.staggerRef.current - 1);
-      tgt.setStagger(tgt.staggerRef.current);
-      if (tgt.staggerRef.current === 0) {
-        spawnFloatingText('¡RUPTURA CÓSMICA!', tgt.targetKey, 'crit');
-        logMessage(`💥 ¡RUPTURA CÓSMICA en ${tgt.enemyObj.name}!`);
+        // Robo de vida (Lifesteal)
+        if (effect.type === 'lifesteal' || effect.ratio) {
+          const leech = Math.max(1, Math.round(damage * (effect.ratio || 0.5)));
+          const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + leech);
+          playerHpRef.current = nextPlayerHp;
+          setPlayerHp(nextPlayerHp);
+          safeSound(playBattleHealSound);
+          spawnFloatingText(`+${leech} Drenado`, 'player', 'heal');
+        }
+
+        // Estados alterados
+        if (['burn', 'poison', 'bleed', 'stun'].includes(effect.type)) {
+          tgt.effectsRef.current = [...tgt.effectsRef.current, { ...effect, id: Date.now() }];
+          tgt.setEffects([...tgt.effectsRef.current]);
+          const typeLabels = { burn: '🔥 QUEMADURA', poison: '🧪 VENENO', bleed: '🩸 SANGRADO', stun: '💫 ATURDIDO' };
+          spawnFloatingText(typeLabels[effect.type] || effect.type.toUpperCase(), tgt.targetKey, 'buff');
+        }
+
+        // Drenaje o ganancia de éter
+        if (effect.type === 'drain_ether') {
+          const drain = effect.drain || 1;
+          setPlayerEther(e => Math.min(5, e + drain));
+          spawnFloatingText(`Drenó ${drain} Éter`, tgt.targetKey, 'shield');
+        } else if (effect.type === 'ether') {
+          const gain = effect.gain || 1;
+          setPlayerEther(e => Math.min(5, e + gain));
+          spawnFloatingText(`+${gain} Éter`, 'player', 'buff');
+        }
+
+        // Reflejo
+        if (effect.type === 'reflect') {
+          playerEffectsRef.current = [...playerEffectsRef.current, { ...effect, id: Date.now() }];
+          setPlayerEffects([...playerEffectsRef.current]);
+          spawnFloatingText('🪞 ESPEJO ACTIVO', 'player', 'shield');
+        }
+
+        // Purificación
+        if (effect.cleanse) {
+          playerEffectsRef.current = [];
+          setPlayerEffects([]);
+          spawnFloatingText('✨ Purificado', 'player', 'heal');
+        }
+
+        // Aplicar daño
+        const nextHp = Math.max(0, tgt.hpRef.current - damage);
+        tgt.hpRef.current = nextHp;
+        tgt.setHp(nextHp);
+        spawnFloatingText(`-${damage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
+        setPlayerUltimate(u => Math.min(100, u + 24));
+
+        logMessage(`✨ ${hero.name} desató [${skill.name}] contra [${tgt.enemyObj.name}] infligiendo ${damage} de daño.`);
+
+        checkPostAttackOutcome();
+      } catch (err) {
+        console.error("Error in handlePlayerCastSkill:", err);
+        setTurn('player');
       }
-
-      // Efectos específicos
-      const effect = skill.effect || {};
-
-      // Escudo
-      if (effect.type === 'shield' || effect.type === 'shield_heal' || effect.shield) {
-        let shieldVal = effect.shield || effect.value || 100;
-        if (playerPosition === 'backline') shieldVal = Math.round(shieldVal * 1.35); // +35% en Retaguardia
-        playerShieldRef.current += shieldVal;
-        setPlayerShield(playerShieldRef.current);
-        playBattleShieldSound();
-        spawnFloatingText(`+${shieldVal} Escudo`, 'player', 'shield');
-      }
-
-      // Sanación directa
-      if (effect.heal || effect.type === 'heal' || effect.type === 'shield_heal') {
-        let healVal = effect.heal || 120;
-        if (playerPosition === 'backline') healVal = Math.round(healVal * 1.35);
-        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healVal);
-        playerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp);
-        playBattleHealSound();
-        spawnFloatingText(`+${healVal} HP`, 'player', 'heal');
-      }
-
-      // Robo de vida (Lifesteal)
-      if (effect.type === 'lifesteal' || effect.ratio) {
-        const leech = Math.max(1, Math.round(damage * (effect.ratio || 0.5)));
-        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + leech);
-        playerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp);
-        playBattleHealSound();
-        spawnFloatingText(`+${leech} Drenado`, 'player', 'heal');
-      }
-
-      // Estados alterados
-      if (['burn', 'poison', 'bleed', 'stun'].includes(effect.type)) {
-        tgt.effectsRef.current = [...tgt.effectsRef.current, { ...effect, id: Date.now() }];
-        tgt.setEffects([...tgt.effectsRef.current]);
-        const typeLabels = { burn: '🔥 QUEMADURA', poison: '🧪 VENENO', bleed: '🩸 SANGRADO', stun: '💫 ATURDIDO' };
-        spawnFloatingText(typeLabels[effect.type] || effect.type.toUpperCase(), tgt.targetKey, 'buff');
-      }
-
-      // Drenaje o ganancia de éter
-      if (effect.type === 'drain_ether') {
-        const drain = effect.drain || 1;
-        setPlayerEther(e => Math.min(5, e + drain));
-        spawnFloatingText(`Drenó ${drain} Éter`, tgt.targetKey, 'shield');
-      } else if (effect.type === 'ether') {
-        const gain = effect.gain || 1;
-        setPlayerEther(e => Math.min(5, e + gain));
-        spawnFloatingText(`+${gain} Éter`, 'player', 'buff');
-      }
-
-      // Reflejo
-      if (effect.type === 'reflect') {
-        playerEffectsRef.current = [...playerEffectsRef.current, { ...effect, id: Date.now() }];
-        setPlayerEffects([...playerEffectsRef.current]);
-        spawnFloatingText('🪞 ESPEJO ACTIVO', 'player', 'shield');
-      }
-
-      // Purificación
-      if (effect.cleanse) {
-        playerEffectsRef.current = [];
-        setPlayerEffects([]);
-        spawnFloatingText('✨ Purificado', 'player', 'heal');
-      }
-
-      // Aplicar daño
-      const nextHp = Math.max(0, tgt.hpRef.current - damage);
-      tgt.hpRef.current = nextHp;
-      tgt.setHp(nextHp);
-      spawnFloatingText(`-${damage}`, tgt.targetKey, isCrit ? 'crit' : 'damage');
-      setPlayerUltimate(u => Math.min(100, u + 24));
-
-      logMessage(`✨ ${hero.name} desató [${skill.name}] contra [${tgt.enemyObj.name}] infligiendo ${damage} de daño.`);
-
-      checkPostAttackOutcome();
     }, 500);
   };
 
@@ -483,83 +542,88 @@ export function BattleArena({
     const skill = partnerAssistSkill;
     const target = getTargetData();
 
-    playSinastryAssistSound();
+    safeSound(playSinastryAssistSound);
     setAnimState(p => ({ ...p, partnerAttacking: true }));
 
     setTimeout(() => {
-      setAnimState(p => ({ ...p, partnerAttacking: false }));
+      try {
+        setAnimState(p => ({ ...p, partnerAttacking: false }));
 
-      if (skill.type === 'attack' || skill.type === 'hybrid') {
-        const { damage, isCrit } = calculateDamage(
-          { atk: Math.round(heroStats.atk * 1.1), element: skill.element, critRate: skill.critGuaranteed ? 1.0 : 0.25 },
-          { def: Math.round((target.enemyObj.def || 30) * (skill.pierceDef ? 0.5 : 1)), element: target.elem },
-          skill.multiplier || 1.35,
-          false,
-          transitBuff.moonElement,
-          { attackerPosition: 'frontline', stance: playerStance, isStaggered: target.staggerRef.current <= 0 }
-        );
+        if (skill.type === 'attack' || skill.type === 'hybrid') {
+          const { damage, isCrit } = calculateDamage(
+            { atk: Math.round(heroStats.atk * 1.1), element: skill.element, critRate: skill.critGuaranteed ? 1.0 : 0.25 },
+            { def: Math.round((target.enemyObj.def || 30) * (skill.pierceDef ? 0.5 : 1)), element: target.elem },
+            skill.multiplier || 1.35,
+            false,
+            transitBuff.moonElement,
+            { attackerPosition: 'frontline', stance: playerStance, isStaggered: target.staggerRef.current <= 0 }
+          );
 
-        if (isCrit) playBattleCritSound();
-        else playBattleHitSound();
+          if (isCrit) safeSound(playBattleCritSound);
+          else safeSound(playBattleHitSound);
 
-        setActiveVfx({ type: 'skill', target: target.targetKey, element: skill.element });
-        setTimeout(() => setActiveVfx(null), 500);
+          setActiveVfx({ type: 'skill', target: target.targetKey, element: skill.element });
+          setTimeout(() => setActiveVfx(null), 500);
 
-        setAnimState(p => ({ ...p, [target.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
-        setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
+          setAnimState(p => ({ ...p, [target.idx === 0 ? 'enemy1Hit' : 'enemy2Hit']: true, screenShake: isCrit }));
+          setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 400);
 
-        const nextHp = Math.max(0, target.hpRef.current - damage);
-        target.hpRef.current = nextHp;
-        target.setHp(nextHp);
+          const nextHp = Math.max(0, target.hpRef.current - damage);
+          target.hpRef.current = nextHp;
+          target.setHp(nextHp);
 
-        spawnFloatingText(isCrit ? `¡CRÍTICO DE DÚO! -${damage}` : `-${damage}`, target.targetKey, isCrit ? 'crit' : 'damage');
+          spawnFloatingText(isCrit ? `¡CRÍTICO DE DÚO! -${damage}` : `-${damage}`, target.targetKey, isCrit ? 'crit' : 'damage');
 
-        if (skill.staggerBreak) {
-          const nextStagger = Math.max(0, target.staggerRef.current - skill.staggerBreak);
-          target.staggerRef.current = nextStagger;
-          target.setStagger(nextStagger);
+          if (skill.staggerBreak) {
+            const nextStagger = Math.max(0, target.staggerRef.current - skill.staggerBreak);
+            target.staggerRef.current = nextStagger;
+            target.setStagger(nextStagger);
+          }
+
+          if (skill.status) {
+            target.effectsRef.current.push({ ...skill.status });
+            target.setEffects([...target.effectsRef.current]);
+          }
         }
 
-        if (skill.status) {
-          target.effectsRef.current.push({ ...skill.status });
-          target.setEffects([...target.effectsRef.current]);
+        if (skill.type === 'heal' || skill.type === 'hybrid') {
+          const heal = Math.round(heroStats.maxHp * (skill.healPercent || 0.30));
+          const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + heal);
+          playerHpRef.current = nextPlayerHp;
+          setPlayerHp(nextPlayerHp);
+          setPartnerHp(p => Math.min(partnerMaxHp, p + heal));
+          safeSound(playBattleHealSound);
+          spawnFloatingText(`+${heal} HP Dúo`, 'player', 'heal');
+
+          if (skill.cleanse) {
+            playerEffectsRef.current = [];
+            setPlayerEffects([]);
+          }
         }
-      }
 
-      if (skill.type === 'heal' || skill.type === 'hybrid') {
-        const heal = Math.round(heroStats.maxHp * (skill.healPercent || 0.30));
-        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + heal);
-        playerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp);
-        setPartnerHp(p => Math.min(partnerMaxHp, p + heal));
-        playBattleHealSound();
-        spawnFloatingText(`+${heal} HP Dúo`, 'player', 'heal');
-
-        if (skill.cleanse) {
-          playerEffectsRef.current = [];
-          setPlayerEffects([]);
+        if (skill.type === 'shield') {
+          const shieldAmt = skill.shieldAmount || 140;
+          playerShieldRef.current += shieldAmt;
+          setPlayerShield(playerShieldRef.current);
+          safeSound(playBattleShieldSound);
+          spawnFloatingText(`🛡️ +${shieldAmt} Escudo`, 'player', 'shield');
         }
+
+        if (skill.etherBonus) {
+          setPlayerEther(e => Math.min(5, e + skill.etherBonus));
+          spawnFloatingText(`+${skill.etherBonus} Éter`, 'player', 'shield');
+        }
+
+        // Aumentar carga de Ultimate del Dúo (+25%)
+        setPlayerUltimate(u => Math.min(100, u + 25));
+
+        logMessage(`💫 ¡ASISTENCIA DE SINASTRÍA! ${partner.name} ejecutó [${skill.name}]: ${skill.desc}`);
+
+        checkPostAttackOutcome();
+      } catch (err) {
+        console.error("Error in handlePartnerAssist:", err);
+        setTurn('player');
       }
-
-      if (skill.type === 'shield') {
-        const shieldAmt = skill.shieldAmount || 140;
-        playerShieldRef.current += shieldAmt;
-        setPlayerShield(playerShieldRef.current);
-        playBattleShieldSound();
-        spawnFloatingText(`🛡️ +${shieldAmt} Escudo`, 'player', 'shield');
-      }
-
-      if (skill.etherBonus) {
-        setPlayerEther(e => Math.min(5, e + skill.etherBonus));
-        spawnFloatingText(`+${skill.etherBonus} Éter`, 'player', 'shield');
-      }
-
-      // Aumentar carga de Ultimate del Dúo (+25%)
-      setPlayerUltimate(u => Math.min(100, u + 25));
-
-      logMessage(`💫 ¡ASISTENCIA DE SINASTRÍA! ${partner.name} ejecutó [${skill.name}]: ${skill.desc}`);
-
-      checkPostAttackOutcome();
     }, 550);
   };
 
@@ -571,9 +635,9 @@ export function BattleArena({
     setTurn('busy');
     setPlayerUltimate(0);
 
-    if (isCoop) playSinastryAssistSound();
-    else playElementalSkillSound(hero.element);
-    playBattleCritStrikeSound();
+    if (isCoop) safeSound(playSinastryAssistSound);
+    else safeSound(playElementalSkillSound, hero.element);
+    safeSound(playBattleCritStrikeSound);
 
     setAnimState(p => ({ 
       ...p, 
@@ -585,59 +649,64 @@ export function BattleArena({
     setTimeout(() => setActiveVfx(null), 850);
 
     setTimeout(() => {
-      const ult = heroClass.ultimate;
-      const ultMultiplier = isCoop ? 3.4 : (ult.multiplier || 2.5);
+      try {
+        const ult = heroClass.ultimate;
+        const ultMultiplier = isCoop ? 3.4 : (ult.multiplier || 2.5);
 
-      // Auto-curación de Ultimate
-      if (ult.healSelf || isCoop) {
-        const healAmount = isCoop ? 150 : (ult.healSelf || 70);
-        const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
-        playerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp);
-        playBattleHealSound();
-        spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
+        // Auto-curación de Ultimate
+        if (ult.healSelf || isCoop) {
+          const healAmount = isCoop ? 150 : (ult.healSelf || 70);
+          const nextPlayerHp = Math.min(heroStats.maxHp, playerHpRef.current + healAmount);
+          playerHpRef.current = nextPlayerHp;
+          setPlayerHp(nextPlayerHp);
+          safeSound(playBattleHealSound);
+          spawnFloatingText(`+${healAmount} HP`, 'player', 'heal');
+        }
+
+        setAnimState(p => ({ ...p, playerCasting: false, enemy1Hit: true, enemy2Hit: hasDualEnemies }));
+        setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 600);
+
+        // En 1v2, la Ultimate golpea a AMBOS enemigos simultáneamente (AoE Cataclísmico)
+        const hitEnemy = (enemyData, isSecond = false) => {
+          if (enemyData.hpRef.current <= 0) return 0;
+          const { damage } = calculateDamage(
+            { atk: heroStats.atk, element: hero.element, critRate: 1.0 },
+            { def: Math.round((enemyData.enemyObj.def || 25) * 0.35), element: enemyData.elem },
+            isSecond ? ultMultiplier * 0.85 : ultMultiplier,
+            true,
+            transitBuff.moonElement,
+            { attackerPosition: playerPosition, stance: playerStance, isStaggered: enemyData.staggerRef.current <= 0, mutator }
+          );
+
+          const nextHp = Math.max(0, enemyData.hpRef.current - damage);
+          enemyData.hpRef.current = nextHp;
+          enemyData.setHp(nextHp);
+          spawnFloatingText(`¡ALINEACIÓN! -${damage}`, enemyData.targetKey, 'crit');
+
+          // Rotura garantizada de guardia al recibir Ultimate
+          enemyData.staggerRef.current = 0;
+          enemyData.setStagger(0);
+
+          return damage;
+        };
+
+        const dmg1 = hitEnemy(getTargetData(0));
+        let dmg2 = 0;
+        if (hasDualEnemies && enemy2HpRef.current > 0) {
+          dmg2 = hitEnemy(getTargetData(1), true);
+        }
+
+        if (isCoop) {
+          logMessage(`💫 ¡¡ATAQUE COMBINADO DE SINASTRÍA!! ${hero.name} y ${partner.name} desataron [${synastry.attackName}] infligiendo daño cataclísmico!`);
+        } else {
+          logMessage(`🌌 ¡¡ALINEACIÓN CÓSMICA!! [${ult.name}] barrió el campo causando ${dmg1 + dmg2} de daño total.`);
+        }
+
+        checkPostAttackOutcome();
+      } catch (err) {
+        console.error("Error in handlePlayerUltimate:", err);
+        setTurn('player');
       }
-
-      setAnimState(p => ({ ...p, playerCasting: false, enemy1Hit: true, enemy2Hit: hasDualEnemies }));
-      setTimeout(() => setAnimState(p => ({ ...p, enemy1Hit: false, enemy2Hit: false, screenShake: false })), 600);
-
-      // En 1v2, la Ultimate golpea a AMBOS enemigos simultáneamente (AoE Cataclísmico)
-      const hitEnemy = (enemyData, isSecond = false) => {
-        if (enemyData.hpRef.current <= 0) return 0;
-        const { damage } = calculateDamage(
-          { atk: heroStats.atk, element: hero.element, critRate: 1.0 },
-          { def: Math.round((enemyData.enemyObj.def || 25) * 0.35), element: enemyData.elem },
-          isSecond ? ultMultiplier * 0.85 : ultMultiplier,
-          true,
-          transitBuff.moonElement,
-          { attackerPosition: playerPosition, stance: playerStance, isStaggered: enemyData.staggerRef.current <= 0, mutator }
-        );
-
-        const nextHp = Math.max(0, enemyData.hpRef.current - damage);
-        enemyData.hpRef.current = nextHp;
-        enemyData.setHp(nextHp);
-        spawnFloatingText(`¡ALINEACIÓN! -${damage}`, enemyData.targetKey, 'crit');
-
-        // Rotura garantizada de guardia al recibir Ultimate
-        enemyData.staggerRef.current = 0;
-        enemyData.setStagger(0);
-
-        return damage;
-      };
-
-      const dmg1 = hitEnemy(getTargetData(0));
-      let dmg2 = 0;
-      if (hasDualEnemies && enemy2HpRef.current > 0) {
-        dmg2 = hitEnemy(getTargetData(1), true);
-      }
-
-      if (isCoop) {
-        logMessage(`💫 ¡¡ATAQUE COMBINADO DE SINASTRÍA!! ${hero.name} y ${partner.name} desataron [${synastry.attackName}] infligiendo daño cataclísmico!`);
-      } else {
-        logMessage(`🌌 ¡¡ALINEACIÓN CÓSMICA!! [${ult.name}] barrió el campo causando ${dmg1 + dmg2} de daño total.`);
-      }
-
-      checkPostAttackOutcome();
     }, 600);
   };
 
@@ -660,24 +729,36 @@ export function BattleArena({
   // COMPROBACIÓN POST-ATAQUE Y CAMBIO DE TURNO
   // ==========================================
   const checkPostAttackOutcome = () => {
-    const isEnemy1Dead = enemy1HpRef.current <= 0;
-    const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
+    try {
+      const isEnemy1Dead = enemy1HpRef.current <= 0;
+      const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
 
-    if (isEnemy1Dead && isEnemy2Dead) {
-      setTurn('busy');
-      setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
-      spawnFloatingText('💥 ¡ANIQUILADO!', activeTarget === 0 ? 'enemy1' : 'enemy2', 'crit');
-      logMessage(`💥 ¡Impacto fulminante! Las sombras cósmicas se desintegran.`);
-      setTimeout(() => {
-        handleVictory();
-      }, 1300);
-    } else {
-      if (hasDualEnemies && isEnemy1Dead && activeTarget === 0) {
-        setDefeatingTarget('enemy1');
-        setActiveTarget(1);
-        logMessage(`💀 ¡La Sombra frontal ha caído! Ahora enfócate en [${enemy2.name}].`);
+      if (isEnemy1Dead && isEnemy2Dead) {
+        setTurn('busy');
+        setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
+        spawnFloatingText('💥 ¡ANIQUILADO!', activeTarget === 0 ? 'enemy1' : 'enemy2', 'crit');
+        logMessage(`💥 ¡Impacto fulminante! Las sombras cósmicas se desintegran.`);
+        setTimeout(() => {
+          handleVictory();
+        }, 1300);
+      } else {
+        if (hasDualEnemies && isEnemy1Dead && activeTarget === 0) {
+          setDefeatingTarget('enemy1');
+          setActiveTarget(1);
+          logMessage(`💀 ¡La Sombra frontal ha caído! Ahora enfócate en [${enemy2?.name || 'Rival'}].`);
+        }
+        setTimeout(() => {
+          try {
+            startEnemyTurn();
+          } catch (e) {
+            console.error("Error launching startEnemyTurn:", e);
+            setTurn('player');
+          }
+        }, 750);
       }
-      setTimeout(() => startEnemyTurn(), 850);
+    } catch (err) {
+      console.error("Error in checkPostAttackOutcome:", err);
+      setTurn('player');
     }
   };
 
@@ -689,262 +770,286 @@ export function BattleArena({
 
     // Función para ejecutar el ataque de un enemigo específico
     const executeSingleEnemyAttack = (enemyData, onComplete) => {
-      if (enemyData.hpRef.current <= 0) {
-        onComplete();
-        return;
-      }
-
-      // 1. Estados en el enemigo
-      const statusRes = processStatusEffects(enemyData.effectsRef.current, enemyData.hpRef.current, enemyData.maxHp);
-      enemyData.hpRef.current = statusRes.nextHp;
-      enemyData.setHp(statusRes.nextHp);
-      enemyData.effectsRef.current = statusRes.updatedEffects;
-      enemyData.setEffects(statusRes.updatedEffects);
-      statusRes.logMessages.forEach(m => logMessage(m));
-
-      if (statusRes.nextHp <= 0) {
-        logMessage(`💀 [${enemyData.enemyObj.name}] sucumbió ante los efectos residuales.`);
-        onComplete();
-        return;
-      }
-
-      // 2. Comprobar Ruptura (Stagger) o Aturdimiento (Stun)
-      if (enemyData.staggerRef.current <= 0) {
-        logMessage(`💫 [${enemyData.enemyObj.name}] está en RUPTURA CÓSMICA y no puede actuar este turno.`);
-        spawnFloatingText('¡Incapacitado!', enemyData.targetKey, 'buff');
-        enemyData.staggerRef.current = 3; // Se recupera de la ruptura para el próximo turno
-        enemyData.setStagger(3);
-        setTimeout(onComplete, 700);
-        return;
-      }
-
-      const stunIdx = enemyData.effectsRef.current.findIndex(e => e.type === 'stun');
-      if (stunIdx !== -1) {
-        logMessage(`💫 [${enemyData.enemyObj.name}] está aturdido y pierde su turno.`);
-        spawnFloatingText('¡Aturdido!', enemyData.targetKey, 'buff');
-        enemyData.effectsRef.current.splice(stunIdx, 1);
-        enemyData.setEffects([...enemyData.effectsRef.current]);
-        setTimeout(onComplete, 700);
-        return;
-      }
-
-      // 3. IA Ataca al jugador (Con lógica táctica PvP)
-      if (isPvp && enemyData.idx === 0) {
-        // 3a. Uso de poción de emergencia por el rival
-        if (enemyData.hpRef.current / enemyData.maxHp < 0.35 && enemyPotionsLeft > 0) {
-          const potionHeal = Math.round(enemyData.maxHp * 0.35);
-          const newHp = Math.min(enemyData.maxHp, enemyData.hpRef.current + potionHeal);
-          enemyData.hpRef.current = newHp;
-          enemyData.setHp(newHp);
-          setEnemyPotionsLeft(0);
-          playBattleHealSound();
-          spawnFloatingText(`+${potionHeal} HP`, enemyData.targetKey, 'heal');
-          logMessage(`🧪 [${enemyData.enemyObj.name}] usó una Poción Astral de emergencia restaurando ${potionHeal} HP.`);
+      try {
+        if (!enemyData || !enemyData.hpRef || enemyData.hpRef.current <= 0) {
+          onComplete();
+          return;
         }
 
-        // 3b. Cambio de postura táctica del rival
-        if (enemyData.hpRef.current / enemyData.maxHp < 0.40 && enemyStance !== 'lunar') {
-          setEnemyStance('lunar');
-          logMessage(`🌙 [${enemyData.enemyObj.name}] cambia a Postura Lunar para aumentar su defensa.`);
-        } else if (playerHpRef.current / heroStats.maxHp < 0.35 && enemyStance !== 'solar') {
-          setEnemyStance('solar');
-          logMessage(`☀️ [${enemyData.enemyObj.name}] adopta Postura Solar agresiva buscando el remate.`);
+        // 1. Estados en el enemigo
+        const statusRes = processStatusEffects(enemyData.effectsRef?.current || [], enemyData.hpRef.current, enemyData.maxHp || 500);
+        enemyData.hpRef.current = statusRes.nextHp;
+        enemyData.setHp(statusRes.nextHp);
+        enemyData.effectsRef.current = statusRes.updatedEffects;
+        enemyData.setEffects(statusRes.updatedEffects);
+        (statusRes.logMessages || []).forEach(m => logMessage(m));
+
+        if (statusRes.nextHp <= 0) {
+          logMessage(`💀 [${enemyData.enemyObj?.name || 'Enemigo'}] sucumbió ante los efectos residuales.`);
+          onComplete();
+          return;
         }
-      }
 
-      let isRivalUlt = false;
-      if (isPvp && enemyData.idx === 0 && enemyUltimateGauge >= 100) {
-        isRivalUlt = true;
-        setEnemyUltimateGauge(0);
-      } else if (isPvp && enemyData.idx === 0) {
-        setEnemyUltimateGauge(u => Math.min(100, u + 25));
-      }
+        // 2. Comprobar Ruptura (Stagger) o Aturdimiento (Stun)
+        if ((enemyData.staggerRef?.current ?? 3) <= 0) {
+          logMessage(`💫 [${enemyData.enemyObj?.name || 'Enemigo'}] está en RUPTURA CÓSMICA y no puede actuar este turno.`);
+          spawnFloatingText('¡Incapacitado!', enemyData.targetKey, 'buff');
+          enemyData.staggerRef.current = 3; // Se recupera de la ruptura para el próximo turno
+          enemyData.setStagger(3);
+          setTimeout(onComplete, 600);
+          return;
+        }
 
-      const action = isRivalUlt
-        ? { type: 'ultimate', name: `Cataclismo de ${enemyData.enemyObj.sign || 'Gladiador'}` }
-        : chooseEnemyAction(enemyData.enemyObj, enemyData.hpRef.current, enemyData.maxHp, 2);
+        const stunIdx = (enemyData.effectsRef?.current || []).findIndex(e => e.type === 'stun');
+        if (stunIdx !== -1) {
+          logMessage(`💫 [${enemyData.enemyObj?.name || 'Enemigo'}] está aturdido y pierde su turno.`);
+          spawnFloatingText('¡Aturdido!', enemyData.targetKey, 'buff');
+          enemyData.effectsRef.current.splice(stunIdx, 1);
+          enemyData.setEffects([...enemyData.effectsRef.current]);
+          setTimeout(onComplete, 600);
+          return;
+        }
 
-      if (isRivalUlt || action.type === 'skill') {
-        playElementalSkillSound(enemyData.elem);
-      } else {
-        playBattleSlashSound();
-      }
-      setAnimState(p => ({ ...p, [enemyData.idx === 0 ? 'enemy1Attacking' : 'enemy2Attacking']: true }));
-
-      setTimeout(() => {
-        const isSkill = action.type === 'skill';
-        let mult = isSkill ? 1.35 : 1.0;
-        if (isRivalUlt) mult = 2.3;
-
-        const { damage, isCrit } = calculateDamage(
-          { atk: enemyData.enemyObj.atk || 55, element: enemyData.elem, critRate: isRivalUlt ? 0.4 : 0.12 },
-          { def: heroStats.def, element: hero.element },
-          mult,
-          false,
-          null,
-          {
-            attackerPosition: 'frontline',
-            defenderPosition: playerPosition,
-            stance: isPvp && enemyData.idx === 0 ? enemyStance : playerStance,
-            mutator
+        // 3. IA Ataca al jugador (Con lógica táctica PvP)
+        if (isPvp && enemyData.idx === 0) {
+          // 3a. Uso de poción de emergencia por el rival
+          if (enemyData.hpRef.current / (enemyData.maxHp || 1) < 0.35 && enemyPotionsLeft > 0) {
+            const potionHeal = Math.round((enemyData.maxHp || 500) * 0.35);
+            const newHp = Math.min(enemyData.maxHp, enemyData.hpRef.current + potionHeal);
+            enemyData.hpRef.current = newHp;
+            enemyData.setHp(newHp);
+            setEnemyPotionsLeft(0);
+            safeSound(playBattleHealSound);
+            spawnFloatingText(`+${potionHeal} HP`, enemyData.targetKey, 'heal');
+            logMessage(`🧪 [${enemyData.enemyObj?.name || 'Rival'}] usó una Poción Astral de emergencia restaurando ${potionHeal} HP.`);
           }
-        );
 
-        if (isCrit) playBattleCritSound();
-        else playBattleHitSound();
-
-        setActiveVfx({ type: isRivalUlt ? 'ultimate' : (isSkill ? 'skill' : 'slash'), target: 'player', element: enemyData.elem });
-        setTimeout(() => setActiveVfx(null), 500);
-
-        setAnimState(p => ({ ...p, enemy1Attacking: false, enemy2Attacking: false, playerHit: true, screenShake: isCrit || isRivalUlt }));
-        setTimeout(() => setAnimState(p => ({ ...p, playerHit: false, screenShake: false })), 400);
-
-        // Absorción por escudo del jugador
-        let finalDmg = damage;
-        if (playerShieldRef.current > 0) {
-          if (damage <= playerShieldRef.current) {
-            playerShieldRef.current -= damage;
-            setPlayerShield(playerShieldRef.current);
-            finalDmg = 0;
-            playBattleShieldClangSound();
-            spawnFloatingText(`¡Bloqueaste (${damage})!`, 'player', 'shield');
-          } else {
-            finalDmg = damage - playerShieldRef.current;
-            playerShieldRef.current = 0;
-            setPlayerShield(0);
-            spawnFloatingText(`-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+          // 3b. Cambio de postura táctica del rival
+          if (enemyData.hpRef.current / (enemyData.maxHp || 1) < 0.40 && enemyStance !== 'lunar') {
+            setEnemyStance('lunar');
+            logMessage(`🌙 [${enemyData.enemyObj?.name || 'Rival'}] cambia a Postura Lunar para aumentar su defensa.`);
+          } else if (playerHpRef.current / (heroStats.maxHp || 1) < 0.35 && enemyStance !== 'solar') {
+            setEnemyStance('solar');
+            logMessage(`☀️ [${enemyData.enemyObj?.name || 'Rival'}] adopta Postura Solar agresiva buscando el remate.`);
           }
+        }
+
+        let isRivalUlt = false;
+        if (isPvp && enemyData.idx === 0 && enemyUltimateGauge >= 100) {
+          isRivalUlt = true;
+          setEnemyUltimateGauge(0);
+        } else if (isPvp && enemyData.idx === 0) {
+          setEnemyUltimateGauge(u => Math.min(100, u + 25));
+        }
+
+        const action = isRivalUlt
+          ? { type: 'ultimate', name: `Cataclismo de ${enemyData.enemyObj?.sign || 'Gladiador'}` }
+          : chooseEnemyAction(enemyData.enemyObj || {}, enemyData.hpRef.current, enemyData.maxHp || 500, 2);
+
+        if (isRivalUlt || action.type === 'skill') {
+          safeSound(playElementalSkillSound, enemyData.elem);
         } else {
-          spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDmg}` : `-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+          safeSound(playBattleSlashSound);
         }
+        setAnimState(p => ({ ...p, [enemyData.idx === 0 ? 'enemy1Attacking' : 'enemy2Attacking']: true }));
 
-        // En Modo Cooperativo: El compañero puede interceptar parte del daño para proteger al héroe
-        if (isCoop && partnerHp > 0 && finalDmg > 20 && Math.random() < 0.35) {
-          const interceptedDmg = Math.round(finalDmg * 0.40);
-          finalDmg -= interceptedDmg;
-          setPartnerHp(p => Math.max(0, p - interceptedDmg));
-          setAnimState(p => ({ ...p, partnerHit: true }));
-          setTimeout(() => setAnimState(p => ({ ...p, partnerHit: false })), 400);
-          spawnFloatingText(`🛡️ Interceptado -${interceptedDmg}`, 'player', 'shield');
-          logMessage(`🛡️ ¡${partner.name} interceptó ${interceptedDmg} de daño para salvaguardar a ${hero.name}!`);
-        }
+        setTimeout(() => {
+          try {
+            const isSkill = action.type === 'skill';
+            let mult = isSkill ? 1.35 : 1.0;
+            if (isRivalUlt) mult = 2.3;
 
-        // Reflejo de daño si el jugador tiene el efecto activo
-        const reflectIndex = playerEffectsRef.current.findIndex(e => e.type === 'reflect');
-        if (reflectIndex !== -1 && finalDmg > 0) {
-          const reflectDmg = Math.max(1, Math.round(finalDmg * 0.70));
-          const newHp = Math.max(0, enemyData.hpRef.current - reflectDmg);
-          enemyData.hpRef.current = newHp;
-          enemyData.setHp(newHp);
-          spawnFloatingText(`🪞 Reflejo -${reflectDmg}`, enemyData.targetKey, 'crit');
-          logMessage(`🪞 ¡El Espejo Astral de ${hero.name} reflejó ${reflectDmg} a [${enemyData.enemyObj.name}]!`);
-        }
+            const { damage, isCrit } = calculateDamage(
+              { atk: enemyData.enemyObj?.atk || 55, element: enemyData.elem, critRate: isRivalUlt ? 0.4 : 0.12 },
+              { def: heroStats.def || 20, element: hero.element },
+              mult,
+              false,
+              null,
+              {
+                attackerPosition: 'frontline',
+                defenderPosition: playerPosition,
+                stance: isPvp && enemyData.idx === 0 ? enemyStance : playerStance,
+                mutator
+              }
+            );
 
-        const nextPlayerHp = Math.max(0, playerHpRef.current - finalDmg);
-        playerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp);
+            if (isCrit) safeSound(playBattleCritSound);
+            else safeSound(playBattleHitSound);
 
-        if (isRivalUlt) {
-          logMessage(`⚡ ¡¡ALINEACIÓN RIVAL!! [${enemyData.enemyObj.name}] desató [${action.name}] causando ${finalDmg} de daño catastrófico.`);
-        } else {
-          logMessage(`⚡ [${enemyData.enemyObj.name}] usó [${action.name}] causando ${finalDmg} de daño.`);
-        }
+            setActiveVfx({ type: isRivalUlt ? 'ultimate' : (isSkill ? 'skill' : 'slash'), target: 'player', element: enemyData.elem });
+            setTimeout(() => setActiveVfx(null), 500);
 
-        if (nextPlayerHp <= 0) {
-          setTurn('busy');
-          setDefeatingTarget('player');
-          spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
-          logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
-          setTimeout(() => {
-            handleDefeat();
-          }, 1300);
-        } else {
-          setTimeout(onComplete, 500);
-        }
-      }, 500);
+            setAnimState(p => ({ ...p, enemy1Attacking: false, enemy2Attacking: false, playerHit: true, screenShake: isCrit || isRivalUlt }));
+            setTimeout(() => setAnimState(p => ({ ...p, playerHit: false, screenShake: false })), 400);
+
+            // Absorción por escudo del jugador
+            let finalDmg = damage;
+            if (playerShieldRef.current > 0) {
+              if (damage <= playerShieldRef.current) {
+                playerShieldRef.current -= damage;
+                setPlayerShield(playerShieldRef.current);
+                finalDmg = 0;
+                safeSound(playBattleShieldClangSound);
+                spawnFloatingText(`¡Bloqueaste (${damage})!`, 'player', 'shield');
+              } else {
+                finalDmg = damage - playerShieldRef.current;
+                playerShieldRef.current = 0;
+                setPlayerShield(0);
+                spawnFloatingText(`-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+              }
+            } else {
+              spawnFloatingText(isCrit ? `¡CRÍTICO! -${finalDmg}` : `-${finalDmg}`, 'player', isCrit ? 'crit' : 'damage');
+            }
+
+            // En Modo Cooperativo: El compañero puede interceptar parte del daño para proteger al héroe
+            if (isCoop && partnerHp > 0 && finalDmg > 20 && Math.random() < 0.35) {
+              const interceptedDmg = Math.round(finalDmg * 0.40);
+              finalDmg -= interceptedDmg;
+              setPartnerHp(p => Math.max(0, p - interceptedDmg));
+              setAnimState(p => ({ ...p, partnerHit: true }));
+              setTimeout(() => setAnimState(p => ({ ...p, partnerHit: false })), 400);
+              spawnFloatingText(`🛡️ Interceptado -${interceptedDmg}`, 'player', 'shield');
+              logMessage(`🛡️ ¡${partner?.name || 'Compañero'} interceptó ${interceptedDmg} de daño para salvaguardar a ${hero.name}!`);
+            }
+
+            // Reflejo de daño si el jugador tiene el efecto activo
+            const reflectIndex = playerEffectsRef.current.findIndex(e => e.type === 'reflect');
+            if (reflectIndex !== -1 && finalDmg > 0) {
+              const reflectDmg = Math.max(1, Math.round(finalDmg * 0.70));
+              const newHp = Math.max(0, enemyData.hpRef.current - reflectDmg);
+              enemyData.hpRef.current = newHp;
+              enemyData.setHp(newHp);
+              spawnFloatingText(`🪞 Reflejo -${reflectDmg}`, enemyData.targetKey, 'crit');
+              logMessage(`🪞 ¡El Espejo Astral de ${hero.name} reflejó ${reflectDmg} a [${enemyData.enemyObj?.name || 'Enemigo'}]!`);
+            }
+
+            const nextPlayerHp = Math.max(0, playerHpRef.current - finalDmg);
+            playerHpRef.current = nextPlayerHp;
+            setPlayerHp(nextPlayerHp);
+
+            if (isRivalUlt) {
+              logMessage(`⚡ ¡¡ALINEACIÓN RIVAL!! [${enemyData.enemyObj?.name || 'Rival'}] desató [${action.name}] causando ${finalDmg} de daño catastrófico.`);
+            } else {
+              logMessage(`⚡ [${enemyData.enemyObj?.name || 'Enemigo'}] usó [${action.name}] causando ${finalDmg} de daño.`);
+            }
+
+            if (nextPlayerHp <= 0) {
+              setTurn('busy');
+              setDefeatingTarget('player');
+              spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
+              logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
+              setTimeout(() => {
+                handleDefeat();
+              }, 1300);
+            } else {
+              setTimeout(onComplete, 450);
+            }
+          } catch (innerErr) {
+            console.error("Error resolving enemy attack:", innerErr);
+            onComplete();
+          }
+        }, 500);
+      } catch (outerErr) {
+        console.error("Error executing enemy attack:", outerErr);
+        onComplete();
+      }
     };
 
     // Secuencia de turnos: Enemigo 1 -> (Enemigo 2 si vive) -> Vuelta al Jugador
-    executeSingleEnemyAttack(getTargetData(0), () => {
-      if (playerHpRef.current <= 0) return;
+    try {
+      executeSingleEnemyAttack(getTargetData(0), () => {
+        if (playerHpRef.current <= 0) return;
 
-      if (hasDualEnemies && enemy2HpRef.current > 0) {
-        setTimeout(() => {
-          executeSingleEnemyAttack(getTargetData(1), () => {
-            finishEnemyRound();
-          });
-        }, 500);
-      } else {
-        finishEnemyRound();
-      }
-    });
+        if (hasDualEnemies && enemy2HpRef.current > 0) {
+          setTimeout(() => {
+            try {
+              executeSingleEnemyAttack(getTargetData(1), () => {
+                finishEnemyRound();
+              });
+            } catch (e2) {
+              console.error("Error on enemy2 attack:", e2);
+              finishEnemyRound();
+            }
+          }, 450);
+        } else {
+          finishEnemyRound();
+        }
+      });
+    } catch (startErr) {
+      console.error("Error starting enemy attacks:", startErr);
+      finishEnemyRound();
+    }
   };
 
   // Fin de ronda enemiga: procesar estados del jugador y devolver turno
   const finishEnemyRound = () => {
-    // Comprobar si ambos enemigos murieron por daño residual (veneno/quemadura)
-    const isEnemy1Dead = enemy1HpRef.current <= 0;
-    const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
-    if (isEnemy1Dead && isEnemy2Dead) {
-      setTurn('busy');
-      setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
-      spawnFloatingText('💥 ¡ANIQUILADO!', 'enemy1', 'crit');
-      setTimeout(() => {
-        handleVictory();
-      }, 1300);
-      return;
+    try {
+      // Comprobar si ambos enemigos murieron por daño residual (veneno/quemadura)
+      const isEnemy1Dead = enemy1HpRef.current <= 0;
+      const isEnemy2Dead = !hasDualEnemies || enemy2HpRef.current <= 0;
+      if (isEnemy1Dead && isEnemy2Dead) {
+        setTurn('busy');
+        setDefeatingTarget(hasDualEnemies ? 'both' : 'enemy1');
+        spawnFloatingText('💥 ¡ANIQUILADO!', 'enemy1', 'crit');
+        setTimeout(() => {
+          handleVictory();
+        }, 1300);
+        return;
+      }
+
+      if (playerHpRef.current <= 0) return;
+
+      // Procesar venenos/sangrados en el jugador
+      const playerStatus = processStatusEffects(playerEffectsRef.current, playerHpRef.current, heroStats.maxHp);
+      playerHpRef.current = playerStatus.nextHp;
+      setPlayerHp(playerStatus.nextHp);
+      playerEffectsRef.current = playerStatus.updatedEffects;
+      setPlayerEffects(playerStatus.updatedEffects);
+      (playerStatus.logMessages || []).forEach(m => logMessage(m));
+
+      if (playerStatus.nextHp <= 0) {
+        setTurn('busy');
+        setDefeatingTarget('player');
+        spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
+        logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
+        setTimeout(() => {
+          handleDefeat();
+        }, 1300);
+        return;
+      }
+
+      // Inicio del nuevo turno del Jugador: Beneficios Tácticos
+      // 1. Postura Lunar: Regenera 4% HP
+      if (playerStance === 'lunar') {
+        const regen = Math.max(1, Math.round(heroStats.maxHp * 0.04));
+        const nextHp = Math.min(heroStats.maxHp, playerHpRef.current + regen);
+        playerHpRef.current = nextHp;
+        setPlayerHp(nextHp);
+        spawnFloatingText(`+${regen} Lunar`, 'player', 'heal');
+      }
+
+      // 2. Retaguardia: Gana +1 Éter extra
+      if (playerPosition === 'backline') {
+        setPlayerEther(e => Math.min(5, e + 1));
+        spawnFloatingText('+1 Éter (Retaguardia)', 'player', 'shield');
+      }
+
+      // 3. Mutador Sobrecarga de Éter
+      if (mutator?.id === 'ether_surge') {
+        setPlayerEther(e => Math.min(5, e + 1));
+      }
+
+      // 4. Mutador Eclipse Sangriento: Sangrado leve
+      if (mutator?.id === 'blood_eclipse') {
+        playerEffectsRef.current = [...playerEffectsRef.current, { type: 'bleed', turns: 1, damage: 15 }];
+        setPlayerEffects([...playerEffectsRef.current]);
+      }
+    } catch (err) {
+      console.error("Error in finishEnemyRound:", err);
+    } finally {
+      setTurn('player');
+      safeSound(playTurnReadySound);
     }
-
-    if (playerHpRef.current <= 0) return;
-
-    // Procesar venenos/sangrados en el jugador
-    const playerStatus = processStatusEffects(playerEffectsRef.current, playerHpRef.current, heroStats.maxHp);
-    playerHpRef.current = playerStatus.nextHp;
-    setPlayerHp(playerStatus.nextHp);
-    playerEffectsRef.current = playerStatus.updatedEffects;
-    setPlayerEffects(playerStatus.updatedEffects);
-    playerStatus.logMessages.forEach(m => logMessage(m));
-
-    if (playerStatus.nextHp <= 0) {
-      setTurn('busy');
-      setDefeatingTarget('player');
-      spawnFloatingText('💔 ¡ENERGÍA AGOTADA!', 'player', 'crit');
-      logMessage(`💔 La fuerza vital de ${hero.name} ha colapsado.`);
-      setTimeout(() => {
-        handleDefeat();
-      }, 1300);
-      return;
-    }
-
-    // Inicio del nuevo turno del Jugador: Beneficios Tácticos
-    // 1. Postura Lunar: Regenera 4% HP
-    if (playerStance === 'lunar') {
-      const regen = Math.max(1, Math.round(heroStats.maxHp * 0.04));
-      const nextHp = Math.min(heroStats.maxHp, playerHpRef.current + regen);
-      playerHpRef.current = nextHp;
-      setPlayerHp(nextHp);
-      spawnFloatingText(`+${regen} Lunar`, 'player', 'heal');
-    }
-
-    // 2. Retaguardia: Gana +1 Éter extra
-    if (playerPosition === 'backline') {
-      setPlayerEther(e => Math.min(5, e + 1));
-      spawnFloatingText('+1 Éter (Retaguardia)', 'player', 'shield');
-    }
-
-    // 3. Mutador Sobrecarga de Éter
-    if (mutator?.id === 'ether_surge') {
-      setPlayerEther(e => Math.min(5, e + 1));
-    }
-
-    // 4. Mutador Eclipse Sangriento: Sangrado leve
-    if (mutator?.id === 'blood_eclipse') {
-      playerEffectsRef.current = [...playerEffectsRef.current, { type: 'bleed', turns: 1, damage: 15 }];
-      setPlayerEffects([...playerEffectsRef.current]);
-    }
-
-    setTurn('player');
-    playTurnReadySound();
   };
 
   // ==========================================
@@ -1098,16 +1203,16 @@ export function BattleArena({
                 </div>
 
                 {/* Barra de Vida con Animación Gradual y Barra Fantasma de Daño */}
-                <div className="relative w-full h-2.5 bg-black/60 border border-white/10 rounded-full overflow-hidden shadow-inner">
+                <div className="relative w-full h-2.5 bg-black/70 border border-white/15 rounded-full overflow-hidden shadow-inner">
                   {/* Barra Fantasma (Trail de daño recibido) */}
                   <div 
-                    className="absolute inset-0 h-full bg-amber-400/50 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${Math.max(0, (enemy1GhostHp / enemy1MaxHp) * 100)}%` }}
+                    className="absolute top-0 bottom-0 left-0 bg-white/40 rounded-full transition-[width] duration-500 ease-out z-0"
+                    style={{ width: `${Math.min(100, Math.max(0, (enemy1GhostHp / enemy1MaxHp) * 100))}%` }}
                   />
                   {/* Barra Principal de Vida */}
                   <div 
-                    className="relative h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-                    style={{ width: `${Math.max(0, (enemy1Hp / enemy1MaxHp) * 100)}%` }}
+                    className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-[width] duration-300 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10"
+                    style={{ width: `${Math.min(100, Math.max(0, (enemy1Hp / enemy1MaxHp) * 100))}%` }}
                   />
                 </div>
 
@@ -1236,16 +1341,16 @@ export function BattleArena({
                   </div>
 
                   {/* Barra de Vida con Animación Gradual y Barra Fantasma de Daño */}
-                  <div className="relative w-full h-2.5 bg-black/60 border border-white/10 rounded-full overflow-hidden shadow-inner">
+                  <div className="relative w-full h-2.5 bg-black/70 border border-white/15 rounded-full overflow-hidden shadow-inner">
                     {/* Barra Fantasma (Trail de daño) */}
                     <div 
-                      className="absolute inset-0 h-full bg-amber-400/50 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.max(0, (enemy2GhostHp / enemy2MaxHp) * 100)}%` }}
+                      className="absolute top-0 bottom-0 left-0 bg-white/40 rounded-full transition-[width] duration-500 ease-out z-0"
+                      style={{ width: `${Math.min(100, Math.max(0, (enemy2GhostHp / enemy2MaxHp) * 100))}%` }}
                     />
                     {/* Barra Principal */}
                     <div 
-                      className="relative h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-                      style={{ width: `${Math.max(0, (enemy2Hp / enemy2MaxHp) * 100)}%` }}
+                      className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-[width] duration-300 ease-out shadow-[0_0_8px_rgba(239,68,68,0.6)] z-10"
+                      style={{ width: `${Math.min(100, Math.max(0, (enemy2Hp / enemy2MaxHp) * 100))}%` }}
                     />
                   </div>
 
@@ -1529,28 +1634,36 @@ export function BattleArena({
             </div>
 
             {/* Barra de Vida fluida del Jugador con Barra Fantasma de Daño */}
-            <div className="relative w-full h-3 bg-black/60 border border-cyan-500/30 rounded-full overflow-hidden p-0.5 shadow-inner">
+            <div className="relative w-full h-3 bg-black/70 border border-cyan-500/40 rounded-full overflow-hidden shadow-inner">
               {/* Barra Fantasma (Trail de daño) */}
               <div 
-                className="absolute inset-0 h-full bg-rose-500/50 rounded-full transition-all duration-1000 ease-out"
-                style={{ width: `${Math.max(0, (playerGhostHp / heroStats.maxHp) * 100)}%` }}
+                className="absolute top-0 bottom-0 left-0 bg-rose-400/40 rounded-full transition-[width] duration-500 ease-out z-0"
+                style={{ width: `${Math.min(100, Math.max(0, (playerGhostHp / heroStats.maxHp) * 100))}%` }}
               />
               {/* Barra Principal (Gradual y brillante) */}
               <div 
-                className="relative h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                style={{ width: `${Math.max(0, (playerHp / heroStats.maxHp) * 100)}%` }}
+                className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full transition-[width] duration-300 ease-out shadow-[0_0_10px_rgba(6,182,212,0.8)] z-10"
+                style={{ width: `${Math.min(100, Math.max(0, (playerHp / heroStats.maxHp) * 100))}%` }}
               />
             </div>
 
             {/* Si es Co-op: Vida y Estado de Asistencia del Compañero */}
             {isCoop && (
-              <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px]">
-                <div className="flex items-center gap-1 text-teal-300 truncate">
-                  <span className="font-bold">APOYO DE {partner.name}:</span>
-                  <span className="text-gray-400 truncate">[{partnerAssistSkill?.name}]</span>
+              <div className="mt-1.5 pt-1.5 border-t border-white/5 space-y-1 text-[9px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-teal-300 truncate">
+                    <span className="font-bold">APOYO DE {partner.name}:</span>
+                    <span className="text-gray-400 truncate">[{partnerAssistSkill?.name}]</span>
+                  </div>
+                  <div className="font-mono text-[10px] text-teal-300 shrink-0 font-bold">
+                    {partnerHp}/{partnerMaxHp} HP
+                  </div>
                 </div>
-                <div className="font-mono text-[10px] text-teal-300 shrink-0 font-bold">
-                  {partnerHp}/{partnerMaxHp} HP
+                <div className="relative w-full h-1.5 bg-black/70 border border-teal-500/30 rounded-full overflow-hidden shadow-inner">
+                  <div 
+                    className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-teal-500 to-cyan-400 rounded-full transition-[width] duration-300 ease-out shadow-[0_0_6px_rgba(20,184,166,0.6)]"
+                    style={{ width: `${Math.min(100, Math.max(0, (partnerHp / partnerMaxHp) * 100))}%` }}
+                  />
                 </div>
               </div>
             )}

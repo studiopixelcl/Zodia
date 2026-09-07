@@ -404,6 +404,7 @@ export function ChroniclesGame({ profile, onBack }) {
     return (
       <div className="px-3 sm:px-6 pb-24 animate-fadeIn">
         <BattleArena 
+          key={activeBattle ? `${activeBattle.mode}_${activeBattle.enemy?.id || activeBattle.enemy?.name || activeBattle.houseNumber || activeBattle.floorNumber || 'battle'}` : 'none'}
           hero={hero}
           enemy={activeBattle.enemy}
           enemy2={activeBattle.enemy2 || null}
