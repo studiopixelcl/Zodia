@@ -163,59 +163,59 @@ export function HeroProfileCard({ hero, onOpenInventory, onOpenSkillTree, onOpen
       </div>
 
       {/* Cuadrícula de Estadísticas de Batalla (Dividido en Físico y Mágico) */}
-      <div className="p-2.5 rounded-xl bg-black/50 border border-white/10 mb-4 space-y-2">
+      <div className="p-2 sm:p-2.5 rounded-xl bg-black/50 border border-white/10 mb-4 space-y-2">
         {/* Fila 1: Ofensiva y Vida */}
         <div className="grid grid-cols-3 gap-1.5 text-center">
-          <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[10px] text-red-300 font-semibold mb-0.5">
-              <Heart size={12} className="text-red-400" /> VIDA
+          <div className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-red-300 font-semibold mb-0.5">
+              <Heart size={11} className="text-red-400 shrink-0" /> <span>VIDA</span>
             </div>
-            <span className="text-xs font-bold text-white font-mono">{totalStats.maxHp}</span>
+            <span className="text-[11px] sm:text-xs font-bold text-white font-mono">{totalStats.maxHp}</span>
           </div>
 
-          <div className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[10px] text-orange-300 font-semibold mb-0.5">
-              <Sword size={12} className="text-orange-400" /> ATQ FÍS.
+          <div className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-orange-300 font-semibold mb-0.5">
+              <Sword size={11} className="text-orange-400 shrink-0" /> <span>ATQ FÍS</span>
             </div>
-            <span className="text-xs font-bold text-orange-200 font-mono">{totalStats.patk}</span>
+            <span className="text-[11px] sm:text-xs font-bold text-orange-200 font-mono">{totalStats.patk}</span>
           </div>
 
-          <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[10px] text-purple-300 font-semibold mb-0.5">
-              <Sparkles size={12} className="text-purple-400" /> ATQ MÁG.
+          <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-purple-300 font-semibold mb-0.5">
+              <Sparkles size={11} className="text-purple-400 shrink-0" /> <span>ATQ MÁG</span>
             </div>
-            <span className="text-xs font-bold text-purple-200 font-mono">{totalStats.matk}</span>
+            <span className="text-[11px] sm:text-xs font-bold text-purple-200 font-mono">{totalStats.matk}</span>
           </div>
         </div>
 
         {/* Fila 2: Defensas, Velocidad y Crítico */}
-        <div className="grid grid-cols-4 gap-1.5 text-center">
-          <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[9px] text-blue-300 font-semibold mb-0.5">
-              <Shield size={11} className="text-blue-400" /> DEF FÍS.
+        <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center">
+          <div className="p-1 sm:p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-blue-300 font-semibold mb-0.5">
+              <Shield size={10} className="text-blue-400 shrink-0" /> <span>DEF FÍS</span>
             </div>
-            <span className="text-xs font-bold text-blue-200 font-mono">{totalStats.pdef}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-blue-200 font-mono">{totalStats.pdef}</span>
           </div>
 
-          <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[9px] text-indigo-300 font-semibold mb-0.5">
-              <Shield size={11} className="text-indigo-400" /> DEF MÁG.
+          <div className="p-1 sm:p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-indigo-300 font-semibold mb-0.5">
+              <Shield size={10} className="text-indigo-400 shrink-0" /> <span>DEF MÁG</span>
             </div>
-            <span className="text-xs font-bold text-indigo-200 font-mono">{totalStats.mdef}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-indigo-200 font-mono">{totalStats.mdef}</span>
           </div>
 
-          <div className="p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[9px] text-yellow-300 font-semibold mb-0.5">
-              <Zap size={11} className="text-yellow-400" /> VEL
+          <div className="p-1 sm:p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-yellow-300 font-semibold mb-0.5">
+              <Zap size={10} className="text-yellow-400 shrink-0" /> <span>VEL</span>
             </div>
-            <span className="text-xs font-bold text-yellow-200 font-mono">{totalStats.spd}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-yellow-200 font-mono">{totalStats.spd}</span>
           </div>
 
-          <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center">
-            <div className="flex items-center gap-1 text-[9px] text-cyan-300 font-semibold mb-0.5">
-              <Crosshair size={11} className="text-cyan-400" /> CRÍT
+          <div className="p-1 sm:p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[9px] text-cyan-300 font-semibold mb-0.5">
+              <Crosshair size={10} className="text-cyan-400 shrink-0" /> <span>CRÍT</span>
             </div>
-            <span className="text-xs font-bold text-cyan-200 font-mono">{Math.round(totalStats.critRate * 100)}%</span>
+            <span className="text-[10px] sm:text-xs font-bold text-cyan-200 font-mono">{Math.round(totalStats.critRate * 100)}%</span>
           </div>
         </div>
       </div>

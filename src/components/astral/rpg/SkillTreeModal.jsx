@@ -242,9 +242,9 @@ export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300">
-              <Sparkles size={15} />
-              <span className="text-xs font-mono font-bold">NIVEL {heroLevel}</span>
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold">
+              <Sparkles size={14} className="text-purple-400" />
+              <span>NVL {heroLevel}</span>
             </div>
 
             <button 

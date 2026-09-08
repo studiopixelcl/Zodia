@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sparkles,
   Shield,
@@ -28,11 +29,36 @@ import {
 } from './rpg-data';
 
 export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('pets'); // 'pets' | 'alchemy'
   const [selectedPetId, setSelectedPetId] = useState(hero?.activePetId || 'pet_phoenix');
   const [actionFeedback, setActionFeedback] = useState(null);
 
-  if (!hero) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Bloquear scroll de la página mientras el modal esté abierto
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
+  // Cerrar con Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (!hero || !mounted) return null;
 
   const currentActivePet = getHeroActivePet(hero);
   const userPets = hero.pets || [];
@@ -91,35 +117,48 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
   const levelMult = isUnlocked ? (1 + (currentLevel - 1) * 0.15) : 1.0;
   const nextLevelMult = 1 + currentLevel * 0.15;
 
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-fadeIn">
-      <div className="relative w-full max-w-5xl rounded-3xl border border-purple-500/30 bg-gradient-to-b from-[#161224] via-[#0d0a18] to-[#080611] text-zinc-100 shadow-2xl shadow-purple-950/50 flex flex-col overflow-hidden my-auto max-h-[92vh] animate-scaleUp">
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="w-full max-w-5xl rounded-3xl border border-purple-500/30 bg-gradient-to-b from-[#161224] via-[#0d0a18] to-[#080611] text-zinc-100 shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(168,85,247,0.25)] flex flex-col overflow-hidden max-h-[92dvh] sm:max-h-[90vh] text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Encabezado Superior */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/20 bg-purple-950/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-purple-500/30">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-purple-500/20 bg-purple-950/20 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-purple-500/30 shrink-0">
               🐾
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200">
+              <h2 className="text-base sm:text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200">
                 Santuario de Mascotas & Alquimia
               </h2>
-              <p className="text-xs text-zinc-400">
+              <p className="text-[11px] sm:text-xs text-zinc-400">
                 Compañeros astrales con habilidades autónomas y boticario cósmico
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Balance de Polvo Estelar */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold shadow-inner">
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold shadow-inner">
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>{polvo} Polvo Estelar</span>
+              <span className="font-mono">{polvo}</span>
+              <span className="hidden sm:inline">Polvo</span>
             </div>
 
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              title="Cerrar Santuario"
             >
               <X className="w-5 h-5" />
             </button>
@@ -127,23 +166,23 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
         </div>
 
         {/* Pestañas: Mascotas vs Alquimia */}
-        <div className="flex border-b border-white/5 bg-black/30 px-6 pt-3 gap-2">
+        <div className="flex border-b border-white/5 bg-black/30 px-4 sm:px-6 pt-2.5 sm:pt-3 gap-2 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => setActiveTab('pets')}
-            className={`flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition-all ${
+            className={`flex items-center gap-2 pb-2.5 sm:pb-3 px-3 sm:px-4 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'pets'
                 ? 'border-purple-400 text-purple-200 shadow-sm'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <span>🐾 Mascotas Astrales</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-normal">
+            <span className="text-[10px] sm:text-xs px-2 py-0.2 sm:py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-normal">
               {userPets.length}/{ASTRAL_PETS_CATALOG.length}
             </span>
           </button>
           <button
             onClick={() => setActiveTab('alchemy')}
-            className={`flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition-all ${
+            className={`flex items-center gap-2 pb-2.5 sm:pb-3 px-3 sm:px-4 text-xs sm:text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'alchemy'
                 ? 'border-amber-400 text-amber-200 shadow-sm'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -157,7 +196,7 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
         {/* Feedback Notificación */}
         {actionFeedback && (
           <div
-            className={`mx-6 mt-3 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn ${
+            className={`mx-4 sm:mx-6 mt-3 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn ${
               actionFeedback.success
                 ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
                 : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'
@@ -169,9 +208,9 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
         )}
 
         {/* CONTENIDO PRINCIPAL */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 custom-scrollbar">
           {activeTab === 'pets' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               {/* LISTA DE MASCOTAS (IZQUIERDA) */}
               <div className="lg:col-span-5 space-y-3">
                 <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
@@ -461,6 +500,7 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

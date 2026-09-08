@@ -2210,58 +2210,65 @@ export function BattleArena({
                 Mochila Alquimia
               </div>
               <div className="text-[9px] text-amber-400/80 truncate">
-                {isBackpackOpen ? '▲ Ocultar' : '▼ 6 Consumibles'}
+                {isBackpackOpen ? '▲ Ocultar' : '▼ 6 Pociones'}
               </div>
             </div>
           </button>
 
           {/* Popover / Menú Desplegable de Consumibles */}
           {isBackpackOpen && (
-            <div className="absolute bottom-full left-0 sm:-left-12 mb-2 w-72 sm:w-80 rounded-2xl border border-amber-500/40 bg-[#0e0c18]/95 backdrop-blur-md p-3 shadow-2xl shadow-black/90 z-50 animate-fadeIn">
-              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
-                <span className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-                  <span>🎒</span> Mochila de Alquimia Táctica
-                </span>
-                <button
-                  onClick={() => setIsBackpackOpen(false)}
-                  className="text-gray-400 hover:text-white text-xs px-1.5 py-0.5 rounded-md hover:bg-white/10"
-                >
-                  ✕
-                </button>
-              </div>
+            <>
+              {/* Backdrop en móvil */}
+              <div 
+                className="sm:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+                onClick={() => setIsBackpackOpen(false)}
+              />
+              <div className="fixed sm:absolute bottom-4 sm:bottom-full left-3 sm:left-0 sm:-left-12 right-3 sm:right-auto mb-0 sm:mb-2 max-w-sm sm:w-80 mx-auto sm:mx-0 rounded-2xl border border-amber-500/40 bg-[#0e0c18]/95 backdrop-blur-md p-3.5 sm:p-3 shadow-2xl shadow-black/90 z-50 animate-fadeIn">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
+                  <span className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
+                    <span>🎒</span> Mochila de Alquimia Táctica
+                  </span>
+                  <button
+                    onClick={() => setIsBackpackOpen(false)}
+                    className="text-gray-400 hover:text-white text-xs px-2 py-0.5 rounded-md hover:bg-white/10"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto custom-scrollbar">
-                {ALCHEMY_CONSUMABLES_CATALOG.map((item) => {
-                  const count = consumables[item.id] || 0;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        handleUseConsumable(item.id);
-                        if (count <= 1) setIsBackpackOpen(false);
-                      }}
-                      disabled={count <= 0 || turn !== 'player'}
-                      className={`p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                        count > 0 
-                          ? 'bg-white/5 hover:bg-amber-500/20 border-white/10 hover:border-amber-400/60 cursor-pointer' 
-                          : 'bg-white/[0.02] border-white/5 opacity-30 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-base">{item.icon}</span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-black/50 text-amber-300">
-                          x{count}
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        <div className="text-[11px] font-bold text-zinc-100 truncate">{item.name}</div>
-                        <div className="text-[9px] text-zinc-400 line-clamp-1">{item.desc}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+                <div className="grid grid-cols-2 gap-2 max-h-64 sm:max-h-56 overflow-y-auto custom-scrollbar">
+                  {ALCHEMY_CONSUMABLES_CATALOG.map((item) => {
+                    const count = consumables[item.id] || 0;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          handleUseConsumable(item.id);
+                          if (count <= 1) setIsBackpackOpen(false);
+                        }}
+                        disabled={count <= 0 || turn !== 'player'}
+                        className={`p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                          count > 0 
+                            ? 'bg-white/5 hover:bg-amber-500/20 border-white/10 hover:border-amber-400/60 cursor-pointer' 
+                            : 'bg-white/[0.02] border-white/5 opacity-30 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-base">{item.icon}</span>
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-black/50 text-amber-300">
+                            x{count}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <div className="text-[11px] font-bold text-zinc-100 truncate">{item.name}</div>
+                          <div className="text-[9px] text-zinc-400 line-clamp-1">{item.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -2324,8 +2331,8 @@ export function BattleArena({
 
       {/* MODAL DE RESULTADO: VICTORIA O DERROTA */}
       {battleOutcome && (
-        <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-40 flex items-center justify-center p-6 animate-fadeIn">
-          <div className="glass-panel p-6 rounded-3xl border border-cyan-500/40 max-w-sm w-full text-center relative overflow-hidden bg-gradient-to-b from-gray-950 via-purple-950/30 to-black shadow-2xl">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 animate-fadeIn select-none">
+          <div className="glass-panel p-5 sm:p-6 rounded-3xl border border-cyan-500/40 max-w-sm sm:max-w-md w-full text-center relative overflow-hidden bg-gradient-to-b from-gray-950 via-purple-950/40 to-black shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(6,182,212,0.3)]">
             {battleOutcome === 'victory' ? (
               <>
                 <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center mx-auto mb-4 text-amber-300 shadow-xl shadow-amber-500/20 animate-bounce">

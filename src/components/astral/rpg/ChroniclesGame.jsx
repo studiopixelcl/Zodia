@@ -437,43 +437,46 @@ export function ChroniclesGame({ profile, onBack }) {
     <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
       
       {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO Y STATUS RESUMIDO */}
-      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80">
+      <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2 sm:py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80 gap-2">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs font-bold text-cyan-300 hover:text-white px-3.5 py-1.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/50 shadow-md shadow-cyan-950/40 transition-all group"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs font-bold text-cyan-300 hover:text-white px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/50 shadow-md shadow-cyan-950/40 transition-all group shrink-0"
           title="Regresar a Arcadia Astral / Menú Principal"
         >
-          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-cyan-400" />
-          <span>Volver al Menú Principal</span>
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform text-cyan-400 shrink-0" />
+          <span className="hidden sm:inline">Volver al Menú Principal</span>
+          <span className="sm:hidden">Volver</span>
         </button>
 
         {/* Indicadores rápidos de estado del héroe */}
-        <div className="flex items-center gap-2 sm:gap-3 text-xs">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono shadow-sm">
-            <Coins size={14} className="text-amber-400" />
-            <span className="font-bold">{hero?.dust || 0}</span>
-            <span className="text-[10px] text-amber-400/80 hidden sm:inline">Polvo</span>
+        <div className="flex items-center gap-1.5 sm:gap-2.5 text-xs overflow-x-auto no-scrollbar shrink-0">
+          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono shadow-sm shrink-0">
+            <Coins size={13} className="text-amber-400 shrink-0" />
+            <span className="font-bold text-[11px] sm:text-xs">{hero?.polvoEstelar ?? hero?.dust ?? 0}</span>
+            <span className="text-[9px] text-amber-400/80 hidden md:inline">✦</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono shadow-sm">
-            <Trophy size={14} className="text-purple-400" />
-            <span className="font-bold">{getPvpRankInfo(hero?.pvpScore || 1000).name}</span>
+          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono shadow-sm shrink-0">
+            <Trophy size={13} className="text-purple-400 shrink-0" />
+            <span className="font-bold text-[10px] sm:text-xs truncate max-w-[70px] sm:max-w-[120px]">
+              {hero?.pvpRank || getPvpRankInfo(hero?.pvpPoints || 0).name}
+            </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono font-bold shadow-sm">
-            <span className="text-[10px] text-cyan-400">NVL</span>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono font-bold shadow-sm shrink-0 text-[10px] sm:text-xs">
+            <span className="text-[9px] text-cyan-400 font-bold">NV</span>
             <span>{hero?.level || 1}</span>
           </div>
 
           {/* Botón de Sonido ON/OFF */}
           <button
             onClick={() => setSoundEnabled(!soundOn)}
-            className={`p-1.5 rounded-xl border transition-all ${
+            className={`p-1.5 rounded-xl border transition-all shrink-0 ${
               soundOn 
                 ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30' 
                 : 'bg-white/5 border-white/10 text-gray-500 hover:text-gray-300'
             }`}
             title={soundOn ? 'Silenciar efectos de sonido' : 'Activar efectos de sonido'}
           >
-            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
         </div>
       </div>
@@ -623,7 +626,7 @@ export function ChroniclesGame({ profile, onBack }) {
         {/* Botón 5: Desafíos y Recompensas Diarias */}
         <button
           onClick={() => setIsDailyRewardsOpen(true)}
-          className={`group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer ${
+          className={`group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer col-span-2 sm:col-span-1 lg:col-span-1 ${
             hasDailyAlert 
               ? 'border-amber-400 shadow-amber-500/20' 
               : 'border-purple-500/40 hover:border-purple-400 shadow-purple-950/30 hover:shadow-purple-500/20'
@@ -693,79 +696,40 @@ export function ChroniclesGame({ profile, onBack }) {
         onOpenPetSanctuary={() => setIsPetSanctuaryOpen(true)}
       />
 
-      {/* Selector de Pestañas / Modos (6 Modos) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-        <button
-          onClick={() => setActiveTab('houses')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'houses'
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow-lg shadow-cyan-500/20'
-              : 'glass-panel text-gray-400 hover:text-white border border-white/10'
-          }`}
-        >
-          <Trophy size={15} />
-          <span>12 Casas</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('eclipse')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'eclipse'
-              ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-black shadow-lg shadow-amber-500/20'
-              : 'glass-panel text-amber-400/80 hover:text-amber-300 border border-amber-500/20'
-          }`}
-        >
-          <Zap size={15} className="text-amber-400" />
-          <span>Duelos 1vs2</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('tower')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'tower'
-              ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/20'
-              : 'glass-panel text-purple-400/80 hover:text-purple-300 border border-purple-500/20'
-          }`}
-        >
-          <Crown size={15} className="text-purple-400" />
-          <span>Torre Caos</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('shadows')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'shadows'
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20'
-              : 'glass-panel text-gray-400 hover:text-white border border-white/10'
-          }`}
-        >
-          <Sword size={15} />
-          <span>Duelo 1v1</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('coop')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'coop'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-black shadow-lg shadow-emerald-500/20'
-              : 'glass-panel text-teal-400/80 hover:text-teal-300 border border-teal-500/20'
-          }`}
-        >
-          <Users size={15} />
-          <span>Sinastría</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('pvp')}
-          className={`py-3 px-2 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'pvp'
-              ? 'bg-gradient-to-r from-red-500 to-amber-500 text-black shadow-lg shadow-red-500/20'
-              : 'glass-panel text-amber-400/90 hover:text-amber-300 border border-amber-500/20'
-          }`}
-        >
-          <Swords size={15} className="text-amber-400" />
-          <span>Coliseo PvP</span>
-        </button>
+      {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal táctil y adaptativo */}
+      <div className="flex items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+        {[
+          { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
+          { id: 'eclipse', label: '1vs2 Eclipse', icon: Zap, activeColor: 'from-amber-500 to-orange-600 text-black', badge: 'Reto' },
+          { id: 'tower', label: 'Torre Caos', icon: Crown, activeColor: 'from-purple-500 to-indigo-600 text-white', badge: `P.${hero.maxTowerFloor || 1}` },
+          { id: 'shadows', label: 'Duelo 1v1', icon: Sword, activeColor: 'from-blue-500 to-indigo-600 text-white', badge: 'Rápido' },
+          { id: 'coop', label: 'Co-op Dúo', icon: Users, activeColor: 'from-emerald-500 to-teal-600 text-black', badge: 'Sinastría' },
+          { id: 'pvp', label: 'Coliseo PvP', icon: Swords, activeColor: 'from-red-500 to-amber-500 text-black', badge: 'Arena' },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 min-w-[105px] sm:min-w-0 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 sm:shrink ${
+                isActive
+                  ? `bg-gradient-to-r ${tab.activeColor} shadow-md shadow-cyan-500/20 ring-1 ring-white/30`
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Icon size={14} className={isActive ? '' : 'text-gray-400'} />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-md ${
+                  isActive ? 'bg-black/25 text-current' : 'bg-white/5 text-gray-400'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* CONTENIDO SEGÚN LA PESTAÑA ACTIVA */}

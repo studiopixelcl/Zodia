@@ -263,7 +263,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
           {/* ================= PESTAÑA: RACHA DE 7 DÍAS ================= */}
           {activeTab === 'streak' && (
             <div className="space-y-4">
-              <div className="bg-slate-900/60 border border-indigo-500/20 rounded-xl p-3.5 flex items-center justify-between">
+              <div className="bg-slate-900/60 border border-indigo-500/20 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-400" />
@@ -276,13 +276,13 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
                 {resetInfo.canClaimStreak ? (
                   <button
                     onClick={handleClaimStreak}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center gap-1.5"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0"
                   >
                     <Gift className="w-4 h-4" />
                     ¡Reclamar Día {((hero.dailyStreak || 0) % 7) + 1}!
                   </button>
                 ) : (
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 text-xs flex items-center gap-1.5">
+                  <div className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 text-xs flex items-center gap-1.5 shrink-0">
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Reclamado Hoy</span>
                   </div>
@@ -312,7 +312,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
                     <div 
                       key={reward.day}
                       className={`relative p-3 rounded-xl border flex flex-col justify-between transition-all ${borderStyle} ${
-                        reward.day === 7 ? 'sm:col-span-2' : ''
+                        reward.day === 7 ? 'col-span-2 sm:col-span-2' : ''
                       }`}
                     >
                       {/* Badge superior */}

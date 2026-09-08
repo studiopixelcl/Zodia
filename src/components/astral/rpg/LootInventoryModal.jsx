@@ -22,6 +22,7 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSummoning, setIsSummoning] = useState(false);
   const [summonResult, setSummonResult] = useState(null);
+  const [mobileTab, setMobileTab] = useState('inventory'); // 'gear' | 'inventory'
 
   useEffect(() => {
     setMounted(true);
@@ -278,8 +279,8 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
 
           <div className="flex items-center gap-2">
             {/* Polvo estelar en cabecera */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300">
-              <Coins size={16} className="text-amber-400" />
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300">
+              <Coins size={14} className="text-amber-400" />
               <span className="text-xs font-mono font-bold">{hero.polvoEstelar || 0}</span>
             </div>
 
@@ -297,40 +298,66 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
         {summonResult && (
           <div className="mt-3 p-3 rounded-2xl bg-cyan-950/60 border border-cyan-400/60 flex items-center justify-between animate-fadeIn shrink-0 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/30 flex items-center justify-center text-cyan-300">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/30 flex items-center justify-center text-cyan-300 shrink-0">
                 <Star size={20} className="animate-spin" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">¡Nueva Reliquia Invocada!</span>
                 <div className="flex items-center gap-2">
-                  <h4 className={`text-xs sm:text-sm font-bold ${RARITIES[summonResult.rarity]?.color}`}>
+                  <h4 className={`text-xs sm:text-sm font-bold truncate ${RARITIES[summonResult.rarity]?.color}`}>
                     {summonResult.name}
                   </h4>
                   {summonResult.setId && EQUIPMENT_SETS[summonResult.setId] && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-300">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-300 shrink-0">
                       {EQUIPMENT_SETS[summonResult.setId].badge}
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-gray-300">{summonResult.desc}</p>
+                <p className="text-[10px] text-gray-300 truncate">{summonResult.desc}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={() => setSelectedItem(summonResult)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
+                className="text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
               >
                 Comparar
               </button>
               <button 
                 onClick={() => handleEquip(summonResult)}
-                className="text-xs px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-black font-extrabold uppercase tracking-wider hover:opacity-95 transition-all shadow-md"
+                className="text-xs px-3 sm:px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-black font-extrabold uppercase tracking-wider hover:opacity-95 transition-all shadow-md"
               >
-                Equipar Ya
+                Equipar
               </button>
             </div>
           </div>
         )}
+
+        {/* Selector de Pestañas Móviles (Solo visible en pantallas < lg) */}
+        <div className="flex lg:hidden bg-white/5 p-1 rounded-2xl border border-white/10 gap-1 mt-2.5 shrink-0">
+          <button
+            onClick={() => setMobileTab('inventory')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'inventory'
+                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Package size={14} />
+            <span>Mochila ({filteredInventory.length})</span>
+          </button>
+          <button
+            onClick={() => setMobileTab('gear')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              mobileTab === 'gear'
+                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Shield size={14} />
+            <span>Equipadas ({Object.values(equipped).filter(Boolean).length}/3)</span>
+          </button>
+        </div>
 
         {/* Contenido Principal de 2 Columnas */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 mt-3 overflow-hidden min-h-0">
@@ -338,7 +365,7 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
           {/* ======================================================== */}
           {/* COLUMNA IZQUIERDA: EQUIPO ACTIVO, STATS Y SETS (5 cols)  */}
           {/* ======================================================== */}
-          <div className="lg:col-span-5 flex flex-col gap-3 overflow-y-auto pr-1 custom-scrollbar">
+          <div className={`lg:col-span-5 flex-col gap-3 overflow-y-auto pr-1 custom-scrollbar ${mobileTab === 'gear' ? 'flex' : 'hidden lg:flex'}`}>
             
             {/* Sección: Slots de Equipo Activo */}
             <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10">
@@ -443,10 +470,13 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                               </>
                             ) : (
                               <p 
-                                onClick={() => setFilter(key)}
+                                onClick={() => {
+                                  setFilter(key);
+                                  setMobileTab('inventory');
+                                }}
                                 className="text-xs text-gray-500 italic cursor-pointer hover:text-cyan-400 transition-colors"
                               >
-                                {defaultDesc} (clic para buscar)
+                                {defaultDesc} (toca para buscar)
                               </p>
                             )}
                           </div>
@@ -637,7 +667,7 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
           {/* ======================================================== */}
           {/* COLUMNA DERECHA: INVENTARIO Y COMPARADOR (7 cols)         */}
           {/* ======================================================== */}
-          <div className="lg:col-span-7 flex flex-col overflow-hidden bg-black/40 rounded-2xl border border-white/10 p-3 sm:p-4 min-h-0">
+          <div className={`lg:col-span-7 flex-col overflow-hidden bg-black/40 rounded-2xl border border-white/10 p-3 sm:p-4 min-h-0 ${mobileTab === 'inventory' ? 'flex' : 'hidden lg:flex'}`}>
             
             {/* Barra superior de Inventario: Filtros y Botón de Cofre */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/10 shrink-0">
@@ -1067,8 +1097,8 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
                       </div>
                     )}
 
-                    {/* Botones de Acción */}
-                    <div className="flex items-center justify-end gap-3 pt-2">
+                    {/* Botones de Acción (Sticky al pie en móvil) */}
+                    <div className="sticky bottom-0 bg-slate-950/95 backdrop-blur-md pt-3 pb-1 border-t border-white/10 mt-3 -mx-4 sm:-mx-6 px-4 sm:px-6 flex items-center justify-end gap-3 z-10">
                       <button
                         onClick={() => setSelectedItem(null)}
                         className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs transition-all"
@@ -1078,7 +1108,7 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
 
                       <button
                         onClick={() => handleEquip(selectedItem)}
-                        className="btn-mystic px-6 py-2.5 rounded-xl text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-cyan-500/20"
+                        className="btn-mystic px-5 sm:px-6 py-2.5 rounded-xl text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                       >
                         <Shield size={16} />
                         {currentEquipped ? 'Reemplazar y Equipar' : 'Equipar Reliquia'}

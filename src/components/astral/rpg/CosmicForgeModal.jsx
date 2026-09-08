@@ -242,39 +242,39 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
         </div>
 
         {/* Pestañas de la Forja */}
-        <div className="flex border-b border-orange-500/20 bg-slate-950/60 px-4 pt-2 gap-2">
+        <div className="flex border-b border-orange-500/20 bg-slate-950/60 px-2 sm:px-4 pt-2 gap-1 sm:gap-2 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => { setActiveTab('refine'); setFeedback(null); }}
-            className={`flex-1 pb-2.5 text-xs sm:text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-all ${
+            className={`flex-1 pb-2.5 px-2 text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'refine'
                 ? 'border-orange-400 text-orange-300 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Hammer className="w-4 h-4" />
-            Refinamiento (+1 a +10)
+            <Hammer className="w-4 h-4 shrink-0" />
+            <span>Refinamiento <span className="hidden sm:inline">(+1 a +10)</span></span>
           </button>
           <button
             onClick={() => { setActiveTab('enchant'); setFeedback(null); }}
-            className={`flex-1 pb-2.5 text-xs sm:text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-all ${
+            className={`flex-1 pb-2.5 px-2 text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'enchant'
                 ? 'border-cyan-400 text-cyan-300 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            Encantamiento con Gemas
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span>Gemas <span className="hidden sm:inline">Astrales</span></span>
           </button>
           <button
             onClick={() => { setActiveTab('alchemy'); setFeedback(null); }}
-            className={`flex-1 pb-2.5 text-xs sm:text-sm font-medium flex items-center justify-center gap-2 border-b-2 transition-all ${
+            className={`flex-1 pb-2.5 px-2 text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'alchemy'
                 ? 'border-emerald-400 text-emerald-300 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <RefreshCw className="w-4 h-4" />
-            Alquimia y Reciclaje
+            <RefreshCw className="w-4 h-4 shrink-0" />
+            <span>Reciclaje <span className="hidden sm:inline">& Fusión</span></span>
           </button>
         </div>
 
