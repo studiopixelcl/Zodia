@@ -46,7 +46,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const [activeCotzTab, setActiveCotzTab] = useState('inicio'); // 'inicio' | 'heroe' | 'equipo' | 'skills' | 'aventura' | 'misiones'
   const [equipoSubTab, setEquipoSubTab] = useState('inventory'); // 'inventory' | 'forge'
   const [heroeSubTab, setHeroeSubTab] = useState('perfil'); // 'perfil' | 'mascotas'
-  const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'eclipse' | 'tower' | 'shadows' | 'coop' | 'pvp'
+  const [selectedAdventureMode, setSelectedAdventureMode] = useState(null); // null = Hub Selector | 'houses' | 'eclipse' | 'tower' | 'shadows' | 'coop' | 'pvp'
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
@@ -62,6 +62,17 @@ export function ChroniclesGame({ profile, onBack }) {
   const openPets = () => { setActiveCotzTab('heroe'); setHeroeSubTab('mascotas'); };
   const openMisiones = () => { setActiveCotzTab('misiones'); };
   const openHero = () => { setActiveCotzTab('heroe'); setHeroeSubTab('perfil'); };
+  const openAdventure = (mode = null) => { 
+    setActiveCotzTab('aventura'); 
+    setSelectedAdventureMode(mode); 
+  };
+
+  const handleCotzTabChange = (tabId) => {
+    if (tabId === 'aventura' && activeCotzTab === 'aventura') {
+      setSelectedAdventureMode(null);
+    }
+    setActiveCotzTab(tabId);
+  };
 
   useEffect(() => {
     const handler = () => setSoundOn(isSoundEnabled());
@@ -297,6 +308,7 @@ export function ChroniclesGame({ profile, onBack }) {
   // Iniciar batalla del Sendero de las 12 Casas
   const startHouseBattle = (stage) => {
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('houses');
     setActiveBattle({
       enemy: {
         ...stage,
@@ -311,6 +323,7 @@ export function ChroniclesGame({ profile, onBack }) {
   // Iniciar Desafío 1 vs 2: Gemelos del Eclipse
   const startEclipseBattle = (challenge) => {
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('eclipse');
     setActiveBattle({
       enemy: challenge.enemy1,
       enemy2: challenge.enemy2,
@@ -323,6 +336,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const startTowerBattle = (floorNumber) => {
     const floorData = generateTowerFloor(floorNumber, hero.level);
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('tower');
     setActiveBattle({
       enemy: floorData.enemy1,
       enemy2: floorData.enemy2,
@@ -351,6 +365,7 @@ export function ChroniclesGame({ profile, onBack }) {
     };
 
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('shadows');
     setActiveBattle({
       enemy: shadowEnemy,
       mode: 'quick'
@@ -380,6 +395,7 @@ export function ChroniclesGame({ profile, onBack }) {
     };
 
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('coop');
     setActiveBattle({
       enemy: titanBoss,
       mode: 'coop',
@@ -407,6 +423,7 @@ export function ChroniclesGame({ profile, onBack }) {
   // Iniciar Duelo en el Coliseo Astral PvP
   const startPvpBattle = (rival) => {
     setActiveCotzTab('aventura');
+    setSelectedAdventureMode('pvp');
     setActiveBattle({
       enemy: rival,
       mode: 'pvp'
@@ -418,6 +435,136 @@ export function ChroniclesGame({ profile, onBack }) {
   const hasDailyMasterChest = (hero?.dailyQuests || []).filter(q => q.completed).length >= 3 && !hero?.dailyMasterChestClaimed;
   const hasDailyAlert = dailyResetInfo.canClaimStreak || pendingQuestsCount > 0 || hasDailyMasterChest;
   const heroClass = ZODIAC_HERO_CLASSES[hero?.sign] || ZODIAC_HERO_CLASSES['Aries'];
+
+  // Catálogo reactivo de Modos de Aventura con progreso y estética cósmica
+  const adventureModes = [
+    {
+      id: 'houses',
+      shortName: '12 Casas',
+      title: 'El Sendero de las 12 Casas',
+      subtitle: 'Campaña Principal Zodiacal',
+      badge: 'Campaña PvE',
+      icon: Trophy,
+      gradient: 'from-cyan-950/40 via-[#061325]/80 to-black',
+      border: 'border-cyan-500/40 hover:border-cyan-300',
+      glowColor: 'hover:shadow-cyan-500/20',
+      iconBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50',
+      btnBg: 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black',
+      accentText: 'text-cyan-400',
+      badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+      description: 'Enfrenta a los 12 guardianes del templo estelar, purifica las constelaciones corrompidas y desbloquea botín divino.',
+      statsLabel: 'Progreso del Templo',
+      statsValue: `${hero?.maxHouseCleared || 0} / 12`,
+      progressPct: Math.round(((hero?.maxHouseCleared || 0) / 12) * 100),
+      rewards: ['EXP Sagrada', 'Oro Cósmico', 'Armaduras'],
+      actionLabel: 'Entrar al Sendero'
+    },
+    {
+      id: 'eclipse',
+      shortName: '1vs2 Eclipse',
+      title: 'Gemelos del Eclipse',
+      subtitle: 'Reto Táctico 1 vs 2',
+      badge: 'Reto 1 vs 2',
+      icon: Zap,
+      gradient: 'from-amber-950/40 via-[#200e05]/80 to-black',
+      border: 'border-amber-500/40 hover:border-amber-300',
+      glowColor: 'hover:shadow-amber-500/20',
+      iconBg: 'bg-amber-500/20 text-amber-300 border-amber-400/50',
+      btnBg: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black',
+      accentText: 'text-amber-400',
+      badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      description: 'Combates en inferioridad numérica contra dos sombras sincronizadas. Alterna objetivos estratégicamente entre Vanguardia y Retaguardia.',
+      statsLabel: 'Desafíos Vencidos',
+      statsValue: `${hero?.eclipseCleared?.length || 0} / ${ECLIPSE_TWINS_CHALLENGES.length}`,
+      progressPct: Math.round(((hero?.eclipseCleared?.length || 0) / ECLIPSE_TWINS_CHALLENGES.length) * 100),
+      rewards: ['EXP Concentrada', 'Polvo Estelar', 'Amuletos'],
+      actionLabel: 'Desafiar Gemelos'
+    },
+    {
+      id: 'tower',
+      shortName: 'Torre Caos',
+      title: 'Torre del Caos Astral',
+      subtitle: 'Ascenso Roguelite Infinito',
+      badge: 'Endless Roguelite',
+      icon: Crown,
+      gradient: 'from-purple-950/40 via-[#170628]/80 to-black',
+      border: 'border-purple-500/40 hover:border-purple-300',
+      glowColor: 'hover:shadow-purple-500/20',
+      iconBg: 'bg-purple-500/20 text-purple-300 border-purple-400/50',
+      btnBg: 'bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white',
+      accentText: 'text-purple-400',
+      badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+      description: 'Escala piso a piso una aguja celestial infinita con mutadores aleatorios, barras de guardia impenetrable y jefes mutantes.',
+      statsLabel: 'Piso Récord Actual',
+      statsValue: `Piso ${hero?.maxTowerFloor || 1}`,
+      progressPct: Math.min(100, Math.round(((hero?.maxTowerFloor || 1) / 30) * 100)),
+      rewards: ['Fragmentos Raros', 'Pociones', 'Loot Cósmico'],
+      actionLabel: 'Ascender Torre'
+    },
+    {
+      id: 'shadows',
+      shortName: 'Duelo 1v1',
+      title: 'Duelo de Sombras',
+      subtitle: 'Entrenamiento Rápido 1v1',
+      badge: 'Duelo Rápido',
+      icon: Sword,
+      gradient: 'from-blue-950/40 via-[#0a152e]/80 to-black',
+      border: 'border-blue-500/40 hover:border-blue-300',
+      glowColor: 'hover:shadow-blue-500/20',
+      iconBg: 'bg-blue-500/20 text-blue-300 border-blue-400/50',
+      btnBg: 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-black',
+      accentText: 'text-blue-400',
+      badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+      description: 'Enfrenta a una sombra espectral adaptada a tu nivel sin riesgo de perder avance ni racha. Ideal para farmear y probar combos.',
+      statsLabel: 'Dificultad Dinámica',
+      statsValue: `Nivel ${hero?.level || 1}`,
+      progressPct: 100,
+      rewards: ['EXP Garantizada', 'Polvo Estelar', 'Oro'],
+      actionLabel: 'Entrar al Duelo'
+    },
+    {
+      id: 'coop',
+      shortName: 'Co-op Dúo',
+      title: 'Incursión Co-op Dúo',
+      subtitle: 'Asalto Cooperativo con Matches',
+      badge: 'Sinastría & Asistencia',
+      icon: Users,
+      gradient: 'from-emerald-950/40 via-[#06241a]/80 to-black',
+      border: 'border-teal-500/40 hover:border-teal-300',
+      glowColor: 'hover:shadow-teal-500/20',
+      iconBg: 'bg-teal-500/20 text-teal-300 border-teal-400/50',
+      btnBg: 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black',
+      accentText: 'text-teal-400',
+      badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+      description: 'Únete a tus conexiones reales de Zodia o aliados del zodíaco para desplegar ataques de sinastría combinados contra Titanes Ancestrales.',
+      statsLabel: 'Matches Conectados',
+      statsValue: `${realMatches.length} Vínculos`,
+      progressPct: Math.min(100, Math.max(15, (realMatches.length || 0) * 25)),
+      rewards: ['Polvo Dúo Cósmico', 'Esencias de Titán', 'Afinidad'],
+      actionLabel: 'Formar Dúo'
+    },
+    {
+      id: 'pvp',
+      shortName: 'Coliseo PvP',
+      title: 'Coliseo Astral PvP',
+      subtitle: 'Arena Clasificatoria Asíncrona',
+      badge: 'Arena Clasificatoria',
+      icon: Swords,
+      gradient: 'from-red-950/40 via-[#260a14]/80 to-black',
+      border: 'border-red-500/40 hover:border-red-300',
+      glowColor: 'hover:shadow-red-500/20',
+      iconBg: 'bg-red-500/20 text-red-300 border-red-400/50',
+      btnBg: 'bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-400 hover:to-amber-400 text-black',
+      accentText: 'text-amber-400',
+      badgeClass: 'bg-red-500/15 text-red-300 border-red-500/30',
+      description: 'Desafía las formaciones y héroes de otros jugadores en combates de clasificación. Escala en la tabla y reclama gloria estelar.',
+      statsLabel: 'Rango y Puntos',
+      statsValue: `${hero?.pvpPoints || 0} pts • ${hero?.pvpRank || getPvpRankInfo(hero?.pvpPoints || 0).name}`,
+      progressPct: getPvpRankInfo(hero?.pvpPoints || 0).progress || 0,
+      rewards: ['Puntos de Gloria', 'Marcos Cósmicos', 'Títulos'],
+      actionLabel: 'Entrar a la Arena'
+    }
+  ];
 
   return (
     <div className="max-w-6xl mx-auto w-full space-y-6 px-3 sm:px-6 pb-28 sm:pb-32 animate-fadeIn relative">
@@ -640,14 +787,14 @@ export function ChroniclesGame({ profile, onBack }) {
 
               {/* 5. Aventura / Batalla */}
               <button
-                onClick={() => setActiveCotzTab('aventura')}
+                onClick={() => openAdventure(null)}
                 className="group p-3.5 rounded-2xl bg-gradient-to-b from-red-950/60 to-[#22070e]/80 hover:from-red-900/70 border border-red-500/40 hover:border-red-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
               >
                 <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-400/40 flex items-center justify-center text-red-300 mb-2 group-hover:scale-110 transition-transform">
                   <Swords size={18} />
                 </div>
                 <h4 className="font-bold text-white text-xs">Aventura</h4>
-                <p className="text-[10px] text-gray-400 mt-0.5">12 Casas & PvP</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Selector de Modos</p>
               </button>
 
               {/* 6. Misiones */}
@@ -673,31 +820,49 @@ export function ChroniclesGame({ profile, onBack }) {
             </div>
           </div>
 
-          {/* ESTADÍSTICAS Y RESUMEN DE PROGRESO */}
+          {/* ESTADÍSTICAS Y ACCESOS RÁPIDOS A AVENTURAS */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-cyan-500/20">
-              <span className="text-[10px] text-gray-400 block font-mono">12 CASAS</span>
+            <button 
+              onClick={() => openAdventure('houses')} 
+              className="p-3.5 rounded-2xl bg-black/40 border border-cyan-500/20 hover:border-cyan-400/60 hover:bg-cyan-950/20 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 block font-mono">12 CASAS</span>
+                <ChevronRight size={12} className="text-gray-500 group-hover:text-cyan-300 transition-transform group-hover:translate-x-0.5" />
+              </div>
               <span className="text-base font-bold text-cyan-300 font-mono mt-0.5 block">
                 {hero?.maxHouseCleared || 0} / 12
               </span>
               <span className="text-[9px] text-gray-500">Purificadas</span>
-            </div>
+            </button>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-purple-500/20">
-              <span className="text-[10px] text-gray-400 block font-mono">TORRE DEL CAOS</span>
+            <button 
+              onClick={() => openAdventure('tower')} 
+              className="p-3.5 rounded-2xl bg-black/40 border border-purple-500/20 hover:border-purple-400/60 hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 block font-mono">TORRE DEL CAOS</span>
+                <ChevronRight size={12} className="text-gray-500 group-hover:text-purple-300 transition-transform group-hover:translate-x-0.5" />
+              </div>
               <span className="text-base font-bold text-purple-300 font-mono mt-0.5 block">
                 Piso {hero?.maxTowerFloor || 1}
               </span>
               <span className="text-[9px] text-gray-500">Ascenso Astral</span>
-            </div>
+            </button>
 
-            <div className="p-3.5 rounded-2xl bg-black/40 border border-red-500/20">
-              <span className="text-[10px] text-gray-400 block font-mono">COLISEO PVP</span>
+            <button 
+              onClick={() => openAdventure('pvp')} 
+              className="p-3.5 rounded-2xl bg-black/40 border border-red-500/20 hover:border-red-400/60 hover:bg-red-950/20 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 block font-mono">COLISEO PVP</span>
+                <ChevronRight size={12} className="text-gray-500 group-hover:text-red-300 transition-transform group-hover:translate-x-0.5" />
+              </div>
               <span className="text-base font-bold text-red-300 font-mono mt-0.5 block truncate">
                 {hero?.pvpRank || getPvpRankInfo(hero?.pvpPoints || 0).name}
               </span>
               <span className="text-[9px] text-gray-500">{hero?.pvpPoints || 0} Puntos</span>
-            </div>
+            </button>
 
             <div className="p-3.5 rounded-2xl bg-black/40 border border-amber-500/20">
               <span className="text-[10px] text-gray-400 block font-mono">RACHA DIARIA</span>
@@ -882,48 +1047,182 @@ export function ChroniclesGame({ profile, onBack }) {
                 onExitToMenu={onBack}
               />
             </div>
+          ) : selectedAdventureMode === null ? (
+            /* ===================================================================== */
+            /* HUB SELECTOR DE AVENTURAS */
+            /* ===================================================================== */
+            <div className="space-y-6 animate-fadeIn pb-12">
+              {/* Cabecera del Hub */}
+              <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#0c1222] via-[#090d18] to-[#14081e] border border-cyan-500/30 shadow-2xl">
+                {/* Decoración luminosa de fondo */}
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                  <div className="max-w-xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-bold mb-3 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                      <Sparkles size={13} className="text-cyan-300 animate-spin-slow" />
+                      <span>HUB DE EXPEDICIONES Y BATALLA</span>
+                    </div>
+                    <h2 className="mystic-font text-2xl sm:text-3xl lg:text-4xl text-white font-bold tracking-wide">
+                      Selector de Aventuras
+                    </h2>
+                    <p className="text-xs sm:text-sm text-gray-300 font-light mt-2 leading-relaxed">
+                      Elige tu senda astral en el firmamento. Avanza en la campaña de templos zodiacales, desafía la Torre del Caos, entrena contra sombras o compite por gloria en el Coliseo.
+                    </p>
+                  </div>
+
+                  {/* Resumen rápido de progresión */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full md:w-auto shrink-0">
+                    <div className="p-3 rounded-2xl bg-black/50 border border-cyan-500/20 backdrop-blur-sm">
+                      <span className="text-[10px] text-gray-400 font-mono block">12 CASAS</span>
+                      <span className="text-sm sm:text-base font-bold text-cyan-300 font-mono">
+                        {hero?.maxHouseCleared || 0}/12
+                      </span>
+                      <span className="text-[9px] text-gray-500 block">Purificadas</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/50 border border-purple-500/20 backdrop-blur-sm">
+                      <span className="text-[10px] text-gray-400 font-mono block">TORRE CAOS</span>
+                      <span className="text-sm sm:text-base font-bold text-purple-300 font-mono">
+                        Piso {hero?.maxTowerFloor || 1}
+                      </span>
+                      <span className="text-[9px] text-gray-500 block">Récord</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/50 border border-amber-500/20 backdrop-blur-sm">
+                      <span className="text-[10px] text-gray-400 font-mono block">ECLIPSE 1v2</span>
+                      <span className="text-sm sm:text-base font-bold text-amber-300 font-mono">
+                        {hero?.eclipseCleared?.length || 0}/{ECLIPSE_TWINS_CHALLENGES.length}
+                      </span>
+                      <span className="text-[9px] text-gray-500 block">Dominados</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/50 border border-red-500/20 backdrop-blur-sm">
+                      <span className="text-[10px] text-gray-400 font-mono block">GLORIA PVP</span>
+                      <span className="text-sm sm:text-base font-bold text-red-300 font-mono">
+                        {hero?.pvpPoints || 0} pts
+                      </span>
+                      <span className="text-[9px] text-gray-500 block truncate">{hero?.pvpRank || 'Novato'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cuadrícula de 6 Modos de Aventura */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                {adventureModes.map((mode) => {
+                  const ModeIcon = mode.icon;
+                  return (
+                    <div
+                      key={mode.id}
+                      onClick={() => setSelectedAdventureMode(mode.id)}
+                      className={`group relative flex flex-col justify-between p-5 rounded-3xl bg-gradient-to-b ${mode.gradient} border ${mode.border} backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl ${mode.glowColor} cursor-pointer overflow-hidden`}
+                    >
+                      {/* Iluminación interactiva en hover */}
+                      <div className="absolute inset-0 bg-white/[0.02] group-hover:bg-white/[0.06] transition-colors pointer-events-none" />
+
+                      {/* Header de la tarjeta */}
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${mode.badgeClass}`}>
+                            {mode.badge}
+                          </span>
+                          <div className={`w-10 h-10 rounded-2xl border ${mode.iconBg} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform`}>
+                            <ModeIcon size={20} />
+                          </div>
+                        </div>
+
+                        <h3 className="mystic-font text-lg font-bold text-white group-hover:text-cyan-200 transition-colors leading-snug">
+                          {mode.title}
+                        </h3>
+                        <div className={`text-xs font-mono font-semibold ${mode.accentText} mt-0.5`}>
+                          {mode.subtitle}
+                        </div>
+
+                        <p className="text-xs text-gray-300 font-light mt-2.5 leading-relaxed line-clamp-3">
+                          {mode.description}
+                        </p>
+                      </div>
+
+                      {/* Pie de tarjeta: Estadísticas, Recompensas y Botón de Despliegue */}
+                      <div className="relative z-10 mt-5 pt-3.5 border-t border-white/10 space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-mono">
+                            <span className="text-gray-400">{mode.statsLabel}:</span>
+                            <span className="text-white font-bold">{mode.statsValue}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full bg-gradient-to-r ${mode.btnBg} transition-all duration-500`}
+                              style={{ width: `${Math.max(8, mode.progressPct)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Recompensas */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {mode.rewards.map((rew, i) => (
+                            <span key={i} className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-gray-300">
+                              ✦ {rew}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Botón de despliegue */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAdventureMode(mode.id);
+                          }}
+                          className={`w-full py-2.5 px-4 rounded-2xl ${mode.btnBg} font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-98 cursor-pointer mt-2`}
+                        >
+                          <span>{mode.actionLabel}</span>
+                          <ChevronRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           ) : (
-            <>
-              {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
-              <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
-                {[
-                  { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
-          { id: 'eclipse', label: '1vs2 Eclipse', icon: Zap, activeColor: 'from-amber-500 to-orange-600 text-black', badge: 'Reto' },
-          { id: 'tower', label: 'Torre Caos', icon: Crown, activeColor: 'from-purple-500 to-indigo-600 text-white', badge: `P.${hero.maxTowerFloor || 1}` },
-          { id: 'shadows', label: 'Duelo 1v1', icon: Sword, activeColor: 'from-blue-500 to-indigo-600 text-white', badge: 'Rápido' },
-          { id: 'coop', label: 'Co-op Dúo', icon: Users, activeColor: 'from-emerald-500 to-teal-600 text-black', badge: 'Sinastría' },
-          { id: 'pvp', label: 'Coliseo PvP', icon: Swords, activeColor: 'from-red-500 to-amber-500 text-black', badge: 'Arena' },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full min-w-[105px] lg:min-w-0 py-2.5 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 lg:shrink ${
-                isActive
-                  ? `bg-gradient-to-r ${tab.activeColor} shadow-md shadow-cyan-500/20 ring-1 ring-white/30`
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon size={14} className={isActive ? '' : 'text-gray-400'} />
-              <span>{tab.label}</span>
-              {tab.badge && (
-                <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-md ${
-                  isActive ? 'bg-black/25 text-current' : 'bg-white/5 text-gray-400'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+            /* ===================================================================== */
+            /* VISTA DESPLEGADA DE LA AVENTURA SELECCIONADA */
+            /* ===================================================================== */
+            <div className="space-y-5 animate-fadeIn pb-12">
+              {/* Barra de Retorno y Switcher Rápido de Modos */}
+              <div className="p-3 sm:p-4 rounded-2xl bg-black/70 backdrop-blur-md border border-white/10 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <button
+                  onClick={() => setSelectedAdventureMode(null)}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/40 text-cyan-300 text-xs font-bold transition-all group cursor-pointer shadow-sm self-start sm:self-auto"
+                >
+                  <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                  <span>← Volver al Selector de Aventuras</span>
+                </button>
 
-      {/* CONTENIDO SEGÚN LA PESTAÑA ACTIVA */}
+                {/* Mini selector horizontal de los otros modos para cambiar con 1 clic */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+                  {adventureModes.map((m) => {
+                    const MIcon = m.icon;
+                    const isCurrent = selectedAdventureMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setSelectedAdventureMode(m.id)}
+                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                          isCurrent
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black shadow-md shadow-cyan-500/25 font-extrabold ring-1 ring-cyan-300'
+                            : 'text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5'
+                        }`}
+                      >
+                        <MIcon size={12} />
+                        <span>{m.shortName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-      {/* 1. MODO: SENDERO DE LAS 12 CASAS */}
-      {activeTab === 'houses' && (
+              {/* 1. MODO: SENDERO DE LAS 12 CASAS */}
+              {selectedAdventureMode === 'houses' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pl-2">
             <div>
@@ -1049,7 +1348,7 @@ export function ChroniclesGame({ profile, onBack }) {
       )}
 
       {/* 2. MODO: DESAFÍOS 1 VS 2 (GEMELOS DEL ECLIPSE) */}
-      {activeTab === 'eclipse' && (
+      {selectedAdventureMode === 'eclipse' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pl-2 flex-wrap gap-2">
             <div>
@@ -1147,7 +1446,7 @@ export function ChroniclesGame({ profile, onBack }) {
       )}
 
       {/* 3. MODO: TORRE DEL CAOS ASTRAL (ENDLESS / PISOS) */}
-      {activeTab === 'tower' && (() => {
+      {selectedAdventureMode === 'tower' && (() => {
         const currentFloor = hero.maxTowerFloor || 1;
         const currentData = generateTowerFloor(currentFloor, hero.level);
         const nextMutator = currentData.mutator;
@@ -1233,7 +1532,7 @@ export function ChroniclesGame({ profile, onBack }) {
       })()}
 
       {/* 4. MODO: DUELO DE SOMBRAS 1v1 */}
-      {activeTab === 'shadows' && (
+      {selectedAdventureMode === 'shadows' && (
         <div className="glass-panel p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 via-black to-black space-y-4">
           <div className="text-center max-w-md mx-auto">
             <div className="relative w-20 h-20 rounded-3xl bg-purple-950/40 border border-purple-500/50 p-2 flex items-center justify-center mx-auto mb-3 text-purple-300 shadow-2xl shadow-purple-900/50">
@@ -1274,7 +1573,7 @@ export function ChroniclesGame({ profile, onBack }) {
       )}
 
       {/* 3. MODO: COOPERATIVO DE SINASTRÍA */}
-      {activeTab === 'coop' && (
+      {selectedAdventureMode === 'coop' && (
         <div className="glass-panel p-6 rounded-3xl border border-teal-500/30 bg-gradient-to-b from-teal-950/20 via-black to-black space-y-6">
           <div className="text-center max-w-md mx-auto">
             <div className="w-16 h-16 rounded-3xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center mx-auto mb-3 text-teal-300 shadow-xl">
@@ -1430,7 +1729,7 @@ export function ChroniclesGame({ profile, onBack }) {
       )}
 
       {/* 4. MODO: COLISEO ASTRAL PVP */}
-      {activeTab === 'pvp' && (
+      {selectedAdventureMode === 'pvp' && (
         <div className="space-y-5">
           {/* Tarjeta de Rango y Gloria del Jugador */}
           {(() => {
@@ -1564,7 +1863,7 @@ export function ChroniclesGame({ profile, onBack }) {
           </div>
         </div>
       )}
-            </>
+            </div>
           )}
         </div>
       )}
@@ -1582,7 +1881,7 @@ export function ChroniclesGame({ profile, onBack }) {
       {/* NAVEGACIÓN INFERIOR DE COTZ */}
       <CotzBottomNav
         activeTab={activeCotzTab}
-        setActiveTab={setActiveCotzTab}
+        setActiveTab={handleCotzTabChange}
         hasAlert={hasDailyAlert}
         isInBattle={!!activeBattle}
       />
