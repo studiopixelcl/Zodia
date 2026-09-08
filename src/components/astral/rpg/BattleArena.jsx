@@ -2223,7 +2223,7 @@ export function BattleArena({
                 className="sm:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
                 onClick={() => setIsBackpackOpen(false)}
               />
-              <div className="fixed sm:absolute bottom-4 sm:bottom-full left-3 sm:left-0 sm:-left-12 right-3 sm:right-auto mb-0 sm:mb-2 max-w-sm sm:w-80 mx-auto sm:mx-0 rounded-2xl border border-amber-500/40 bg-[#0e0c18]/95 backdrop-blur-md p-3.5 sm:p-3 shadow-2xl shadow-black/90 z-50 animate-fadeIn">
+              <div className="fixed sm:absolute bottom-20 sm:bottom-full left-3 sm:left-0 sm:-left-12 right-3 sm:right-auto mb-0 sm:mb-2 max-w-sm sm:w-80 mx-auto sm:mx-0 rounded-2xl border border-amber-500/40 bg-[#0e0c18]/95 backdrop-blur-md p-3.5 sm:p-3 shadow-2xl shadow-black/90 z-50 animate-fadeIn">
                 <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
                   <span className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
                     <span>🎒</span> Mochila de Alquimia Táctica

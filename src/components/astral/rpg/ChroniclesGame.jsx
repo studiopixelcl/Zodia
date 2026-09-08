@@ -296,6 +296,7 @@ export function ChroniclesGame({ profile, onBack }) {
 
   // Iniciar batalla del Sendero de las 12 Casas
   const startHouseBattle = (stage) => {
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: {
         ...stage,
@@ -309,6 +310,7 @@ export function ChroniclesGame({ profile, onBack }) {
 
   // Iniciar Desafío 1 vs 2: Gemelos del Eclipse
   const startEclipseBattle = (challenge) => {
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: challenge.enemy1,
       enemy2: challenge.enemy2,
@@ -320,6 +322,7 @@ export function ChroniclesGame({ profile, onBack }) {
   // Iniciar combate en Torre del Caos Astral
   const startTowerBattle = (floorNumber) => {
     const floorData = generateTowerFloor(floorNumber, hero.level);
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: floorData.enemy1,
       enemy2: floorData.enemy2,
@@ -347,6 +350,7 @@ export function ChroniclesGame({ profile, onBack }) {
       rewardGold: 100 + hero.level * 25
     };
 
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: shadowEnemy,
       mode: 'quick'
@@ -375,6 +379,7 @@ export function ChroniclesGame({ profile, onBack }) {
       dropChance: raid.dropChance
     };
 
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: titanBoss,
       mode: 'coop',
@@ -401,31 +406,12 @@ export function ChroniclesGame({ profile, onBack }) {
 
   // Iniciar Duelo en el Coliseo Astral PvP
   const startPvpBattle = (rival) => {
+    setActiveCotzTab('aventura');
     setActiveBattle({
       enemy: rival,
       mode: 'pvp'
     });
   };
-
-  // Si hay una batalla activa, renderizar la Arena
-  if (activeBattle) {
-    return (
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 pb-20 animate-fadeIn">
-        <BattleArena 
-          key={activeBattle ? `${activeBattle.mode}_${activeBattle.enemy?.id || activeBattle.enemy?.name || activeBattle.houseNumber || activeBattle.floorNumber || 'battle'}` : 'none'}
-          hero={hero}
-          enemy={activeBattle.enemy}
-          enemy2={activeBattle.enemy2 || null}
-          mode={activeBattle.mode}
-          partner={activeBattle.partner}
-          mutator={activeBattle.mutator || null}
-          onBattleEnd={handleBattleEnd}
-          onBack={() => setActiveBattle(null)}
-          onExitToMenu={onBack}
-        />
-      </div>
-    );
-  }
 
   const dailyResetInfo = getDailyResetInfo(hero);
   const pendingQuestsCount = (hero?.dailyQuests || []).filter(q => q.completed && !q.claimed).length;
@@ -881,10 +867,27 @@ export function ChroniclesGame({ profile, onBack }) {
       {/* ========================================================================= */}
       {activeCotzTab === 'aventura' && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
-          <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
-            {[
-              { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
+          {activeBattle ? (
+            <div className="max-w-5xl mx-auto px-1 sm:px-4 pb-20 animate-fadeIn">
+              <BattleArena 
+                key={activeBattle ? `${activeBattle.mode}_${activeBattle.enemy?.id || activeBattle.enemy?.name || activeBattle.houseNumber || activeBattle.floorNumber || 'battle'}` : 'none'}
+                hero={hero}
+                enemy={activeBattle.enemy}
+                enemy2={activeBattle.enemy2 || null}
+                mode={activeBattle.mode}
+                partner={activeBattle.partner}
+                mutator={activeBattle.mutator || null}
+                onBattleEnd={handleBattleEnd}
+                onBack={() => setActiveBattle(null)}
+                onExitToMenu={onBack}
+              />
+            </div>
+          ) : (
+            <>
+              {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
+              <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+                {[
+                  { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
           { id: 'eclipse', label: '1vs2 Eclipse', icon: Zap, activeColor: 'from-amber-500 to-orange-600 text-black', badge: 'Reto' },
           { id: 'tower', label: 'Torre Caos', icon: Crown, activeColor: 'from-purple-500 to-indigo-600 text-white', badge: `P.${hero.maxTowerFloor || 1}` },
           { id: 'shadows', label: 'Duelo 1v1', icon: Sword, activeColor: 'from-blue-500 to-indigo-600 text-white', badge: 'Rápido' },
@@ -1561,6 +1564,8 @@ export function ChroniclesGame({ profile, onBack }) {
           </div>
         </div>
       )}
+            </>
+          )}
         </div>
       )}
 
@@ -1575,13 +1580,12 @@ export function ChroniclesGame({ profile, onBack }) {
       </div>
 
       {/* NAVEGACIÓN INFERIOR DE COTZ */}
-      {!activeBattle && (
-        <CotzBottomNav
-          activeTab={activeCotzTab}
-          setActiveTab={setActiveCotzTab}
-          hasAlert={hasDailyAlert}
-        />
-      )}
+      <CotzBottomNav
+        activeTab={activeCotzTab}
+        setActiveTab={setActiveCotzTab}
+        hasAlert={hasDailyAlert}
+        isInBattle={!!activeBattle}
+      />
     </div>
   );
 }

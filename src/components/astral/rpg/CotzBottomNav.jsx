@@ -1,25 +1,34 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Compass, User, Package, Zap, Swords, Gift } from 'lucide-react';
 
-export const CotzBottomNav = ({ activeTab, setActiveTab, hasAlert = false }) => {
+export const CotzBottomNav = ({ activeTab, setActiveTab, hasAlert = false, isInBattle = false }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const tabs = [
     { id: 'inicio',   icon: Compass, label: 'Inicio' },
     { id: 'heroe',    icon: User,    label: 'Héroe' },
     { id: 'equipo',   icon: Package, label: 'Equipo' },
     { id: 'skills',   icon: Zap,     label: 'Skills' },
-    { id: 'aventura', icon: Swords,  label: 'Aventura' },
+    { id: 'aventura', icon: Swords,  label: 'Aventura', inBattle: isInBattle },
     { id: 'misiones', icon: Gift,    label: 'Misiones', badge: hasAlert },
   ];
 
-  return (
+  if (!mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
     <nav 
-      className="fixed bottom-2 left-0 right-0 z-40 px-2 sm:px-4 pointer-events-auto select-none" 
+      className="fixed bottom-2 sm:bottom-3 left-0 right-0 z-50 px-2 sm:px-4 pointer-events-auto select-none" 
       aria-label="Navegación de Chronicles of the Zodia"
     >
       <div className="w-full max-w-md sm:max-w-xl mx-auto relative p-0.5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-cyan-500/30 via-purple-500/30 to-amber-500/25 shadow-[0_10px_35px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
         <div className="flex justify-around items-center px-1 py-1 rounded-[15px] sm:rounded-[22px] bg-[#05070e]/95 border border-cyan-500/20">
-          {tabs.map(({ id, icon: Icon, label, badge }) => {
+          {tabs.map(({ id, icon: Icon, label, badge, inBattle }) => {
             const isActive = activeTab === id;
             return (
               <button
@@ -41,7 +50,9 @@ export const CotzBottomNav = ({ activeTab, setActiveTab, hasAlert = false }) => 
                   <div className={`p-1.5 sm:p-2 rounded-xl transition-all duration-300 ${
                     isActive
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.45)]'
-                      : 'bg-transparent'
+                      : inBattle
+                        ? 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
+                        : 'bg-transparent'
                   }`}>
                     <Icon size={18} className="sm:w-[20px] sm:h-[20px]" />
                   </div>
@@ -49,10 +60,14 @@ export const CotzBottomNav = ({ activeTab, setActiveTab, hasAlert = false }) => 
                   {badge && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border border-black animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
                   )}
+
+                  {inBattle && !isActive && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border border-black animate-ping shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+                  )}
                 </div>
 
                 <span className={`text-[8px] sm:text-[9px] tracking-wider uppercase mt-0.5 font-semibold transition-colors ${
-                  isActive ? 'text-cyan-300 font-extrabold' : 'text-gray-400'
+                  isActive ? 'text-cyan-300 font-extrabold' : inBattle ? 'text-red-400 font-bold' : 'text-gray-400'
                 }`}>
                   {label}
                 </span>
@@ -61,6 +76,7 @@ export const CotzBottomNav = ({ activeTab, setActiveTab, hasAlert = false }) => 
           })}
         </div>
       </div>
-    </nav>
+    </nav>,
+    document.body
   );
 };
