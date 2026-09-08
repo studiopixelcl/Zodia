@@ -410,7 +410,7 @@ export function ChroniclesGame({ profile, onBack }) {
   // Si hay una batalla activa, renderizar la Arena
   if (activeBattle) {
     return (
-      <div className="px-3 sm:px-6 pb-24 animate-fadeIn">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 pb-20 animate-fadeIn">
         <BattleArena 
           key={activeBattle ? `${activeBattle.mode}_${activeBattle.enemy?.id || activeBattle.enemy?.name || activeBattle.houseNumber || activeBattle.floorNumber || 'battle'}` : 'none'}
           hero={hero}
@@ -434,7 +434,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const heroClass = ZODIAC_HERO_CLASSES[hero?.sign] || ZODIAC_HERO_CLASSES['Aries'];
 
   return (
-    <div className="space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
+    <div className="max-w-6xl mx-auto w-full space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
       
       {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO Y STATUS RESUMIDO */}
       <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2 sm:py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80 gap-2">
@@ -696,8 +696,8 @@ export function ChroniclesGame({ profile, onBack }) {
         onOpenPetSanctuary={() => setIsPetSanctuaryOpen(true)}
       />
 
-      {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal táctil y adaptativo */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+      {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
+      <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
         {[
           { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
           { id: 'eclipse', label: '1vs2 Eclipse', icon: Zap, activeColor: 'from-amber-500 to-orange-600 text-black', badge: 'Reto' },
@@ -712,7 +712,7 @@ export function ChroniclesGame({ profile, onBack }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[105px] sm:min-w-0 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 sm:shrink ${
+              className={`w-full min-w-[105px] lg:min-w-0 py-2.5 px-2 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 lg:shrink ${
                 isActive
                   ? `bg-gradient-to-r ${tab.activeColor} shadow-md shadow-cyan-500/20 ring-1 ring-white/30`
                   : 'text-gray-400 hover:text-white hover:bg-white/5'

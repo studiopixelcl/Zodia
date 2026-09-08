@@ -1319,13 +1319,13 @@ export function BattleArena({
   const totalGoldReward = hasDualEnemies ? (enemy.rewardGold || 220) + (enemy2.rewardGold || 200) : (enemy.rewardGold || 150);
 
   return (
-    <div className="relative min-h-[600px] rounded-3xl overflow-hidden glass-panel border border-cyan-500/30 p-4 sm:p-6 bg-gradient-to-b from-black via-purple-950/30 to-black select-none">
+    <div className="relative rounded-3xl overflow-hidden glass-panel border border-cyan-500/30 p-3.5 sm:p-5 bg-gradient-to-b from-black via-purple-950/30 to-black select-none">
       
       {/* Fondo de Estrellas */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black -z-10" />
 
       {/* BARRA SUPERIOR DE CONTROL Y TÁCTICA */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4 flex-wrap gap-2">
+      <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-white/10 mb-2.5 sm:mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
@@ -1384,7 +1384,7 @@ export function BattleArena({
       {/* ESTADIO DE COMBATE VERTICAL (ASTRAL BATTLE ARENA) */}
       {/* Arriba: Enemigo(s) | Centro: Choque / Turno | Abajo: Jugador */}
       {/* ========================================================================= */}
-      <div className="relative min-h-[440px] sm:min-h-[480px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#090b20] via-[#04050d] to-[#0b0820] p-3 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-md">
+      <div className="relative min-h-[380px] sm:min-h-[410px] lg:min-h-[390px] rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-b from-[#090b20] via-[#04050d] to-[#0b0820] p-3 sm:p-4 flex flex-col justify-between shadow-2xl backdrop-blur-md">
         
         {/* Telón estelar y runas celestiales */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-black pointer-events-none" />
@@ -1994,7 +1994,7 @@ export function BattleArena({
       {/* ========================================================================= */}
       {/* BARRA TÁCTICA: POSICIONAMIENTO Y POSTURA CÓSMICA */}
       {/* ========================================================================= */}
-      <div className="mt-3 p-2.5 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between flex-wrap gap-2 shadow-sm">
+      <div className="mt-2.5 p-2 sm:p-2.5 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-between flex-wrap gap-2 shadow-sm">
         {/* Toggle de Posicionamiento */}
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider hidden sm:inline">FILA:</span>
@@ -2071,7 +2071,7 @@ export function BattleArena({
       {/* ========================================================================= */}
       {/* CONSOLA DE ACCIONES DE COMBATE (5 O 6 COMANDOS SEGÚN MODO) */}
       {/* ========================================================================= */}
-      <div className={`mt-3 grid ${isCoop ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} gap-2`}>
+      <div className={`mt-2.5 grid ${isCoop ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'} gap-2`}>
         {/* 1. Ataque Básico */}
         <button
           onClick={handlePlayerBasicAttack}
