@@ -28,7 +28,7 @@ import {
   buyConsumableItem
 } from './rpg-data';
 
-export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
+export default function PetSanctuaryModal({ hero, onClose, onUpdateHero, isInline = false }) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('pets'); // 'pets' | 'alchemy'
   const [selectedPetId, setSelectedPetId] = useState(hero?.activePetId || 'pet_phoenix');
@@ -38,17 +38,20 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
     setMounted(true);
   }, []);
 
-  // Bloquear scroll de la página mientras el modal esté abierto
+  // Bloquear scroll de la página mientras el modal esté abierto (solo si no es inline)
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, []);
+    if (!isInline) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isInline]);
 
   // Cerrar con Escape
   useEffect(() => {
+    if (isInline) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && onClose) {
         onClose();
@@ -56,7 +59,7 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isInline, onClose]);
 
   if (!hero || !mounted) return null;
 
@@ -117,53 +120,46 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
   const levelMult = isUnlocked ? (1 + (currentLevel - 1) * 0.15) : 1.0;
   const nextLevelMult = 1 + currentLevel * 0.15;
 
-  return createPortal(
+  const modalBody = (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
-      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
-        }
-      }}
+      className={`w-full ${isInline ? 'rounded-3xl' : 'max-w-5xl rounded-3xl max-h-[92dvh] sm:max-h-[90vh] shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(168,85,247,0.25)]'} border border-purple-500/30 bg-gradient-to-b from-[#161224] via-[#0d0a18] to-[#080611] text-zinc-100 flex flex-col overflow-hidden text-left`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div 
-        className="w-full max-w-5xl rounded-3xl border border-purple-500/30 bg-gradient-to-b from-[#161224] via-[#0d0a18] to-[#080611] text-zinc-100 shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(168,85,247,0.25)] flex flex-col overflow-hidden max-h-[92dvh] sm:max-h-[90vh] text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Encabezado Superior */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-purple-500/20 bg-purple-950/20 shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-purple-500/30 shrink-0">
-              🐾
-            </div>
-            <div>
-              <h2 className="text-base sm:text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200">
-                Santuario de Mascotas & Alquimia
-              </h2>
-              <p className="text-[11px] sm:text-xs text-zinc-400">
-                Compañeros astrales con habilidades autónomas y boticario cósmico
-              </p>
-            </div>
+      {/* Encabezado Superior */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-purple-500/20 bg-purple-950/20 shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-purple-500/30 shrink-0">
+            🐾
+          </div>
+          <div>
+            <h2 className="text-base sm:text-xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200">
+              Santuario de Mascotas & Alquimia
+            </h2>
+            <p className="text-[11px] sm:text-xs text-zinc-400">
+              Compañeros astrales con habilidades autónomas y boticario cósmico
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Balance de Polvo Estelar */}
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold shadow-inner">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            <span className="font-mono">{polvo}</span>
+            <span className="hidden sm:inline">Polvo</span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Balance de Polvo Estelar */}
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold shadow-inner">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="font-mono">{polvo}</span>
-              <span className="hidden sm:inline">Polvo</span>
-            </div>
-
+          {!isInline && onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               title="Cerrar Santuario"
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Pestañas: Mascotas vs Alquimia */}
         <div className="flex border-b border-white/5 bg-black/30 px-4 sm:px-6 pt-2.5 sm:pt-3 gap-2 overflow-x-auto no-scrollbar shrink-0">
@@ -500,6 +496,27 @@ export default function PetSanctuaryModal({ hero, onClose, onUpdateHero }) {
           )}
         </div>
       </div>
+    );
+
+  if (isInline) {
+    return (
+      <div className="w-full select-none">
+        {modalBody}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {modalBody}
     </div>,
     document.body
   );

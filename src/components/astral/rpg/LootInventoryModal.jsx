@@ -16,7 +16,7 @@ import {
 import { calculateHeroTotalStats, getItemEffectiveStats } from './rpg-engine';
 import { playLootChestSound, playBattleShieldSound } from '../../../lib/sound-effects';
 
-export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpenForge }) {
+export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpenForge, isInline = false }) {
   const [mounted, setMounted] = useState(false);
   const [filter, setFilter] = useState('all'); // all, weapon, armor, relic
   const [selectedItem, setSelectedItem] = useState(null);
@@ -28,34 +28,34 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
     setMounted(true);
   }, []);
 
-  // Bloquear scroll de la página y garantizar visualización inmediata en pantalla
+  // Bloquear scroll de la página y garantizar visualización inmediata en pantalla (solo si es modal)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isInline) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prevOverflow;
       };
     }
-  }, [isOpen]);
+  }, [isOpen, isInline]);
 
   // Cerrar con Escape
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (selectedItem) {
           setSelectedItem(null);
-        } else if (onClose) {
+        } else if (onClose && !isInline) {
           onClose();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, selectedItem, onClose]);
+  }, [isOpen, isInline, selectedItem, onClose]);
 
-  if (!isOpen || !hero || !mounted) return null;
+  if ((!isOpen && !isInline) || !hero || !mounted) return null;
 
   const inventory = hero.inventory || [];
   const equipped = hero.equipped || {};
@@ -241,58 +241,51 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
     return { activatedBonuses, brokenBonuses };
   };
 
-  return createPortal(
+  const modalBody = (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
-      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
-        }
-      }}
+      className={`w-full ${isInline ? 'rounded-3xl' : 'max-w-5xl rounded-3xl max-h-[92dvh] sm:max-h-[90vh] shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(6,182,212,0.25)]'} glass-panel bg-gradient-to-b from-gray-950 via-slate-950 to-black border border-cyan-500/40 p-4 sm:p-6 relative flex flex-col overflow-hidden text-left`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div 
-        className="w-full max-w-5xl glass-panel bg-gradient-to-b from-gray-950 via-slate-950 to-black border border-cyan-500/40 rounded-3xl p-4 sm:p-6 shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(6,182,212,0.25)] relative max-h-[92dvh] sm:max-h-[90vh] flex flex-col overflow-hidden text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Cabecera Principal */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-inner">
-              <Package size={22} className="animate-pulse" />
+      
+      {/* Cabecera Principal */}
+      <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-inner">
+            <Package size={22} className="animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="mystic-font text-base sm:text-xl text-white font-extrabold tracking-wide">
+                SANTUARIO DE EQUIPO & RELIQUIAS
+              </h3>
+              <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                Zodia Gear Hub
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="mystic-font text-base sm:text-xl text-white font-extrabold tracking-wide">
-                  SANTUARIO DE EQUIPO & RELIQUIAS
-                </h3>
-                <span className="hidden sm:inline-block text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                  Zodia Gear Hub
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-gray-400">
-                Visualiza tus piezas equipadas, compara reliquias y despierta bonificaciones de conjuntos cósmicos
-              </p>
-            </div>
+            <p className="text-[11px] sm:text-xs text-gray-400">
+              Visualiza tus piezas equipadas, compara reliquias y despierta bonificaciones de conjuntos cósmicos
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Polvo estelar en cabecera */}
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300">
+            <Coins size={14} className="text-amber-400" />
+            <span className="text-xs font-mono font-bold">{hero.polvoEstelar || 0}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Polvo estelar en cabecera */}
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300">
-              <Coins size={14} className="text-amber-400" />
-              <span className="text-xs font-mono font-bold">{hero.polvoEstelar || 0}</span>
-            </div>
-
+          {!isInline && onClose && (
             <button 
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition-all"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition-all cursor-pointer"
               title="Cerrar Santuario"
             >
               <X size={20} />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Notificación de Cofre Astral recién abierto */}
         {summonResult && (
@@ -1124,6 +1117,27 @@ export function LootInventoryModal({ isOpen, onClose, hero, onUpdateHero, onOpen
         )}
 
       </div>
+    );
+
+  if (isInline) {
+    return (
+      <div className="w-full select-none">
+        {modalBody}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {modalBody}
     </div>,
     document.body
   );

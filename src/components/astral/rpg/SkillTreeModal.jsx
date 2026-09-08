@@ -15,7 +15,7 @@ import {
 } from './rpg-data';
 import { playBattleShieldSound, playBattleCritSound } from '../../../lib/sound-effects';
 
-export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero }) {
+export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero, isInline = false }) {
   const [mounted, setMounted] = useState(false);
   const [inspectingSkill, setInspectingSkill] = useState(null);
 
@@ -23,34 +23,34 @@ export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero }) {
     setMounted(true);
   }, []);
 
-  // Bloquear scroll de la página mientras el modal esté abierto
+  // Bloquear scroll de la página mientras el modal esté abierto (solo si no es inline)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isInline) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prevOverflow;
       };
     }
-  }, [isOpen]);
+  }, [isOpen, isInline]);
 
   // Cerrar con Escape
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (inspectingSkill) {
           setInspectingSkill(null);
-        } else if (onClose) {
+        } else if (onClose && !isInline) {
           onClose();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, inspectingSkill, onClose]);
+  }, [isOpen, isInline, inspectingSkill, onClose]);
 
-  if (!isOpen || !hero || !mounted) return null;
+  if ((!isOpen && !isInline) || !hero || !mounted) return null;
 
   const heroLevel = hero.level || 1;
   const heroSign = hero.sign || 'Aries';
@@ -199,63 +199,56 @@ export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero }) {
     }
   };
 
-  return createPortal(
+  const modalBody = (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
-      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
-        }
-      }}
+      className={`w-full ${isInline ? 'rounded-3xl' : 'max-w-4xl rounded-3xl max-h-[92dvh] sm:max-h-[90vh] shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(168,85,247,0.25)]'} glass-panel bg-gradient-to-b from-gray-950 via-slate-950 to-black border border-purple-500/40 p-4 sm:p-6 relative flex flex-col overflow-hidden text-left`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div 
-        className="w-full max-w-4xl glass-panel bg-gradient-to-b from-gray-950 via-slate-950 to-black border border-purple-500/40 rounded-3xl p-4 sm:p-6 shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(168,85,247,0.25)] relative max-h-[92dvh] sm:max-h-[90vh] flex flex-col overflow-hidden text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Cabecera Principal */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border flex items-center justify-center text-white shadow-inner p-1 bg-black/60"
-              style={{ borderColor: elemRules.color }}
-            >
-              <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-full h-full object-contain" />
+      
+      {/* Cabecera Principal */}
+      <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 shrink-0">
+        <div className="flex items-center gap-3">
+          <div 
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border flex items-center justify-center text-white shadow-inner p-1 bg-black/60"
+            style={{ borderColor: elemRules.color }}
+          >
+            <img src={getZodiacIcon(heroSign)} alt={heroSign} className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="mystic-font text-base sm:text-xl text-white font-extrabold tracking-wide">
+                ÁRBOL DE HABILIDADES ASTRALES
+              </h3>
+              <span 
+                className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full text-black"
+                style={{ backgroundColor: elemRules.color }}
+              >
+                {heroSign} ({hero.element})
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="mystic-font text-base sm:text-xl text-white font-extrabold tracking-wide">
-                  ÁRBOL DE HABILIDADES ASTRALES
-                </h3>
-                <span 
-                  className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full text-black"
-                  style={{ backgroundColor: elemRules.color }}
-                >
-                  {heroSign} ({hero.element})
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-gray-400">
-                Desbloquea talentos cósmicos por nivel y configura tus 2 habilidades de combate activas
-              </p>
-            </div>
+            <p className="text-[11px] sm:text-xs text-gray-400">
+              Desbloquea talentos cósmicos por nivel y configura tus 2 habilidades de combate activas
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold">
+            <Sparkles size={14} className="text-purple-400" />
+            <span>NVL {heroLevel}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold">
-              <Sparkles size={14} className="text-purple-400" />
-              <span>NVL {heroLevel}</span>
-            </div>
-
+          {!isInline && onClose && (
             <button 
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition-all"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-gray-400 hover:text-white transition-all cursor-pointer"
               title="Cerrar Árbol"
             >
               <X size={20} />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Panel Superior: Ranuras de Habilidades Equipadas para Combate */}
         <div className="my-3 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-950/30 via-black to-cyan-950/30 border border-purple-500/30 shrink-0">
@@ -463,6 +456,27 @@ export function SkillTreeModal({ isOpen, onClose, hero, onUpdateHero }) {
         </div>
 
       </div>
+    );
+
+  if (isInline) {
+    return (
+      <div className="w-full select-none">
+        {modalBody}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {modalBody}
     </div>,
     document.body
   );

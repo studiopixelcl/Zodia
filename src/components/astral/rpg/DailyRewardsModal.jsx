@@ -19,7 +19,7 @@ import {
 } from './rpg-data';
 import { playDailyClaimSound, playLootChestSound, playBattleVictorySound, playIncomingChimeSound } from '../../../lib/sound-effects';
 
-export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transitBuff }) {
+export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transitBuff, isInline = false }) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('streak'); // 'streak' | 'quests'
   const [claimAlert, setClaimAlert] = useState(null);
@@ -29,38 +29,38 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
     setMounted(true);
   }, []);
 
-  // Bloquear scroll de la página mientras el modal esté abierto
+  // Bloquear scroll de la página mientras el modal esté abierto (solo si no es inline)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isInline) {
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
         document.body.style.overflow = prevOverflow;
       };
     }
-  }, [isOpen]);
+  }, [isOpen, isInline]);
 
   // Cerrar con tecla Escape
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === 'Escape' && onClose && !isInline) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isInline, onClose]);
 
   // Sincronizar misiones si es un nuevo día
   useEffect(() => {
-    if (hero && isOpen) {
+    if (hero && (isOpen || isInline)) {
       const synced = initializeOrSyncDailyQuests(hero);
       if (synced !== hero && onHeroUpdate) {
         onHeroUpdate(synced);
       }
     }
-  }, [hero, isOpen]);
+  }, [hero, isOpen, isInline, onHeroUpdate]);
 
   // Contador de cuenta regresiva hasta la próxima medianoche local
   useEffect(() => {
@@ -82,7 +82,7 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
     return () => clearInterval(interval);
   }, []);
 
-  if (!isOpen || !hero || !mounted) return null;
+  if ((!isOpen && !isInline) || !hero || !mounted) return null;
 
   const resetInfo = getDailyResetInfo(hero);
   const quests = hero.dailyQuests || [];
@@ -154,47 +154,40 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
     }
   };
 
-  return createPortal(
+  const modalBody = (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
-      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
-        }
-      }}
+      className={`relative w-full ${isInline ? 'rounded-3xl' : 'max-w-2xl rounded-3xl max-h-[92dvh] sm:max-h-[90vh] shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.2)]'} bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border border-amber-500/40 overflow-hidden flex flex-col text-left`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div 
-        className="relative w-full max-w-2xl bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border border-amber-500/40 rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(245,158,11,0.2)] overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh] text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Cabecera del Modal */}
-        <div className="relative px-5 py-4 border-b border-indigo-500/20 bg-slate-900/80 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-indigo-500/20 border border-amber-500/30 text-amber-400">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 font-serif">
-                Recompensas Cósmicas Diarias
-                <span className="text-xs font-sans px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 font-normal">
-                  Racha: {hero.dailyStreak || 0}d
-                </span>
-              </h2>
-              <div className="flex items-center gap-2 text-xs text-indigo-300/80 mt-0.5">
-                <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Reinicio en: <strong className="text-amber-300 font-mono">{timeLeft}</strong></span>
-              </div>
+      
+      {/* Cabecera del Modal */}
+      <div className="relative px-5 py-4 border-b border-indigo-500/20 bg-slate-900/80 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-indigo-500/20 border border-amber-500/30 text-amber-400">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 font-serif">
+              Recompensas Cósmicas Diarias
+              <span className="text-xs font-sans px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 font-normal">
+                Racha: {hero.dailyStreak || 0}d
+              </span>
+            </h2>
+            <div className="flex items-center gap-2 text-xs text-indigo-300/80 mt-0.5">
+              <Clock className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Reinicio en: <strong className="text-amber-300 font-mono">{timeLeft}</strong></span>
             </div>
           </div>
+        </div>
+        {!isInline && onClose && (
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
         {/* Banner de Primera Victoria del Día */}
         <div className="px-5 py-2.5 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border-b border-indigo-500/20 flex items-center justify-between text-xs">
@@ -549,15 +542,38 @@ export function DailyRewardsModal({ isOpen, onClose, hero, onHeroUpdate, transit
         {/* Pie del Modal */}
         <div className="p-4 border-t border-indigo-500/20 bg-slate-900/60 flex items-center justify-between text-xs text-indigo-300/70">
           <span>El cosmos renueva sus bendiciones cada 24 horas a medianoche.</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
-          >
-            Cerrar
-          </button>
+          {!isInline && onClose && (
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+          )}
         </div>
 
       </div>
+    );
+
+  if (isInline) {
+    return (
+      <div className="w-full select-none">
+        {modalBody}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {modalBody}
     </div>,
     document.body
   );

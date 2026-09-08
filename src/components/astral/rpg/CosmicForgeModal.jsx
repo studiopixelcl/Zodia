@@ -28,7 +28,7 @@ import {
   playIncomingChimeSound 
 } from '../../../lib/sound-effects';
 
-export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
+export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero, isInline = false }) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('refine'); // 'refine' | 'enchant' | 'alchemy'
   const [selectedItemId, setSelectedItemId] = useState(null);
@@ -42,38 +42,38 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
     setMounted(true);
   }, []);
 
-  // Bloquear scroll
+  // Bloquear scroll (solo si no es inline)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isInline) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => { document.body.style.overflow = prev; };
     }
-  }, [isOpen]);
+  }, [isOpen, isInline]);
 
   // Cerrar con Escape
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !isInline) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && onClose) {
+      if (e.key === 'Escape' && onClose && !isInline) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isInline, onClose]);
 
   // Selección inicial
   useEffect(() => {
-    if (isOpen && hero) {
+    if ((isOpen || isInline) && hero) {
       const firstEquipped = hero.equipped?.weapon || hero.equipped?.armor || hero.equipped?.relic || hero.inventory?.[0];
       if (firstEquipped && !selectedItemId) {
         setSelectedItemId(firstEquipped.id);
       }
     }
-  }, [isOpen, hero]);
+  }, [isOpen, isInline, hero]);
 
-  if (!isOpen || !hero || !mounted) return null;
+  if ((!isOpen && !isInline) || !hero || !mounted) return null;
 
   // Lista de todos los ítems disponibles (equipados + inventario)
   const allItems = [];
@@ -200,46 +200,39 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
     upgradeLevel: currentLevel + 1
   }) : null;
 
-  return createPortal(
+  const modalBody = (
     <div 
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
-      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
-        }
-      }}
+      className={`relative w-full ${isInline ? 'rounded-3xl' : 'max-w-3xl rounded-3xl max-h-[92dvh] sm:max-h-[90vh] shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(249,115,22,0.2)]'} bg-gradient-to-b from-slate-900 via-orange-950/30 to-slate-950 border border-orange-500/40 overflow-hidden flex flex-col text-left`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div 
-        className="relative w-full max-w-3xl bg-gradient-to-b from-slate-900 via-orange-950/30 to-slate-950 border border-orange-500/40 rounded-3xl shadow-[0_0_80px_rgba(0,0,0,0.95),0_0_50px_rgba(249,115,22,0.2)] overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[90vh] text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Cabecera */}
-        <div className="px-5 py-4 border-b border-orange-500/30 bg-slate-900/80 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400">
-              <Flame className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 font-serif">
-                Forja Cósmica y Alquimia
-                <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {hero.polvoEstelar || 0} Polvo Estelar
-                </span>
-              </h2>
-              <p className="text-xs text-orange-300/80 mt-0.5">
-                Refina tu equipamiento (+1 a +10), engarza gemas elementales o recicla piezas duplicadas.
-              </p>
-            </div>
+      
+      {/* Cabecera */}
+      <div className="px-5 py-4 border-b border-orange-500/30 bg-slate-900/80 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400">
+            <Flame className="w-6 h-6 animate-pulse" />
           </div>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 font-serif">
+              Forja Cósmica y Alquimia
+              <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {hero.polvoEstelar || 0} Polvo Estelar
+              </span>
+            </h2>
+            <p className="text-xs text-orange-300/80 mt-0.5">
+              Refina tu equipamiento (+1 a +10), engarza gemas elementales o recicla piezas duplicadas.
+            </p>
+          </div>
+        </div>
+        {!isInline && onClose && (
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
         {/* Pestañas de la Forja */}
         <div className="flex border-b border-orange-500/20 bg-slate-950/60 px-2 sm:px-4 pt-2 gap-1 sm:gap-2 overflow-x-auto no-scrollbar shrink-0">
@@ -710,15 +703,38 @@ export function CosmicForgeModal({ isOpen, onClose, hero, onUpdateHero }) {
         {/* Pie del modal */}
         <div className="p-4 border-t border-orange-500/30 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400">
           <span>La Forja Cósmica canaliza el calor de las supernovas estelares.</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors"
-          >
-            Cerrar
-          </button>
+          {!isInline && onClose && (
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+          )}
         </div>
 
       </div>
+    );
+
+  if (isInline) {
+    return (
+      <div className="w-full select-none">
+        {modalBody}
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in select-none"
+      style={{ margin: 0, top: 0, left: 0, right: 0, bottom: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
+      {modalBody}
     </div>,
     document.body
   );

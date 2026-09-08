@@ -4,8 +4,10 @@ import {
   ArrowLeft, Sparkles, Sword, Shield, Trophy, 
   Flame, Lock, CheckCircle2, Star, Users, Package, 
   HelpCircle, Play, ChevronRight, Zap, Crown, Compass, Target,
-  Swords, RefreshCw, Calendar, Gift, Hammer, Coins, Volume2, VolumeX
+  Swords, RefreshCw, Calendar, Gift, Hammer, Coins, Volume2, VolumeX,
+  User, Backpack
 } from 'lucide-react';
+import { CotzBottomNav } from './CotzBottomNav';
 import { HeroProfileCard } from './HeroProfileCard';
 import { LootInventoryModal } from './LootInventoryModal';
 import { SkillTreeModal } from './SkillTreeModal';
@@ -41,12 +43,10 @@ import { apiFetch } from '../../../lib/api';
 
 export function ChroniclesGame({ profile, onBack }) {
   const [hero, setHero] = useState(() => getOrCreateHeroProfile(profile));
+  const [activeCotzTab, setActiveCotzTab] = useState('inicio'); // 'inicio' | 'heroe' | 'equipo' | 'skills' | 'aventura' | 'misiones'
+  const [equipoSubTab, setEquipoSubTab] = useState('inventory'); // 'inventory' | 'forge'
+  const [heroeSubTab, setHeroeSubTab] = useState('perfil'); // 'perfil' | 'mascotas'
   const [activeTab, setActiveTab] = useState('houses'); // 'houses' | 'eclipse' | 'tower' | 'shadows' | 'coop' | 'pvp'
-  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
-  const [isDailyRewardsOpen, setIsDailyRewardsOpen] = useState(false);
-  const [isForgeOpen, setIsForgeOpen] = useState(false);
-  const [isPetSanctuaryOpen, setIsPetSanctuaryOpen] = useState(false);
   const [activeBattle, setActiveBattle] = useState(null); // { enemy, mode, partner }
   const [levelUpInfo, setLevelUpInfo] = useState(null);
   const [pvpPromoInfo, setPvpPromoInfo] = useState(null);
@@ -55,6 +55,13 @@ export function ChroniclesGame({ profile, onBack }) {
   const [selectedRaidId, setSelectedRaidId] = useState(COOP_RAID_BOSSES[0].id);
   const [pvpRivals, setPvpRivals] = useState([]);
   const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+
+  const openInventory = () => { setActiveCotzTab('equipo'); setEquipoSubTab('inventory'); };
+  const openForge = () => { setActiveCotzTab('equipo'); setEquipoSubTab('forge'); };
+  const openSkills = () => { setActiveCotzTab('skills'); };
+  const openPets = () => { setActiveCotzTab('heroe'); setHeroeSubTab('mascotas'); };
+  const openMisiones = () => { setActiveCotzTab('misiones'); };
+  const openHero = () => { setActiveCotzTab('heroe'); setHeroeSubTab('perfil'); };
 
   useEffect(() => {
     const handler = () => setSoundOn(isSoundEnabled());
@@ -143,13 +150,6 @@ export function ChroniclesGame({ profile, onBack }) {
     const synced = initializeOrSyncDailyQuests(hero);
     if (synced !== hero) {
       setHero(synced);
-    }
-    const resetInfo = getDailyResetInfo(synced || hero);
-    if (resetInfo.canClaimStreak) {
-      const timer = setTimeout(() => {
-        setIsDailyRewardsOpen(true);
-      }, 700);
-      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -434,7 +434,7 @@ export function ChroniclesGame({ profile, onBack }) {
   const heroClass = ZODIAC_HERO_CLASSES[hero?.sign] || ZODIAC_HERO_CLASSES['Aries'];
 
   return (
-    <div className="max-w-6xl mx-auto w-full space-y-6 px-3 sm:px-6 pb-24 animate-fadeIn relative">
+    <div className="max-w-6xl mx-auto w-full space-y-6 px-3 sm:px-6 pb-28 sm:pb-32 animate-fadeIn relative">
       
       {/* BARRA SUPERIOR FIJA (STICKY): RETORNO DIRECTO Y STATUS RESUMIDO */}
       <div className="sticky top-0 z-30 -mx-3 sm:-mx-6 -mt-2 px-3 sm:px-6 py-2 sm:py-2.5 bg-[#030308]/95 backdrop-blur-xl border-b border-cyan-500/30 flex items-center justify-between shadow-2xl shadow-black/80 gap-2">
@@ -491,215 +491,400 @@ export function ChroniclesGame({ profile, onBack }) {
         </div>
       )}
 
-      {/* Cabecera Principal del Juego */}
-      <div className="glass-panel p-5 relative overflow-hidden bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-cyan-500/30 rounded-3xl">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold">
-              RPG POR TURNOS
-            </span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
-              Clase: {heroClass?.name || 'Guerrero'}
-            </span>
-          </div>
-          <span className="text-[11px] text-gray-400 font-mono">
-            {hero?.name || 'Guardián'} • {hero?.sign || 'Aries'}
-          </span>
-        </div>
-
-        <div className="mt-3">
-          <h2 className="mystic-font text-2xl text-white font-bold tracking-wide flex items-center gap-2.5">
-            <Sword className="text-cyan-400" size={26} /> CHRONICLES OF THE ZODIA
-          </h2>
-          <p className="text-xs text-gray-300 font-light mt-1 max-w-xl leading-relaxed">
-            Encarna la fuerza primordial de tu signo solar. Purifica las 12 Casas Astrales, forja reliquias cósmicas y desata ataques combinados de sinastría con tus almas gemelas.
-          </p>
-        </div>
-      </div>
-
-      {/* HUB DE ACCIONES PRINCIPALES (BOTONES GRANDES E INTUITIVOS) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {/* Botón 1: Equipo e Inventario */}
-        <button
-          onClick={() => setIsInventoryOpen(true)}
-          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-cyan-950/60 to-[#091522]/80 hover:from-cyan-900/70 hover:to-[#0c1e33] border border-cyan-500/40 hover:border-cyan-400 text-left transition-all duration-300 shadow-lg shadow-cyan-950/30 hover:shadow-cyan-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:bg-cyan-500/30 transition-all shadow-md">
-              <Package size={20} />
-            </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-              {Object.values(hero?.equipped || {}).filter(Boolean).length}/3
-            </span>
-          </div>
-          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-cyan-200 transition-colors">
-            Equipo Astral
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-            Armas y reliquias
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
-            <span>Gestionar</span>
-            <ChevronRight size={12} />
-          </div>
-        </button>
-
-        {/* Botón 2: Árbol de Habilidades */}
-        <button
-          onClick={() => setIsSkillTreeOpen(true)}
-          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-amber-950/60 to-[#1f1606]/80 hover:from-amber-900/70 hover:to-[#2b1f09] border border-amber-500/40 hover:border-amber-400 text-left transition-all duration-300 shadow-lg shadow-amber-950/30 hover:shadow-amber-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 group-hover:scale-110 group-hover:bg-amber-500/30 transition-all shadow-md">
-              <Zap size={20} />
-            </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-              {hero?.equippedSkills?.length || 1}/2
-            </span>
-          </div>
-          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-amber-200 transition-colors">
-            Árbol de Skills
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-            Poderes cósmicos
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-            <span>Aprender</span>
-            <ChevronRight size={12} />
-          </div>
-        </button>
-
-        {/* Botón 3: Forja Cósmica */}
-        <button
-          onClick={() => setIsForgeOpen(true)}
-          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-orange-950/60 to-[#1c0e05]/80 hover:from-orange-900/70 hover:to-[#291408] border border-orange-500/40 hover:border-orange-400 text-left transition-all duration-300 shadow-lg shadow-orange-950/30 hover:shadow-orange-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-300 group-hover:scale-110 group-hover:bg-orange-500/30 transition-all shadow-md">
-              <Hammer size={20} />
-            </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/40">
-              Refinar
-            </span>
-          </div>
-          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-orange-200 transition-colors">
-            Forja Cósmica
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-            Refinar hasta +10
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-orange-400 group-hover:translate-x-1 transition-transform">
-            <span>Refinar</span>
-            <ChevronRight size={12} />
-          </div>
-        </button>
-
-        {/* Botón 4: Santuario de Mascotas & Alquimia */}
-        <button
-          onClick={() => setIsPetSanctuaryOpen(true)}
-          className="group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-pink-950/60 to-[#22071d]/80 hover:from-pink-900/70 hover:to-[#310b2a] border border-pink-500/40 hover:border-pink-400 text-left transition-all duration-300 shadow-lg shadow-pink-950/30 hover:shadow-pink-500/20 hover:-translate-y-1 overflow-hidden cursor-pointer"
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-xl group-hover:scale-110 group-hover:bg-pink-500/30 transition-all shadow-md">
-              🐾
-            </div>
-            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/40">
-              {hero?.pets?.length || 1} Mascotas
-            </span>
-          </div>
-          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-pink-200 transition-colors">
-            Santuario & Alquimia
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-            Mascotas y pociones
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-pink-400 group-hover:translate-x-1 transition-transform">
-            <span>Visitar</span>
-            <ChevronRight size={12} />
-          </div>
-        </button>
-
-        {/* Botón 5: Desafíos y Recompensas Diarias */}
-        <button
-          onClick={() => setIsDailyRewardsOpen(true)}
-          className={`group relative p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 hover:to-[#220a38] text-left transition-all duration-300 shadow-lg hover:-translate-y-1 overflow-hidden border cursor-pointer col-span-2 sm:col-span-1 lg:col-span-1 ${
-            hasDailyAlert 
-              ? 'border-amber-400 shadow-amber-500/20' 
-              : 'border-purple-500/40 hover:border-purple-400 shadow-purple-950/30 hover:shadow-purple-500/20'
-          }`}
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 group-hover:scale-110 group-hover:bg-purple-500/30 transition-all shadow-md">
-              <Gift size={20} className={hasDailyAlert ? 'text-amber-300 animate-bounce' : 'text-purple-300'} />
-            </div>
-            {hasDailyAlert ? (
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">
-                ¡PREMIOS!
+      {/* ========================================================================= */}
+      {/* TAB 1: INICIO (SANCTUARY HUB) */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'inicio' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Cabecera Principal del Juego */}
+          <div className="glass-panel p-5 relative overflow-hidden bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black border border-cyan-500/30 rounded-3xl">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono font-bold">
+                  SANTUARIO ASTRAL
+                </span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
+                  Clase: {heroClass?.name || 'Guerrero'}
+                </span>
+              </div>
+              <span className="text-[11px] text-gray-400 font-mono">
+                {hero?.name || 'Guardián'} • {hero?.sign || 'Aries'}
               </span>
-            ) : (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                Racha {hero?.dailyStreak || 1}d
-              </span>
-            )}
-          </div>
-          <h3 className="font-bold text-white text-xs sm:text-sm group-hover:text-purple-200 transition-colors">
-            Misiones Diarias
-          </h3>
-          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">
-            Rachas y cofres
-          </p>
-          <div className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-            <span>{hasDailyAlert ? 'Reclamar' : 'Ver'}</span>
-            <ChevronRight size={12} />
-          </div>
-        </button>
-      </div>
+            </div>
 
-      {/* Banner de Tránsito Planetario en Vivo */}
-      <div className="p-4 rounded-2xl glass-panel bg-gradient-to-r from-purple-950/50 via-indigo-950/30 to-black border border-purple-500/30 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-2xl shadow-lg shadow-purple-500/20">
-            {transitBuff.moonGlyph}
+            <div className="mt-3">
+              <h2 className="mystic-font text-2xl text-white font-bold tracking-wide flex items-center gap-2.5">
+                <Sword className="text-cyan-400" size={26} /> CHRONICLES OF THE ZODIA
+              </h2>
+              <p className="text-xs text-gray-300 font-light mt-1 max-w-xl leading-relaxed">
+                Encarna la fuerza primordial de tu signo solar. Purifica las 12 Casas Astrales, forja reliquias cósmicas, despierta tus compañeros sagrados y desata ataques combinados de sinastría con tus almas gemelas.
+              </p>
+            </div>
           </div>
+
+          {/* Banner de Tránsito Planetario en Vivo */}
+          <div className="p-4 rounded-2xl glass-panel bg-gradient-to-r from-purple-950/50 via-indigo-950/30 to-black border border-purple-500/30 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-2xl shadow-lg shadow-purple-500/20">
+                {transitBuff.moonGlyph}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">Tránsito Lunar del Día</span>
+                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 font-bold font-mono">
+                    {transitBuff.phaseName}
+                  </span>
+                </div>
+                <p className="text-xs text-white font-medium mt-0.5">
+                  Luna en <span className="text-amber-300 font-bold">{transitBuff.moonSign}</span> ({transitBuff.moonElement})
+                </p>
+                <p className="text-[10px] text-gray-400 font-light">
+                  {transitBuff.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right pl-3 hidden sm:block">
+              <span className="text-[10px] text-gray-400 block font-mono">BONO EN ARENA</span>
+              <span className="text-xs font-mono font-bold text-amber-300">+15% AFINIDAD</span>
+            </div>
+          </div>
+
+          {/* RESUMEN RÁPIDO DEL HÉROE CON ACCESO DIRECTO */}
+          <div className="glass-panel p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-purple-950/20 to-black/60 border border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3.5 w-full sm:w-auto">
+              <div className="relative w-14 h-14 rounded-2xl overflow-hidden p-0.5 border-2 border-cyan-400 bg-black flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/20">
+                <img 
+                  src={hero?.avatarUrl || getZodiacIcon(hero?.sign || 'Aries')} 
+                  alt="" 
+                  className="w-full h-full object-cover rounded-xl"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getZodiacIcon(hero?.sign || 'Aries');
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-white truncate">{hero?.name || 'Héroe Astral'}</h3>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shrink-0">
+                    NV {hero?.level || 1}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 mt-0.5 font-mono">
+                  {hero?.sign || 'Aries'} • {hero?.element || 'Fuego'} • {heroClass?.name || 'Guerrero'}
+                </p>
+                <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400 font-mono">
+                  <span>HP: <strong className="text-white">{hero?.stats?.hp || 100}</strong></span>
+                  <span>ATQ: <strong className="text-orange-300">{hero?.stats?.atk || 20}</strong></span>
+                  <span>DEF: <strong className="text-blue-300">{hero?.stats?.def || 10}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={openHero}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-500/20 shrink-0 cursor-pointer"
+            >
+              <span>Ver Hoja Completa de Personaje</span>
+              <ChevronRight size={15} />
+            </button>
+          </div>
+
+          {/* GRID DE MÓDULOS RÁPIDOS */}
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">Tránsito Lunar del Día</span>
-              <span className="text-[10px] px-2 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 font-bold font-mono">
-                {transitBuff.phaseName}
-              </span>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 px-1 flex items-center gap-2">
+              <Compass size={14} className="text-cyan-400" />
+              <span>Módulos del Santuario</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* 1. Héroe */}
+              <button
+                onClick={openHero}
+                className="group p-3.5 rounded-2xl bg-gradient-to-b from-indigo-950/60 to-[#0c0a1f]/80 hover:from-indigo-900/70 border border-indigo-500/40 hover:border-indigo-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-indigo-300 mb-2 group-hover:scale-110 transition-transform">
+                  <Users size={18} />
+                </div>
+                <h4 className="font-bold text-white text-xs">Personaje</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">Atributos y perfil</p>
+              </button>
+
+              {/* 2. Equipo */}
+              <button
+                onClick={openInventory}
+                className="group p-3.5 rounded-2xl bg-gradient-to-b from-cyan-950/60 to-[#091522]/80 hover:from-cyan-900/70 border border-cyan-500/40 hover:border-cyan-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 transition-transform">
+                    <Package size={18} />
+                  </div>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300">
+                    {Object.values(hero?.equipped || {}).filter(Boolean).length}/3
+                  </span>
+                </div>
+                <h4 className="font-bold text-white text-xs">Equipo</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">Mochila y reliquias</p>
+              </button>
+
+              {/* 3. Forja */}
+              <button
+                onClick={openForge}
+                className="group p-3.5 rounded-2xl bg-gradient-to-b from-orange-950/60 to-[#1c0e05]/80 hover:from-orange-900/70 border border-orange-500/40 hover:border-orange-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center text-orange-300 mb-2 group-hover:scale-110 transition-transform">
+                  <Hammer size={18} />
+                </div>
+                <h4 className="font-bold text-white text-xs">Forja Cósmica</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">Refinar hasta +10</p>
+              </button>
+
+              {/* 4. Skills */}
+              <button
+                onClick={openSkills}
+                className="group p-3.5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-[#1f1606]/80 hover:from-amber-900/70 border border-amber-500/40 hover:border-amber-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 mb-2 group-hover:scale-110 transition-transform">
+                  <Zap size={18} />
+                </div>
+                <h4 className="font-bold text-white text-xs">Skills</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">Poderes astrales</p>
+              </button>
+
+              {/* 5. Aventura / Batalla */}
+              <button
+                onClick={() => setActiveCotzTab('aventura')}
+                className="group p-3.5 rounded-2xl bg-gradient-to-b from-red-950/60 to-[#22070e]/80 hover:from-red-900/70 border border-red-500/40 hover:border-red-400 text-left transition-all shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-red-500/20 border border-red-400/40 flex items-center justify-center text-red-300 mb-2 group-hover:scale-110 transition-transform">
+                  <Swords size={18} />
+                </div>
+                <h4 className="font-bold text-white text-xs">Aventura</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">12 Casas & PvP</p>
+              </button>
+
+              {/* 6. Misiones */}
+              <button
+                onClick={openMisiones}
+                className={`group p-3.5 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#160624]/80 hover:from-purple-900/70 text-left transition-all shadow-lg hover:-translate-y-1 border cursor-pointer ${
+                  hasDailyAlert ? 'border-amber-400 shadow-amber-500/20' : 'border-purple-500/40 hover:border-purple-400'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 group-hover:scale-110 transition-transform">
+                    <Gift size={18} className={hasDailyAlert ? 'text-amber-300 animate-bounce' : 'text-purple-300'} />
+                  </div>
+                  {hasDailyAlert && (
+                    <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-rose-500 text-white animate-pulse">
+                      ¡LISTO!
+                    </span>
+                  )}
+                </div>
+                <h4 className="font-bold text-white text-xs">Misiones</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">Rachas y cofres</p>
+              </button>
             </div>
-            <p className="text-xs text-white font-medium mt-0.5">
-              Luna en <span className="text-amber-300 font-bold">{transitBuff.moonSign}</span> ({transitBuff.moonElement})
-            </p>
-            <p className="text-[10px] text-gray-400 font-light">
-              {transitBuff.description}
-            </p>
+          </div>
+
+          {/* ESTADÍSTICAS Y RESUMEN DE PROGRESO */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-cyan-500/20">
+              <span className="text-[10px] text-gray-400 block font-mono">12 CASAS</span>
+              <span className="text-base font-bold text-cyan-300 font-mono mt-0.5 block">
+                {hero?.maxHouseCleared || 0} / 12
+              </span>
+              <span className="text-[9px] text-gray-500">Purificadas</span>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-purple-500/20">
+              <span className="text-[10px] text-gray-400 block font-mono">TORRE DEL CAOS</span>
+              <span className="text-base font-bold text-purple-300 font-mono mt-0.5 block">
+                Piso {hero?.maxTowerFloor || 1}
+              </span>
+              <span className="text-[9px] text-gray-500">Ascenso Astral</span>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-red-500/20">
+              <span className="text-[10px] text-gray-400 block font-mono">COLISEO PVP</span>
+              <span className="text-base font-bold text-red-300 font-mono mt-0.5 block truncate">
+                {hero?.pvpRank || getPvpRankInfo(hero?.pvpPoints || 0).name}
+              </span>
+              <span className="text-[9px] text-gray-500">{hero?.pvpPoints || 0} Puntos</span>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-amber-500/20">
+              <span className="text-[10px] text-gray-400 block font-mono">RACHA DIARIA</span>
+              <span className="text-base font-bold text-amber-300 font-mono mt-0.5 block">
+                {hero?.dailyStreak || 1} Días
+              </span>
+              <span className="text-[9px] text-gray-500">Consecutivos</span>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="text-right pl-3 hidden sm:block">
-          <span className="text-[10px] text-gray-400 block font-mono">BONO EN ARENA</span>
-          <span className="text-xs font-mono font-bold text-amber-300">+15% AFINIDAD</span>
+      {/* ========================================================================= */}
+      {/* TAB 2: HÉROE & COMPAÑEROS */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'heroe' && (
+        <div className="space-y-4 animate-fadeIn">
+          {/* Sub-selector Héroe vs Mascotas */}
+          <div className="flex items-center gap-2 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 w-fit">
+            <button
+              onClick={() => setHeroeSubTab('perfil')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                heroeSubTab === 'perfil'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Users size={14} />
+              <span>Perfil & Atributos</span>
+            </button>
+            <button
+              onClick={() => setHeroeSubTab('mascotas')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                heroeSubTab === 'mascotas'
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <span>🐾 Mascotas & Alquimia</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/30">
+                {hero?.pets?.length || 1}
+              </span>
+            </button>
+          </div>
+
+          {heroeSubTab === 'perfil' ? (
+            <HeroProfileCard 
+              hero={hero} 
+              onOpenInventory={openInventory} 
+              onOpenSkillTree={openSkills}
+              onOpenPetSanctuary={() => setHeroeSubTab('mascotas')}
+            />
+          ) : (
+            <PetSanctuaryModal
+              hero={hero}
+              onClose={() => setHeroeSubTab('perfil')}
+              onUpdateHero={(updated) => {
+                setHero(updated);
+                saveHeroProfile(updated);
+              }}
+              isInline={true}
+            />
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Resumen del Héroe */}
-      <HeroProfileCard 
-        hero={hero} 
-        onOpenInventory={() => setIsInventoryOpen(true)} 
-        onOpenSkillTree={() => setIsSkillTreeOpen(true)}
-        onOpenPetSanctuary={() => setIsPetSanctuaryOpen(true)}
-      />
+      {/* ========================================================================= */}
+      {/* TAB 3: EQUIPO & FORJA */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'equipo' && (
+        <div className="space-y-4 animate-fadeIn">
+          {/* Sub-selector Mochila vs Forja Cósmica */}
+          <div className="flex items-center gap-2 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 w-fit">
+            <button
+              onClick={() => setEquipoSubTab('inventory')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                equipoSubTab === 'inventory'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Package size={14} />
+              <span>Mochila & Reliquias</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/30">
+                {Object.values(hero?.equipped || {}).filter(Boolean).length}/3
+              </span>
+            </button>
+            <button
+              onClick={() => setEquipoSubTab('forge')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                equipoSubTab === 'forge'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-black shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Hammer size={14} />
+              <span>Forja Cósmica (+10)</span>
+            </button>
+          </div>
 
-      {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
-      <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
+          {equipoSubTab === 'inventory' ? (
+            <LootInventoryModal
+              isOpen={true}
+              onClose={() => {}}
+              hero={hero}
+              onUpdateHero={(updated) => {
+                setHero(updated);
+                saveHeroProfile(updated);
+              }}
+              onOpenForge={() => setEquipoSubTab('forge')}
+              isInline={true}
+            />
+          ) : (
+            <CosmicForgeModal
+              isOpen={true}
+              onClose={() => setEquipoSubTab('inventory')}
+              hero={hero}
+              onUpdateHero={(updated) => {
+                setHero(updated);
+                saveHeroProfile(updated);
+              }}
+              isInline={true}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: ÁRBOL DE HABILIDADES */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'skills' && (
+        <div className="space-y-4 animate-fadeIn">
+          <SkillTreeModal
+            isOpen={true}
+            onClose={() => {}}
+            hero={hero}
+            onUpdateHero={(updated) => {
+              setHero(updated);
+              saveHeroProfile(updated);
+            }}
+            isInline={true}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 6: MISIONES & RECOMPENSAS */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'misiones' && (
+        <div className="space-y-4 animate-fadeIn">
+          <DailyRewardsModal
+            isOpen={true}
+            onClose={() => {}}
+            hero={hero}
+            onHeroUpdate={(updated) => {
+              setHero(updated);
+              saveHeroProfile(updated);
+            }}
+            transitBuff={transitBuff}
+            isInline={true}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: AVENTURA (EXPEDICIONES Y BATALLA) */}
+      {/* ========================================================================= */}
+      {activeCotzTab === 'aventura' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Selector de Pestañas / Modos (6 Modos) con scroll horizontal en móvil y cuadrícula de 6 columnas en Desktop */}
+          <div className="flex lg:grid lg:grid-cols-6 items-center gap-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'houses', label: '12 Casas', icon: Trophy, activeColor: 'from-cyan-500 to-blue-600 text-black', badge: `${hero.maxHouseCleared || 0}/12` },
           { id: 'eclipse', label: '1vs2 Eclipse', icon: Zap, activeColor: 'from-amber-500 to-orange-600 text-black', badge: 'Reto' },
           { id: 'tower', label: 'Torre Caos', icon: Crown, activeColor: 'from-purple-500 to-indigo-600 text-white', badge: `P.${hero.maxTowerFloor || 1}` },
           { id: 'shadows', label: 'Duelo 1v1', icon: Sword, activeColor: 'from-blue-500 to-indigo-600 text-white', badge: 'Rápido' },
@@ -1376,69 +1561,25 @@ export function ChroniclesGame({ profile, onBack }) {
           </div>
         </div>
       )}
+        </div>
+      )}
 
       {/* Botón inferior para salir al Menú Principal */}
       <div className="pt-6 pb-2 text-center border-t border-white/10">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-bold text-cyan-300 hover:text-white px-6 py-3 rounded-2xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 shadow-lg shadow-cyan-950/30 transition-all"
+          className="inline-flex items-center gap-2 text-xs font-bold text-cyan-300 hover:text-white px-6 py-3 rounded-2xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 shadow-lg shadow-cyan-950/30 transition-all cursor-pointer"
         >
           <ArrowLeft size={16} /> Volver al Menú Principal (Arcadia)
         </button>
       </div>
 
-      {/* Modal de Inventario y Reliquias */}
-      <LootInventoryModal
-        isOpen={isInventoryOpen}
-        onClose={() => setIsInventoryOpen(false)}
-        hero={hero}
-        onUpdateHero={(updated) => setHero(updated)}
-        onOpenForge={() => {
-          setIsInventoryOpen(false);
-          setIsForgeOpen(true);
-        }}
-      />
-
-      {/* Modal del Árbol de Habilidades Astrales */}
-      <SkillTreeModal
-        isOpen={isSkillTreeOpen}
-        onClose={() => setIsSkillTreeOpen(false)}
-        hero={hero}
-        onUpdateHero={(updated) => setHero(updated)}
-      />
-
-      {/* Modal de Recompensas Diarias y Misiones del Oráculo */}
-      <DailyRewardsModal
-        isOpen={isDailyRewardsOpen}
-        onClose={() => setIsDailyRewardsOpen(false)}
-        hero={hero}
-        onHeroUpdate={(updated) => {
-          setHero(updated);
-          saveHeroProfile(updated);
-        }}
-        transitBuff={transitBuff}
-      />
-
-      {/* Modal de la Forja Cósmica y Alquimia */}
-      <CosmicForgeModal
-        isOpen={isForgeOpen}
-        onClose={() => setIsForgeOpen(false)}
-        hero={hero}
-        onUpdateHero={(updated) => {
-          setHero(updated);
-          saveHeroProfile(updated);
-        }}
-      />
-
-      {/* Modal del Santuario de Mascotas Astrales y Boticario */}
-      {isPetSanctuaryOpen && (
-        <PetSanctuaryModal
-          hero={hero}
-          onClose={() => setIsPetSanctuaryOpen(false)}
-          onUpdateHero={(updated) => {
-            setHero(updated);
-            saveHeroProfile(updated);
-          }}
+      {/* NAVEGACIÓN INFERIOR DE COTZ */}
+      {!activeBattle && (
+        <CotzBottomNav
+          activeTab={activeCotzTab}
+          setActiveTab={setActiveCotzTab}
+          hasAlert={hasDailyAlert}
         />
       )}
     </div>
