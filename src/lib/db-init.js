@@ -68,8 +68,10 @@ export async function ensureDatabaseSchema(db) {
       sender_id TEXT NOT NULL,
       receiver_id TEXT NOT NULL,
       content TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    "ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0",
 
     // 5. Tabla interactions
     `CREATE TABLE IF NOT EXISTS interactions (

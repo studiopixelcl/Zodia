@@ -13,6 +13,8 @@ import { ZodiacBadge } from './ZodiacBadge';
 import { MandalaAstral } from './MandalaAstral';
 import { DailyTransits } from './DailyTransits';
 import { DailyCosmicCapsule } from './DailyCosmicCapsule';
+import { UniversalSynastryCalculator } from './UniversalSynastryCalculator';
+import { TarotThreeCardSpread } from './TarotThreeCardSpread';
 
 // Coordenadas SVG precisas de las Sefirot del Árbol de la Vida (viewBox: 0 0 400 540)
 const SEFIROT_COORDS = [
@@ -157,6 +159,28 @@ export const TabOraculo = ({ profile }) => {
             Árbol
           </button>
           <button
+            onClick={() => setMainSection('sinastria')}
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'sinastria' 
+                ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Heart size={13} className="text-pink-400" />
+            Sinastría Libre
+          </button>
+          <button
+            onClick={() => setMainSection('tarot_3')}
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'tarot_3' 
+                ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-bold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles size={13} className="text-amber-300" />
+            Tirada 3 Cartas
+          </button>
+          <button
             onClick={() => setMainSection('carta')}
             className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               mainSection === 'carta' 
@@ -169,6 +193,20 @@ export const TabOraculo = ({ profile }) => {
           </button>
         </div>
       </div>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN: SINASTRÍA LIBRE / ESPEJO DE RESONANCIA         ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'sinastria' && (
+        <UniversalSynastryCalculator profile={profile} />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN: TIRADA SAGRADA DE 3 CARTAS DEL TAROT           ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'tarot_3' && (
+        <TarotThreeCardSpread profile={profile} />
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ── SECCIÓN: CARTA GUÍA DIARIA & CLIMA                      ── */}

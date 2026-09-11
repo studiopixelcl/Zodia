@@ -17,6 +17,7 @@ import { MediaCropperModal } from '../ui/MediaCropperModal';
 import { VideoCropperModal } from '../ui/VideoCropperModal';
 import { MandalaAstral } from './MandalaAstral';
 import { DailyCosmicCapsule } from './DailyCosmicCapsule';
+import { CosmicPassportModal } from './CosmicPassportModal';
 import { playMatchCelebrationSound, playSwipeLikeSound, playSwipePassSound } from '../../lib/sound-effects';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onSignOut, onProfileUpdated }) => {
@@ -115,6 +116,7 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -585,6 +587,30 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
             </div>
             <span className="text-xs font-semibold text-cyan-400 flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
               Explorar <ChevronRight size={14} />
+            </span>
+          </button>
+
+          {/* Botón Pasaporte Cósmico Exportable (Stories 9:16) */}
+          <button
+            type="button"
+            onClick={() => setIsPassportModalOpen(true)}
+            className="w-full mt-2 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-pink-950/30 to-black/60 border border-purple-500/30 hover:border-purple-400/60 transition-all flex items-center justify-between group shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform">
+                <Sparkles size={16} className="animate-spin-slow text-amber-300" />
+              </div>
+              <div className="text-left">
+                <h5 className="text-xs font-bold text-white group-hover:text-purple-300 transition">
+                  Pasaporte Cósmico (Stories 9:16)
+                </h5>
+                <p className="text-[10px] text-slate-400 font-light">
+                  Tarjeta de ADN astral holográfica lista para compartir en Instagram & WhatsApp
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-purple-400 flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+              Generar <ChevronRight size={14} />
             </span>
           </button>
 
@@ -1838,6 +1864,14 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
           </div>
         </div>
       )}
+
+      {/* ── MODAL PASAPORTE CÓSMICO (STORIES 9:16) ── */}
+      <CosmicPassportModal
+        isOpen={isPassportModalOpen}
+        onClose={() => setIsPassportModalOpen(false)}
+        profile={profile}
+        user={user}
+      />
     </div>
   );
 };

@@ -357,28 +357,93 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
           <span className="xs:hidden">Ciega</span>
         </button>
 
-        {/* Filtros Geográficos y de Edad */}
+        {/* Filtros Cósmicos, Geográficos y de Edad */}
         <button
           onClick={() => setShowQuickFilters(prev => !prev)}
           className={`p-1.5 sm:p-2 rounded-xl transition border text-xs flex items-center justify-center shrink-0 ${
-            showQuickFilters || selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos'
+            showQuickFilters || selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos' || minAffinity > 0 || selectedElement !== 'Todos'
               ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
               : 'bg-black/50 text-gray-400 hover:text-white border-white/10'
           }`}
-          title="Filtros de distancia y edad"
+          title="Filtros cósmicos y preferencias de sintonía"
         >
           <SlidersHorizontal size={14} />
-          {(selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos') && (
+          {(selectedDistance !== 'Todos' || selectedAgeRange !== 'Todos' || minAffinity > 0 || selectedElement !== 'Todos') && (
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse ml-0.5" />
           )}
         </button>
       </div>
 
-      {/* ── PANEL DESPLEGABLE DE FILTROS RÁPIDOS (DISTANCIA & EDAD) ── */}
+      {/* ── PANEL DESPLEGABLE DE FILTROS RÁPIDOS (AFINIDAD, ELEMENTO, DISTANCIA & EDAD) ── */}
       {showQuickFilters && (
         <div className="glass-panel p-3 mb-2 rounded-2xl border border-cyan-500/30 space-y-2.5 max-w-sm sm:max-w-md mx-auto w-full animate-fadeIn shadow-2xl">
-          {/* Filtro por Distancia */}
+          {/* Filtro por Afinidad Mínima */}
           <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
+              <span className="flex items-center gap-1 text-cyan-300">
+                <Sparkles size={12} className="text-cyan-400" /> Afinidad Mínima:
+              </span>
+              <span className="text-cyan-400 font-mono text-[10px]">
+                {minAffinity === 0 ? 'Cualquier afinidad' : `Desde ${minAffinity}% de resonancia`}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              {[
+                { label: 'Todas', val: 0 },
+                { label: '🔥 >60%', val: 60 },
+                { label: '✨ >75%', val: 75 },
+                { label: '💎 >85%', val: 85 }
+              ].map(item => (
+                <button
+                  key={item.val}
+                  onClick={() => setMinAffinity(item.val)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition whitespace-nowrap ${
+                    minAffinity === item.val
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-black shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filtro por Elemento Astral */}
+          <div className="space-y-1 pt-1 border-t border-white/5">
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
+              <span className="flex items-center gap-1 text-amber-300">
+                <Filter size={12} className="text-amber-400" /> Elemento Astral:
+              </span>
+              <span className="text-amber-400 font-mono text-[10px]">
+                {selectedElement}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              {[
+                { name: 'Todos', label: 'Todos' },
+                { name: 'Fuego', label: '🔥 Fuego' },
+                { name: 'Tierra', label: '🌱 Tierra' },
+                { name: 'Aire', label: '💨 Aire' },
+                { name: 'Agua', label: '🌊 Agua' }
+              ].map(el => (
+                <button
+                  key={el.name}
+                  onClick={() => setSelectedElement(el.name)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition whitespace-nowrap ${
+                    selectedElement === el.name
+                      ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]'
+                      : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {el.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filtro por Distancia */}
+          <div className="space-y-1 pt-1 border-t border-white/5">
             <div className="flex items-center justify-between text-[11px] font-bold text-gray-300">
               <span className="flex items-center gap-1 text-cyan-300">
                 <MapPin size={12} className="text-cyan-400" /> Radio de Distancia:
