@@ -15,6 +15,7 @@ import { DailyTransits } from './DailyTransits';
 import { DailyCosmicCapsule } from './DailyCosmicCapsule';
 import { UniversalSynastryCalculator } from './UniversalSynastryCalculator';
 import { TarotThreeCardSpread } from './TarotThreeCardSpread';
+import { CosmicWeeklyCalendar } from './CosmicWeeklyCalendar';
 
 // Coordenadas SVG precisas de las Sefirot del Árbol de la Vida (viewBox: 0 0 400 540)
 const SEFIROT_COORDS = [
@@ -113,6 +114,17 @@ export const TabOraculo = ({ profile }) => {
           >
             <Compass size={13} />
             Tránsitos
+          </button>
+          <button
+            onClick={() => setMainSection('calendario')}
+            className={`flex-1 min-w-[125px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'calendario' 
+                ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-extrabold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Calendar size={13} className={mainSection === 'calendario' ? 'text-black' : 'text-cyan-400'} />
+            Calendario & Semana
           </button>
           <button
             onClick={() => setMainSection('mandala')}
@@ -216,10 +228,32 @@ export const TabOraculo = ({ profile }) => {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN: CALENDARIO EN TIEMPO REAL & SEMANA ASTRAL      ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'calendario' && (
+        <CosmicWeeklyCalendar profile={profile} />
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
       {/* ── SECCIÓN A: TRÁNSITOS DIARIOS PERSONALIZADOS (HOY)        ── */}
       {/* ───────────────────────────────────────────────────────────── */}
       {mainSection === 'transitos' && (
-        <DailyTransits profile={profile} />
+        <div className="space-y-4 animate-fadeIn">
+          <button
+            type="button"
+            onClick={() => setMainSection('calendario')}
+            className="w-full p-3 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-[#0a1236] to-black/70 border border-cyan-500/30 hover:border-cyan-400/60 transition flex items-center justify-between text-xs text-cyan-300 font-bold px-4 group shadow-md"
+          >
+            <span className="flex items-center gap-2">
+              <Calendar size={15} className="text-cyan-400" />
+              <span>Ver Calendario en Tiempo Real y Próximos 7 Días</span>
+            </span>
+            <span className="text-[11px] text-gray-400 group-hover:text-white flex items-center gap-1 font-normal">
+              Explorar <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+            </span>
+          </button>
+          <DailyTransits profile={profile} />
+        </div>
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
