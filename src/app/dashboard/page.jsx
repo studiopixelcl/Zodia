@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Bell } from 'lucide-react';
+import { LogOut, Bell, Flame, Headphones, Radio, Sparkles, WifiOff } from 'lucide-react';
 
 import { TabEspejo }   from '../../components/astral/TabEspejo';
 import { TabEter }     from '../../components/astral/TabEter';
@@ -14,9 +14,13 @@ import { BottomNav }   from '../../components/astral/BottomNav';
 import { PWAInstallPrompt } from '../../components/ui/PWAInstallPrompt';
 import { NotificationManager } from '../../components/ui/NotificationManager';
 import { NotificationCenterDrawer } from '../../components/ui/NotificationCenterDrawer';
+import { CosmicStreakModal } from '../../components/astral/CosmicStreakModal';
 import ZodiaLogo from '../../components/ui/ZodiaLogo';
 import { apiFetch } from '../../lib/api';
 import { calculateAstralProfile, getZodiacSymbol } from '../../lib/astrology';
+import { toggle432HzDrone, is432HzDronePlaying, triggerHaptic } from '../../lib/sound-effects';
+import { getGamificationStats, recordGamificationAction } from '../../lib/gamification';
+import { saveOfflineAstralData, isDeviceOnline } from '../../lib/offline-storage';
 
 // ─── PANTALLA DE ESPERA COMPARTIDA ────────────────────────────────────────────
 const Sincronizando = () => (
@@ -46,6 +50,35 @@ export default function Dashboard() {
   const [notifications,    setNotifications]    = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
+
+  // Estados de Gamificación, Modo 432Hz y Modo Offline
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
+  const [isDroneActive,     setIsDroneActive]     = useState(false);
+  const [isOffline,         setIsOffline]         = useState(false);
+  const [streakCount,       setStreakCount]       = useState(1);
+
+  // ── Sincronización de gamificación, drone 432Hz y red ───────────────────────
+  useEffect(() => {
+    const stats = getGamificationStats();
+    setStreakCount(stats.streak || 1);
+    setIsDroneActive(is432HzDronePlaying());
+
+    const handleDroneEvent = (e) => {
+      setIsDroneActive(e.detail?.isPlaying || false);
+    };
+    window.addEventListener('zodia-drone-change', handleDroneEvent);
+
+    const updateOnline = () => setIsOffline(!navigator.onLine);
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    setIsOffline(!isDeviceOnline());
+
+    return () => {
+      window.removeEventListener('zodia-drone-change', handleDroneEvent);
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    };
+  }, []);
 
   // ── Sincronización de URL inicial y control de retroceso en móviles ────────
   useEffect(() => {
@@ -300,13 +333,44 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Botón Modo Frecuencia 432Hz (Meditación) */}
+          <button
+            type="button"
+            onClick={() => {
+              const active = toggle432HzDrone();
+              setIsDroneActive(active);
+              triggerHaptic('light');
+              if (active) recordGamificationAction('zen_432hz');
+            }}
+            className={`p-2 rounded-xl transition border shadow-sm ${
+              isDroneActive
+                ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400/60 shadow-[0_0_15px_rgba(6,182,212,0.4)] animate-pulse'
+                : 'text-slate-400 hover:text-cyan-300 hover:bg-white/5 border-white/10'
+            }`}
+            title={isDroneActive ? 'Detener Frecuencia 432Hz' : 'Activar Frecuencia 432Hz (Meditación Astral)'}
+          >
+            <Headphones size={15} />
+          </button>
+
+          {/* Racha Cósmica Diaria (Flame Pill) */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsStreakModalOpen(true);
+              triggerHaptic('light');
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition shadow-sm text-[11px] font-bold cursor-pointer"
+            title="Tu Racha Cósmica & Insignias"
+          >
+            <Flame size={14} className="text-amber-400 fill-amber-400/30 animate-pulse" />
+            <span>{streakCount}d</span>
+          </button>
+
           {/* Badge del Signo Activo del Usuario */}
           {profile?.sign && (
             <div className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-full bg-cyan-950/50 border border-cyan-500/30 text-cyan-200 text-[10px] font-semibold backdrop-blur-md shadow-[0_0_12px_rgba(6,182,212,0.15)]">
               <span className="text-amber-300 font-bold">{getZodiacSymbol(profile.sign)}</span>
               <span>{profile.sign}</span>
-              <span className="text-white/30 hidden xs:inline">•</span>
-              <span className="text-slate-400 hidden xs:inline">{profile.element}</span>
             </div>
           )}
 
@@ -326,6 +390,14 @@ export default function Dashboard() {
           </button>
         </div>
       </header>
+
+      {/* Banner de Modo Offline si no hay conexión */}
+      {isOffline && (
+        <div className="bg-amber-950/90 border-b border-amber-500/30 px-3 py-1.5 text-[11px] text-amber-200 flex items-center justify-center gap-2 z-40 animate-fadeIn">
+          <WifiOff size={13} className="text-amber-400 shrink-0" />
+          <span>Modo Astral Offline: tu Carta Natal está disponible localmente.</span>
+        </div>
+      )}
 
       {/* Contenido Principal con Scroll Interno Independiente */}
       <main className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden p-1.5 sm:p-2 relative no-scrollbar">
@@ -409,6 +481,12 @@ export default function Dashboard() {
           } catch {}
         }}
         onNavigate={handleNavigateFromNotif}
+      />
+
+      {/* Altar de Racha Cósmica e Insignias de Consciencia */}
+      <CosmicStreakModal
+        isOpen={isStreakModalOpen}
+        onClose={() => setIsStreakModalOpen(false)}
       />
     </div>
   );

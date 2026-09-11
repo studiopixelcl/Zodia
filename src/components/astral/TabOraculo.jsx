@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   Calendar, BookOpen, Heart, Briefcase, Coins, Sparkles, 
   ChevronRight, Compass, Shield, Flame, User, Info, ArrowRight,
-  Eye, CheckCircle2, RotateCw
+  Eye, CheckCircle2, RotateCw, Star
 } from 'lucide-react';
 import { 
   zodiacData, ZODIAC_SYMBOLS, ZODIAC_COMPREHENSIVE_READINGS,
@@ -12,6 +12,7 @@ import {
 import { ZodiacBadge } from './ZodiacBadge';
 import { MandalaAstral } from './MandalaAstral';
 import { DailyTransits } from './DailyTransits';
+import { DailyCosmicCapsule } from './DailyCosmicCapsule';
 
 // Coordenadas SVG precisas de las Sefirot del Árbol de la Vida (viewBox: 0 0 400 540)
 const SEFIROT_COORDS = [
@@ -155,8 +156,26 @@ export const TabOraculo = ({ profile }) => {
             <BookOpen size={13} />
             Árbol
           </button>
+          <button
+            onClick={() => setMainSection('carta')}
+            className={`flex-1 min-w-[95px] py-1.5 sm:py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              mainSection === 'carta' 
+                ? 'bg-sky-500 text-black font-bold shadow-md' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Star size={13} />
+            Carta del Día
+          </button>
         </div>
       </div>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* ── SECCIÓN: CARTA GUÍA DIARIA & CLIMA                      ── */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mainSection === 'carta' && (
+        <DailyCosmicCapsule profile={profile} />
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* ── SECCIÓN A: TRÁNSITOS DIARIOS PERSONALIZADOS (HOY)        ── */}

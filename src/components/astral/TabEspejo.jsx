@@ -16,6 +16,7 @@ import { AstralPortalModal } from './AstralPortalModal';
 import { MediaCropperModal } from '../ui/MediaCropperModal';
 import { VideoCropperModal } from '../ui/VideoCropperModal';
 import { MandalaAstral } from './MandalaAstral';
+import { DailyCosmicCapsule } from './DailyCosmicCapsule';
 import { playMatchCelebrationSound, playSwipeLikeSound, playSwipePassSound } from '../../lib/sound-effects';
 
 export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigateTab, onSignOut, onProfileUpdated }) => {
@@ -589,6 +590,13 @@ export const TabEspejo = ({ profile, user, avatarSrc, onAvatarChange, onNavigate
 
         </div>
       </div>
+
+      {/* ── BARÓMETRO DE TRÁNSITOS & GUÍA CÓSMICA DEL DÍA ── */}
+      <DailyCosmicCapsule
+        profile={profile}
+        currentUser={user}
+        onNavigateTab={onNavigateTab}
+      />
 
       {/* ── 2. SECCIÓN: SOBRE MÍ (BIOGRAFÍA) ── */}
       <div className="glass-panel p-6 border border-white/10 relative bg-gradient-to-br from-black/80 to-cyan-950/20">

@@ -4,13 +4,16 @@ import {
   Sparkles, Flame, Heart, Compass, Send, MessageCircle, Image as ImageIcon, 
   Smile, Share2, Filter, ChevronDown, ChevronUp, User, Globe, 
   RotateCcw, Check, Plus, AlertCircle, Loader2, Camera, X, Trash2, 
-  Maximize2, Eye, Download, Copy, ShieldAlert
+  Maximize2, Eye, Download, Copy, ShieldAlert, BarChart2, Music, Disc,
+  Award
 } from 'lucide-react';
 import { ZodiacBadge } from './ZodiacBadge';
 import { apiFetch } from '../../lib/api';
-import { playSwipeLikeSound, playMessageSentSound } from '../../lib/sound-effects';
+import { playSwipeLikeSound, playMessageSentSound, triggerHaptic } from '../../lib/sound-effects';
 import { AstralStoriesRail } from './AstralStoriesRail';
 import { compressImage } from '../../lib/media-processor';
+import { DailyCosmicCapsule } from './DailyCosmicCapsule';
+import { recordGamificationAction } from '../../lib/gamification';
 
 const VIBE_TAGS = [
   '🪐 Tránsitos',
@@ -19,6 +22,14 @@ const VIBE_TAGS = [
   '💖 Amor',
   '🔮 Pregunta Cósmica',
   '🌿 Estilo de Vida'
+];
+
+const ELEMENT_FILTERS = [
+  { id: 'Todos', label: 'Todos' },
+  { id: 'Fuego', label: '🔥 Fuego' },
+  { id: 'Tierra', label: '🌱 Tierra' },
+  { id: 'Aire', label: '💨 Aire' },
+  { id: 'Agua', label: '🌊 Agua' }
 ];
 
 function formatTimeAgo(dateString) {
@@ -41,6 +52,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState('Todos');
+  const [selectedElement, setSelectedElement] = useState('Todos');
 
   // Estado del creador de posts
   const [newContent, setNewContent] = useState('');
@@ -53,9 +65,22 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   const [selectedPhotoPreview, setSelectedPhotoPreview] = useState(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
 
+  // Estados para ENCUESTA CÓSMICA
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+
+  // Estados para MÚSICA / BANDA SONORA
+  const [showMusicInput, setShowMusicInput] = useState(false);
+  const [musicTitle, setMusicTitle] = useState('');
+  const [musicArtist, setMusicArtist] = useState('');
+
   // Referencias a inputs de archivos ocultos del sistema
   const galleryInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  // Estado para desplegar el Clima Astral & Carta del Día
+  const [showDailyCapsule, setShowDailyCapsule] = useState(false);
 
   // Estados de comentarios expandidos por postId
   const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
@@ -82,13 +107,30 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }, 3500);
   };
 
+  // Escuchar eventos de desbloqueo de insignias de gamificación
+  useEffect(() => {
+    const handleBadgeUnlocked = (e) => {
+      const badge = e.detail;
+      if (badge) {
+        showToast(`🎉 ¡Insignia Desbloqueada: ${badge.icon} ${badge.title}!`, 'success');
+        triggerHaptic('celebration');
+      }
+    };
+    window.addEventListener('zodia-badge-unlocked', handleBadgeUnlocked);
+    return () => window.removeEventListener('zodia-badge-unlocked', handleBadgeUnlocked);
+  }, []);
+
   // Cargar feed
   const fetchFeed = async (isManual = false) => {
     try {
       if (isManual) setRefreshing(true);
       else setLoading(true);
 
-      const query = selectedVibe !== 'Todos' ? `?vibe=${encodeURIComponent(selectedVibe.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim())}` : '';
+      const vibeQuery = selectedVibe !== 'Todos' ? `vibe=${encodeURIComponent(selectedVibe.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim())}` : '';
+      const elemQuery = selectedElement !== 'Todos' ? `element=${encodeURIComponent(selectedElement.toLowerCase())}` : '';
+      const queryParts = [vibeQuery, elemQuery].filter(Boolean);
+      const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+
       const res = await apiFetch(`/api/feed${query}`);
       if (res.ok) {
         const data = await res.json();
@@ -108,7 +150,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
   useEffect(() => {
     fetchFeed();
-  }, [selectedVibe]);
+  }, [selectedVibe, selectedElement]);
 
   // Manejo de selección de imagen desde Galería o Cámara
   const handlePhotoSelect = async (e) => {
@@ -117,7 +159,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
     try {
       setIsProcessingPhoto(true);
-      // Compresión inteligente WebP con alta fidelidad y peso ligero
       const compressed = await compressImage(file, 1600, 0.88);
       setSelectedPhotoFile(compressed.file);
       setSelectedPhotoPreview(compressed.previewUrl);
@@ -137,24 +178,97 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
-  // Descartar imagen seleccionada
   const handleRemovePhoto = () => {
     setSelectedPhotoFile(null);
     setSelectedPhotoPreview(null);
   };
 
-  // Publicar nuevo pensamiento cósmico
+  // Manejadores de Encuestas
+  const handleAddPollOption = () => {
+    if (pollOptions.length < 4) {
+      setPollOptions([...pollOptions, '']);
+    }
+  };
+
+  const handleRemovePollOption = (idx) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== idx));
+    }
+  };
+
+  const handlePollOptionChange = (idx, val) => {
+    const next = [...pollOptions];
+    next[idx] = val;
+    setPollOptions(next);
+  };
+
+  const handleDiscardPoll = () => {
+    setShowPollCreator(false);
+    setPollQuestion('');
+    setPollOptions(['', '']);
+  };
+
+  // Votar en Encuesta Cósmica
+  const handleVotePoll = async (postId, optionId) => {
+    const currentUserId = profile?.user_id || currentUser?.id || 'anon';
+    triggerHaptic('medium');
+
+    // Actualización optimista
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId || !p.poll) return p;
+      const voters = { ...(p.poll.voters || {}) };
+      const prevOptId = voters[currentUserId];
+      const nextOptions = p.poll.options.map(opt => {
+        let count = opt.votes || 0;
+        if (opt.id === prevOptId) count = Math.max(0, count - 1);
+        if (opt.id === optionId) count += 1;
+        return { ...opt, votes: count };
+      });
+      voters[currentUserId] = optionId;
+      return {
+        ...p,
+        poll: {
+          ...p.poll,
+          options: nextOptions,
+          voters
+        }
+      };
+    }));
+
+    recordGamificationAction('poll_voted');
+    showToast('¡Tu voto cósmico fue sellado! 📊✨', 'success');
+
+    try {
+      await apiFetch('/api/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote_poll',
+          postId,
+          optionId
+        })
+      });
+    } catch (err) {
+      console.error("Error registrando voto:", err);
+    }
+  };
+
+  // Publicar nuevo post con soporte para foto, encuesta y música
   const handlePublishPost = async (e) => {
     e.preventDefault();
-    if ((!newContent.trim() && !selectedPhotoFile) || publishing) return;
+    const hasText = !!newContent.trim();
+    const hasPhoto = !!selectedPhotoFile;
+    const hasPoll = showPollCreator && !!pollQuestion.trim() && pollOptions.filter(o => o.trim()).length >= 2;
+
+    if ((!hasText && !hasPhoto && !hasPoll) || publishing) return;
 
     setPublishing(true);
     setPublishStatusText('Sintonizando con el éter...');
+    triggerHaptic('light');
 
     let finalMediaUrl = null;
 
     try {
-      // Si hay una foto seleccionada, subirla primero a través de /api/upload
       if (selectedPhotoFile) {
         setPublishStatusText('Guardando imagen cósmica...');
         try {
@@ -169,12 +283,9 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
-            if (uploadData?.url) {
-              finalMediaUrl = uploadData.url;
-            }
+            if (uploadData?.url) finalMediaUrl = uploadData.url;
           }
         } catch (uploadErr) {
-          console.warn('Fallo en subida a nube, usando fallback local base64:', uploadErr);
           finalMediaUrl = selectedPhotoPreview;
         }
 
@@ -185,14 +296,28 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
       setPublishStatusText('Transmitiendo resonancia...');
 
+      // Construcción del payload de encuesta
+      const pollPayload = hasPoll ? {
+        question: pollQuestion.trim(),
+        options: pollOptions.filter(o => o.trim())
+      } : null;
+
+      // Construcción del payload de música
+      const musicPayload = showMusicInput && musicTitle.trim() ? {
+        title: musicTitle.trim(),
+        artist: musicArtist.trim()
+      } : null;
+
       const res = await apiFetch('/api/feed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_post',
-          content: newContent.trim() || '✨ Compartiendo una visión cósmica...',
+          content: newContent.trim() || (hasPoll ? pollQuestion.trim() : '✨ Compartiendo una visión cósmica...'),
           vibeTag: newVibeTag,
           mediaUrl: finalMediaUrl,
+          poll: pollPayload,
+          musicTrack: musicPayload,
           authorName: profile?.nombre_actual || currentUser?.name || 'Sintonizador',
           authorImage: profile?.user_image || currentUser?.image,
           authorSign: profile?.sign || 'Cosmos',
@@ -204,10 +329,18 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         const data = await res.json();
         if (data.post) {
           playMessageSentSound();
+          triggerHaptic('success');
+          recordGamificationAction('post_created');
           setPosts(prev => [data.post, ...prev]);
+
+          // Limpiar formulario
           setNewContent('');
           setSelectedPhotoFile(null);
           setSelectedPhotoPreview(null);
+          handleDiscardPoll();
+          setShowMusicInput(false);
+          setMusicTitle('');
+          setMusicArtist('');
           showToast('¡Tu resonancia fue transmitida al cosmos! 🪐✨', 'success');
         }
       } else {
@@ -255,8 +388,9 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   // Reaccionar (toggle)
   const handleReaction = async (postId, reactionType) => {
     playSwipeLikeSound();
+    triggerHaptic('light');
+    recordGamificationAction('reaction_given');
 
-    // Actualización optimista
     setPosts(prev => prev.map(p => {
       if (p.id !== postId) return p;
       const userReactions = p.userReactions || [];
@@ -307,12 +441,9 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         });
         showToast('¡Compartido exitosamente! 🌌', 'success');
         return;
-      } catch (e) {
-        // Ignorar si el usuario canceló el diálogo nativo
-      }
+      } catch (e) {}
     }
 
-    // Fallback: copiar texto al portapapeles
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(`${shareText}\n${window.location.href}`);
@@ -323,7 +454,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
-  // Abrir o cerrar comentarios y cargarlos
   const toggleComments = async (postId) => {
     if (openCommentsPostId === postId) {
       setOpenCommentsPostId(null);
@@ -351,12 +481,12 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
-  // Enviar comentario
   const handleSendComment = async (postId, e) => {
     e.preventDefault();
     const commentText = (commentInputs[postId] || '').trim();
     if (!commentText) return;
 
+    triggerHaptic('medium');
     setCommentInputs(prev => ({ ...prev, [postId]: '' }));
 
     const tempComment = {
@@ -376,6 +506,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p));
     playMessageSentSound();
+    recordGamificationAction('comment_sent');
 
     try {
       const res = await apiFetch('/api/feed', {
@@ -404,14 +535,12 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
-  // Determinar si una publicación pertenece al usuario actual
   const isMyPost = (post) => {
     const currentId = profile?.user_id || currentUser?.id;
     const currentName = profile?.nombre_actual || currentUser?.name;
     return (currentId && post.user_id === currentId) || (currentName && post.author_name === currentName);
   };
 
-  // Element color accents
   const getElementBadgeColor = (element) => {
     switch ((element || '').toLowerCase()) {
       case 'fuego': return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
@@ -423,7 +552,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   };
 
   return (
-    <div className="space-y-4 max-w-xl mx-auto pb-12 select-none animate-fadeIn relative">
+    <div className="space-y-4 max-w-xl mx-auto pb-14 select-none animate-fadeIn relative">
       
       {/* ── TOAST CÓSMICO FLOTANTE ── */}
       {toastMessage && (
@@ -435,24 +564,9 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         </div>
       )}
 
-      {/* ── INPUTS DE ARCHIVOS NATIVOS OCULTOS ── */}
-      {/* 1. Galería / Selector de archivos del dispositivo */}
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handlePhotoSelect}
-        className="hidden"
-      />
-      {/* 2. Cámara nativa del dispositivo (abre app de cámara directamente en teléfonos) */}
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handlePhotoSelect}
-        className="hidden"
-      />
+      {/* Inputs nativos ocultos */}
+      <input ref={galleryInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSelect} className="hidden" />
 
       {/* ── CABECERA DEL MURO CÓSMICO ── */}
       <div className="glass-panel p-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-purple-950/40 via-[#070a16] to-cyan-950/40 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
@@ -466,7 +580,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                 Muro Cósmico & Resonancias
               </h2>
               <p className="text-[11px] text-gray-300 font-light">
-                Vibraciones y momentos en tiempo real de la comunidad astral
+                Comunidad astral, debates cósmicos, fotos y vibraciones en vivo
               </p>
             </div>
           </div>
@@ -481,10 +595,46 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         </div>
       </div>
 
+      {/* ── BARRA DEL CLIMA CÓSMICO & CARTA DEL DÍA ── */}
+      <div className="glass-panel p-2.5 px-3.5 rounded-2xl border border-cyan-500/20 bg-[#070a18]/80 flex items-center justify-between text-xs shadow-sm">
+        <div 
+          className="flex items-center gap-2 cursor-pointer group" 
+          onClick={() => setShowDailyCapsule(!showDailyCapsule)}
+        >
+          <span className="text-base group-hover:scale-110 transition-transform">🔮</span>
+          <div>
+            <span className="font-bold text-white text-[11px] block group-hover:text-cyan-300 transition-colors">
+              Clima Astral & Arcano Guía de Hoy
+            </span>
+            <span className="text-[10px] text-gray-400 font-light">
+              Fase lunar, energía vital y tu carta diaria
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowDailyCapsule(!showDailyCapsule)}
+          className="px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/30 text-[10px] font-bold text-cyan-300 transition"
+        >
+          {showDailyCapsule ? 'Ocultar' : 'Ver Guía ✨'}
+        </button>
+      </div>
+
+      {showDailyCapsule && (
+        <DailyCosmicCapsule
+          profile={profile}
+          currentUser={currentUser}
+          onShareToFeed={(text) => {
+            setNewContent(text);
+            showToast('¡Mensaje cósmico listo en el editor para resonar! ✨', 'info');
+          }}
+        />
+      )}
+
       {/* ── CARRUSEL DE HISTORIAS EFÍMERAS CÓSMICAS (24H) ── */}
       <AstralStoriesRail currentUser={currentUser} profile={profile} />
 
-      {/* ── COMPOSER MEJORADO: SUBIDA DIRECTA DESDE DISPOSITIVO O CÁMARA ── */}
+      {/* ── COMPOSER COMPLETO: TEXTO, FOTO, ENCUESTA Y MÚSICA ── */}
       <form onSubmit={handlePublishPost} className="glass-panel p-4 rounded-3xl border border-white/10 space-y-3.5 shadow-2xl bg-[#090d1f]/95">
         <div className="flex items-start gap-3">
           <img
@@ -494,46 +644,143 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           />
           <div className="flex-1 space-y-2.5">
             <textarea
-              rows={3}
+              rows={2}
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              placeholder="¿Qué energía cósmica o tránsito sientes hoy en el éter? Comparte tu reflexión o momento..."
-              className="w-full bg-black/40 border border-white/10 rounded-2xl p-3.5 text-xs text-white placeholder:text-gray-400 focus:border-cyan-400 focus:bg-black/60 outline-none transition resize-none leading-relaxed shadow-inner"
+              placeholder="¿Qué energía cósmica o tránsito sientes hoy en el éter?..."
+              className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-xs text-white placeholder:text-gray-400 focus:border-cyan-400 focus:bg-black/60 outline-none transition resize-none leading-relaxed shadow-inner"
             />
 
-            {/* PREVIEW DE FOTO CARGADA (SI SE ELIGIÓ DEL DISPOSITIVO O CÁMARA) */}
+            {/* PREVIEW DE FOTO CARGADA */}
             {selectedPhotoPreview && (
               <div className="relative rounded-2xl overflow-hidden border border-cyan-500/40 bg-black/80 shadow-lg animate-fadeIn group">
                 <img
                   src={selectedPhotoPreview}
                   alt="Vista previa seleccionada"
-                  className="w-full max-h-64 object-cover rounded-2xl"
+                  className="w-full max-h-56 object-cover rounded-2xl"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
-                
-                {/* Badge informativa */}
                 <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[10px] text-cyan-300 font-medium flex items-center gap-1.5 shadow">
                   <Sparkles size={11} className="text-cyan-400" />
                   <span>Foto lista para el éter</span>
                 </div>
-
-                {/* Botón para eliminar foto */}
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
-                  className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 hover:border-red-500 transition shadow-lg"
-                  title="Quitar foto"
+                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition shadow-lg"
                 >
-                  <X size={15} />
+                  <X size={14} />
                 </button>
               </div>
             )}
 
-            {/* Spinner si la foto se está procesando / comprimiendo */}
-            {isProcessingPhoto && (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-cyan-300 animate-pulse">
-                <Loader2 size={14} className="animate-spin text-cyan-400" />
-                <span>Optimizando foto en alta resolución...</span>
+            {/* ── CREADOR DE ENCUESTA CÓSMICA ── */}
+            {showPollCreator && (
+              <div className="p-3.5 rounded-2xl bg-black/60 border border-cyan-500/30 space-y-2.5 animate-fadeIn shadow-inner">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+                    <BarChart2 size={13} /> Encuesta Cósmica
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDiscardPoll}
+                    className="text-gray-400 hover:text-red-400 text-xs transition"
+                    title="Descartar encuesta"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={pollQuestion}
+                  onChange={(e) => setPollQuestion(e.target.value)}
+                  placeholder="Pregunta de la encuesta (ej: ¿Sientes el influjo lunar hoy?)"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400"
+                />
+                <div className="space-y-1.5">
+                  {pollOptions.map((opt, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => handlePollOptionChange(idx, e.target.value)}
+                        placeholder={`Opción ${idx + 1}`}
+                        className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400"
+                      />
+                      {pollOptions.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePollOption(idx)}
+                          className="p-1.5 text-gray-400 hover:text-red-400 transition"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {pollOptions.length < 4 && (
+                  <button
+                    type="button"
+                    onClick={handleAddPollOption}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 pt-1"
+                  >
+                    <Plus size={12} /> Añadir otra opción
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── SELECTOR DE MÚSICA / BANDA SONORA ── */}
+            {showMusicInput && (
+              <div className="p-3 rounded-2xl bg-black/60 border border-purple-500/30 space-y-2 animate-fadeIn shadow-inner">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                    <Music size={13} /> Banda Sonora del Pensamiento
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMusicInput(false)}
+                    className="text-gray-400 hover:text-red-400 text-xs transition"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={musicTitle}
+                    onChange={(e) => setMusicTitle(e.target.value)}
+                    placeholder="Canción (ej: Midnight City)"
+                    className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-gray-500 outline-none focus:border-purple-400"
+                  />
+                  <input
+                    type="text"
+                    value={musicArtist}
+                    onChange={(e) => setMusicArtist(e.target.value)}
+                    placeholder="Artista (ej: M83)"
+                    className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-gray-500 outline-none focus:border-purple-400"
+                  />
+                </div>
+                {/* Presets rápidos */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                  <span className="text-[9px] text-gray-400">Presets:</span>
+                  {[
+                    { t: 'Lofi 432Hz', a: 'Cosmic Meditation' },
+                    { t: 'Solar Power', a: 'Lorde' },
+                    { t: 'Glue', a: 'Bicep' },
+                    { t: 'Space Song', a: 'Beach House' }
+                  ].map((p, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { setMusicTitle(p.t); setMusicArtist(p.a); }}
+                      className="px-2 py-0.5 rounded-full bg-white/5 hover:bg-purple-500/20 text-[9px] text-purple-200 border border-white/5 whitespace-nowrap"
+                    >
+                      {p.t}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -547,7 +794,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition border ${
                     newVibeTag === tag
                       ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
-                      : 'bg-black/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
                   }`}
                 >
                   {tag}
@@ -557,46 +804,71 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           </div>
         </div>
 
-        {/* Barra de Acciones del Composer: Cámara, Galería y Publicar */}
-        <div className="flex items-center justify-between pt-2 border-t border-white/5">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* 1. Botón Tomar Foto (Cámara del dispositivo) */}
+        {/* Barra de Acciones del Composer */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5 flex-wrap gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {/* Cámara */}
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-white/5 hover:bg-cyan-500/15 text-gray-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30 transition shadow-sm"
-              title="Tomar una foto con tu cámara"
+              className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 bg-white/5 hover:bg-cyan-500/15 text-gray-300 hover:text-cyan-300 border border-white/10 transition"
+              title="Tomar foto con la cámara"
             >
-              <Camera size={14} className="text-cyan-400" />
-              <span className="text-[11px]">Cámara</span>
+              <Camera size={13} className="text-cyan-400" />
+              <span className="text-[10px]">Cámara</span>
             </button>
 
-            {/* 2. Botón Galería (Elegir foto del teléfono / computadora) */}
+            {/* Galería */}
             <button
               type="button"
               onClick={() => galleryInputRef.current?.click()}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-white/5 hover:bg-purple-500/15 text-gray-300 hover:text-purple-300 border border-white/10 hover:border-purple-500/30 transition shadow-sm"
-              title="Elegir foto de tu galería o dispositivo"
+              className="px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 bg-white/5 hover:bg-purple-500/15 text-gray-300 hover:text-purple-300 border border-white/10 transition"
+              title="Elegir foto del dispositivo"
             >
-              <ImageIcon size={14} className="text-purple-400" />
-              <span className="text-[11px]">Galería</span>
+              <ImageIcon size={13} className="text-purple-400" />
+              <span className="text-[10px]">Galería</span>
+            </button>
+
+            {/* Encuesta */}
+            <button
+              type="button"
+              onClick={() => setShowPollCreator(!showPollCreator)}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 border transition ${
+                showPollCreator ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40' : 'bg-white/5 text-gray-300 hover:text-cyan-300 border-white/10'
+              }`}
+              title="Añadir encuesta interactiva"
+            >
+              <BarChart2 size={13} className="text-cyan-400" />
+              <span className="text-[10px]">Encuesta</span>
+            </button>
+
+            {/* Música */}
+            <button
+              type="button"
+              onClick={() => setShowMusicInput(!showMusicInput)}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 border transition ${
+                showMusicInput ? 'bg-purple-500/20 text-purple-300 border-purple-400/40' : 'bg-white/5 text-gray-300 hover:text-purple-300 border-white/10'
+              }`}
+              title="Asociar canción o banda sonora"
+            >
+              <Music size={13} className="text-pink-400" />
+              <span className="text-[10px]">Música</span>
             </button>
           </div>
 
-          {/* Botón Resonar / Publicar */}
           <button
             type="submit"
-            disabled={(!newContent.trim() && !selectedPhotoFile) || publishing || isProcessingPhoto}
-            className="btn-mystic px-5 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-40 shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+            disabled={(!newContent.trim() && !selectedPhotoFile && (!showPollCreator || !pollQuestion.trim())) || publishing || isProcessingPhoto}
+            className="btn-mystic px-4 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-40 shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all hover:scale-[1.02]"
           >
             {publishing ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={13} className="animate-spin" />
                 <span className="text-[11px]">{publishStatusText || 'Transmitiendo...'}</span>
               </>
             ) : (
               <>
-                <Send size={13} />
+                <Send size={12} />
                 <span>Resonar ✨</span>
               </>
             )}
@@ -604,24 +876,47 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         </div>
       </form>
 
-      {/* ── FILTRO POR VIBE CÓSMICO ── */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pr-1 flex items-center gap-1 shrink-0">
-          <Filter size={11} /> Filtrar:
-        </span>
-        {['Todos', ...VIBE_TAGS].map(tag => (
-          <button
-            key={tag}
-            onClick={() => setSelectedVibe(tag)}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
-              selectedVibe === tag
-                ? 'bg-cyan-500 text-black shadow-[0_0_14px_rgba(6,182,212,0.45)]'
-                : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
-            }`}
-          >
-            {tag}
-          </button>
-        ))}
+      {/* ── FILTROS MULTIDIMENSIONALES: VIBE & ELEMENTO ── */}
+      <div className="space-y-2 px-1">
+        {/* Filtro 1: Vibe Temático */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <span className="text-[9px] text-gray-400 uppercase tracking-widest font-bold pr-1 shrink-0 flex items-center gap-1">
+            <Filter size={10} /> Vibe:
+          </span>
+          {['Todos', ...VIBE_TAGS].map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedVibe(tag)}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition whitespace-nowrap ${
+                selectedVibe === tag
+                  ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                  : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtro 2: Por Elemento Astral */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <span className="text-[9px] text-gray-400 uppercase tracking-widest font-bold pr-1 shrink-0 flex items-center gap-1">
+            <Compass size={10} /> Elemento:
+          </span>
+          {ELEMENT_FILTERS.map(elem => (
+            <button
+              key={elem.id}
+              onClick={() => setSelectedElement(elem.id)}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition whitespace-nowrap ${
+                selectedElement === elem.id
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_0_12px_rgba(168,85,247,0.4)] border border-purple-400'
+                  : 'bg-black/40 text-gray-400 hover:text-white border border-white/10'
+              }`}
+            >
+              {elem.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── LISTADO DE PUBLICACIONES ── */}
@@ -634,10 +929,10 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         <div className="glass-panel p-10 text-center rounded-3xl border border-white/10 space-y-3 bg-[#080b18]/70">
           <Sparkles size={32} className="mx-auto text-cyan-400/60" />
           <p className="text-gray-300 text-xs font-medium">
-            No hay publicaciones con la sintonía "{selectedVibe}" en el éter aún.
+            No hay publicaciones bajo estos filtros cósmicos aún.
           </p>
           <p className="text-[11px] text-gray-400 font-light">
-            ¡Sé el primero en compartir un pensamiento o foto con la comunidad!
+            ¡Sé el primero en publicar una reflexión o encuesta con la comunidad!
           </p>
         </div>
       ) : (
@@ -647,25 +942,29 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
             const commentsList = postCommentsMap[post.id] || post.comments || [];
             const userReactions = post.userReactions || [];
             const userIsAuthor = isMyPost(post);
+            const myUserId = profile?.user_id || currentUser?.id || 'anon';
+
+            // Cálculos de la encuesta si existe
+            const poll = post.poll;
+            const totalPollVotes = poll ? (poll.options || []).reduce((acc, opt) => acc + (opt.votes || 0), 0) : 0;
+            const myVotedOptionId = poll?.voters ? poll.voters[myUserId] : null;
 
             return (
               <article
                 key={post.id}
-                className="glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 hover:border-cyan-500/30 transition-all space-y-3.5 bg-[#080b1a]/90 shadow-xl"
+                className="glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 hover:border-cyan-500/30 transition-all space-y-3 bg-[#080b1a]/90 shadow-xl"
               >
-                {/* Cabecera del Post (Autor, Signo, Elemento, Vibe y Opciones) */}
+                {/* Cabecera del Post */}
                 <div className="flex items-center justify-between">
                   <div
                     onClick={() => onNavigateToUser && onNavigateToUser(post.user_id)}
                     className="flex items-center gap-3 cursor-pointer group"
                   >
-                    <div className="relative">
-                      <img
-                        src={post.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author_name || 'Z')}&background=06b6d4&color=fff`}
-                        alt={post.author_name}
-                        className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 group-hover:scale-105 transition shadow"
-                      />
-                    </div>
+                    <img
+                      src={post.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author_name || 'Z')}&background=06b6d4&color=fff`}
+                      alt={post.author_name}
+                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 group-hover:scale-105 transition shadow"
+                    />
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition leading-tight">
@@ -689,15 +988,12 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                     </div>
                   </div>
 
-                  {/* Vibe Tag & Opciones (Eliminar si es propio) */}
                   <div className="flex items-center gap-2">
                     {post.vibe_tag && (
                       <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-300 shadow-sm">
                         {post.vibe_tag}
                       </span>
                     )}
-
-                    {/* Botón de eliminar para el autor */}
                     {userIsAuthor && (
                       <button
                         type="button"
@@ -711,12 +1007,84 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   </div>
                 </div>
 
+                {/* ── BANDA SONORA / STICKER MUSICAL ADJUNTO ── */}
+                {post.music_track && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-purple-950/40 to-black border border-purple-500/30 text-[11px] shadow-sm">
+                    <Disc size={15} className="text-pink-400 animate-spin" style={{ animationDuration: '4s' }} />
+                    <span className="font-semibold text-white truncate">
+                      {post.music_track.title}
+                    </span>
+                    {post.music_track.artist && (
+                      <span className="text-gray-400 truncate">
+                        • {post.music_track.artist}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Contenido del Post */}
                 <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-normal whitespace-pre-wrap">
                   {post.content}
                 </p>
 
-                {/* Foto / Multimedia adjunta (Con visor Lightbox al hacer clic) */}
+                {/* ── ENCUESTA CÓSMICA INTERACTIVA ── */}
+                {poll && (
+                  <div className="p-3.5 rounded-2xl bg-black/60 border border-cyan-500/30 space-y-2.5 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <BarChart2 size={13} className="text-cyan-400" />
+                        {poll.question}
+                      </h5>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {totalPollVotes} {totalPollVotes === 1 ? 'voto' : 'votos'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {poll.options.map((opt) => {
+                        const votes = opt.votes || 0;
+                        const percentage = totalPollVotes > 0 ? Math.round((votes / totalPollVotes) * 100) : 0;
+                        const isSelectedByMe = myVotedOptionId === opt.id;
+
+                        return (
+                          <div
+                            key={opt.id}
+                            onClick={() => handleVotePoll(post.id, opt.id)}
+                            className={`relative overflow-hidden rounded-xl border p-2.5 cursor-pointer transition-all ${
+                              isSelectedByMe
+                                ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                                : 'border-white/10 bg-black/40 hover:border-cyan-500/30 hover:bg-black/60'
+                            }`}
+                          >
+                            {/* Barra de fondo con porcentaje */}
+                            {totalPollVotes > 0 && (
+                              <div
+                                className={`absolute inset-y-0 left-0 transition-all duration-700 pointer-events-none ${
+                                  isSelectedByMe
+                                    ? 'bg-gradient-to-r from-cyan-500/30 to-blue-500/20'
+                                    : 'bg-white/5'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            )}
+
+                            <div className="relative z-10 flex items-center justify-between gap-2">
+                              <span className="text-xs text-gray-200 font-medium flex items-center gap-1.5">
+                                {isSelectedByMe && <Check size={13} className="text-cyan-400 font-bold" />}
+                                <span>{opt.text}</span>
+                              </span>
+                              <span className="text-[11px] font-bold font-mono text-cyan-300">
+                                {totalPollVotes > 0 ? `${percentage}%` : '0%'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Foto adjunta */}
                 {post.media_url && (
                   <div 
                     onClick={() => setActiveLightboxPost(post)}
@@ -736,10 +1104,10 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   </div>
                 )}
 
-                {/* ── BARRA DE REACCIONES CÓSMICAS & ACCIONES ── */}
+                {/* Barra de Reacciones & Acciones */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/5 flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    {/* 1. Resonar ✨ */}
+                    {/* Resonar */}
                     <button
                       type="button"
                       onClick={() => handleReaction(post.id, 'resonate')}
@@ -748,13 +1116,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                           ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
-                      title="Resonar con este mensaje"
+                      title="Resonar"
                     >
                       <span>✨</span>
                       <span className="text-[11px]">{post.reactions?.resonate || 0}</span>
                     </button>
 
-                    {/* 2. Fuego 🔥 */}
+                    {/* Fuego */}
                     <button
                       type="button"
                       onClick={() => handleReaction(post.id, 'fire')}
@@ -763,13 +1131,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                           ? 'bg-amber-500/30 text-amber-300 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
-                      title="Energía de Fuego"
+                      title="Fuego"
                     >
                       <span>🔥</span>
                       <span className="text-[11px]">{post.reactions?.fire || 0}</span>
                     </button>
 
-                    {/* 3. Amor 💖 */}
+                    {/* Amor */}
                     <button
                       type="button"
                       onClick={() => handleReaction(post.id, 'love')}
@@ -778,13 +1146,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                           ? 'bg-pink-500/30 text-pink-300 border border-pink-400/60 shadow-[0_0_12px_rgba(244,114,182,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
-                      title="Amor astral"
+                      title="Amor"
                     >
                       <span>💖</span>
                       <span className="text-[11px]">{post.reactions?.love || 0}</span>
                     </button>
 
-                    {/* 4. Trascendencia 🌌 */}
+                    {/* Cosmos */}
                     <button
                       type="button"
                       onClick={() => handleReaction(post.id, 'cosmos')}
@@ -793,7 +1161,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                           ? 'bg-purple-500/30 text-purple-300 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
-                      title="Cosmos y Trascendencia"
+                      title="Cosmos"
                     >
                       <span>🌌</span>
                       <span className="text-[11px]">{post.reactions?.cosmos || 0}</span>
@@ -801,17 +1169,15 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Botón Compartir */}
                     <button
                       type="button"
                       onClick={() => handleSharePost(post)}
                       className="p-1.5 text-gray-400 hover:text-cyan-300 rounded-lg hover:bg-white/5 transition"
-                      title="Compartir resonancia"
+                      title="Compartir"
                     >
                       <Share2 size={14} />
                     </button>
 
-                    {/* Botón de Comentarios */}
                     <button
                       type="button"
                       onClick={() => toggleComments(post.id)}
@@ -824,10 +1190,9 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   </div>
                 </div>
 
-                {/* ── SECCIÓN DESPLEGABLE DE COMENTARIOS ── */}
+                {/* Comentarios */}
                 {isCommentsOpen && (
                   <div className="pt-3 border-t border-white/10 space-y-3 animate-fadeIn">
-                    {/* Lista de comentarios */}
                     <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
                       {loadingCommentsPostId === post.id ? (
                         <div className="p-3 text-center text-xs text-cyan-400">
@@ -836,7 +1201,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                         </div>
                       ) : commentsList.length === 0 ? (
                         <p className="text-[11px] text-gray-400 italic text-center py-2">
-                          Sé el primero en dejar un eco cósmico en esta publicación.
+                          Sé el primero en dejar un eco cósmico.
                         </p>
                       ) : (
                         commentsList.map(comment => (
@@ -867,7 +1232,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       )}
                     </div>
 
-                    {/* Input de respuesta con avatar del usuario actual */}
                     <form onSubmit={(e) => handleSendComment(post.id, e)} className="flex items-center gap-2 pt-1">
                       <img
                         src={profile?.user_image || currentUser?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Z')}&background=06b6d4&color=fff`}
@@ -898,13 +1262,12 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         </div>
       )}
 
-      {/* ── MODAL LIGHTBOX / VISOR DE FOTO CÓSMICA A PANTALLA COMPLETA ── */}
+      {/* Lightbox Modal */}
       {activeLightboxPost && (
         <div 
           onClick={() => setActiveLightboxPost(null)}
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 animate-fadeIn"
         >
-          {/* Header del Lightbox */}
           <div className="flex items-center justify-between z-10" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <img
@@ -928,7 +1291,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                 type="button"
                 onClick={() => handleSharePost(activeLightboxPost)}
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
-                title="Compartir foto"
               >
                 <Share2 size={16} />
               </button>
@@ -936,14 +1298,12 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                 type="button"
                 onClick={() => setActiveLightboxPost(null)}
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
-                title="Cerrar visor"
               >
                 <X size={18} />
               </button>
             </div>
           </div>
 
-          {/* Imagen Central Centrada */}
           <div className="flex-1 flex items-center justify-center p-2 min-h-0" onClick={(e) => e.stopPropagation()}>
             <img
               src={activeLightboxPost.media_url}
@@ -952,7 +1312,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
             />
           </div>
 
-          {/* Pie del Lightbox */}
           <div className="max-w-xl mx-auto w-full text-center z-10" onClick={(e) => e.stopPropagation()}>
             {activeLightboxPost.content && (
               <p className="text-xs sm:text-sm text-gray-200 bg-black/60 px-4 py-2.5 rounded-2xl border border-white/10 backdrop-blur-md">
@@ -963,7 +1322,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
         </div>
       )}
 
-      {/* ── MODAL DE CONFIRMACIÓN PARA ELIMINAR POST ── */}
+      {/* Modal Confirmación Borrar Post */}
       {postToDelete && (
         <div 
           onClick={() => setPostToDelete(null)}
@@ -996,11 +1355,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                 disabled={isDeletingPost}
                 className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center justify-center gap-1.5"
               >
-                {isDeletingPost ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <span>Eliminar</span>
-                )}
+                {isDeletingPost ? <Loader2 size={14} className="animate-spin" /> : <span>Eliminar</span>}
               </button>
             </div>
           </div>

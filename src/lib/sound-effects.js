@@ -848,3 +848,136 @@ export function playLootChestSound() {
 }
 export const playChestOpenSound = playLootChestSound;
 
+/**
+ * ── RESPUESTA HÁPTICA (Vibración sutil para dispositivos móviles) ──
+ */
+export function triggerHaptic(type = 'light') {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.vibrate) return;
+  try {
+    if (type === 'light') {
+      navigator.vibrate(15);
+    } else if (type === 'medium') {
+      navigator.vibrate(28);
+    } else if (type === 'success') {
+      navigator.vibrate([18, 40, 22]);
+    } else if (type === 'celebration') {
+      navigator.vibrate([30, 25, 40, 30, 60]);
+    }
+  } catch {}
+}
+
+/**
+ * ── MODO FRECUENCIA CÓSMICA 432Hz (Sintetizador Binaural de Meditación) ──
+ */
+let droneState = {
+  isPlaying: false,
+  gainNode: null,
+  oscillators: []
+};
+
+export function is432HzDronePlaying() {
+  return droneState.isPlaying;
+}
+
+export function start432HzDrone() {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+
+  if (droneState.isPlaying) return true;
+
+  try {
+    const now = ctx.currentTime;
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.0001, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.07, now + 2.0); // Entrada suave en 2s
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(650, now);
+    filter.Q.setValueAtTime(1.5, now);
+
+    // Oscilador 1: Fundamental 432Hz (Tono de afinación pitagórica universal)
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(432.0, now);
+
+    // Oscilador 2: 432.5Hz (Latido binaural alfa de 0.5Hz para relajación)
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(432.5, now);
+
+    // Oscilador 3: Subarmónico cálido 216Hz (Una octava abajo)
+    const oscSub = ctx.createOscillator();
+    oscSub.type = 'triangle';
+    oscSub.frequency.setValueAtTime(216.0, now);
+
+    const subGain = ctx.createGain();
+    subGain.gain.setValueAtTime(0.03, now);
+    oscSub.connect(subGain);
+    subGain.connect(filter);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    oscSub.start(now);
+
+    droneState = {
+      isPlaying: true,
+      gainNode: masterGain,
+      oscillators: [osc1, osc2, oscSub]
+    };
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('zodia-drone-change', { detail: { isPlaying: true } }));
+    }
+    return true;
+  } catch (err) {
+    console.warn('Error iniciando drone 432Hz:', err);
+    return false;
+  }
+}
+
+export function stop432HzDrone() {
+  if (!droneState.isPlaying || !droneState.gainNode) return false;
+
+  try {
+    const ctx = getAudioContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      droneState.gainNode.gain.setValueAtTime(droneState.gainNode.gain.value, now);
+      droneState.gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1.2); // Desvanecimiento suave en 1.2s
+
+      setTimeout(() => {
+        droneState.oscillators.forEach(osc => {
+          try { osc.stop(); osc.disconnect(); } catch {}
+        });
+        droneState.gainNode = null;
+        droneState.oscillators = [];
+        droneState.isPlaying = false;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('zodia-drone-change', { detail: { isPlaying: false } }));
+        }
+      }, 1300);
+    } else {
+      droneState.isPlaying = false;
+    }
+    return false;
+  } catch (err) {
+    droneState.isPlaying = false;
+    return false;
+  }
+}
+
+export function toggle432HzDrone() {
+  if (droneState.isPlaying) {
+    stop432HzDrone();
+    return false;
+  } else {
+    return start432HzDrone();
+  }
+}
+

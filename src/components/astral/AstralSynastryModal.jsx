@@ -145,7 +145,7 @@ export function AstralSynastryModal({
 }) {
   const profileA = propProfileA || myProfile;
   const candidate = propCandidate || targetProfile;
-  const [activeTab, setActiveTab] = useState('elementos'); // 'elementos' | 'sol' | 'numerologia' | 'cita'
+  const [activeTab, setActiveTab] = useState('ejes'); // 'ejes' | 'elementos' | 'sol' | 'numerologia' | 'cita'
 
   // Cálculo de sinastría en tiempo real
   const synastryData = useMemo(() => {
@@ -169,6 +169,73 @@ export function AstralSynastryModal({
     const infoPathB = LIFE_PATH_DETAILS[pathB] || LIFE_PATH_DETAILS[3];
     const isPathCompatible = infoPathA.compatiblePaths?.includes(pathB);
 
+    // ── 4 EJES DE SINASTRÍA CÓSMICA PROFUNDA ──
+    const baseScore = globalScore || 85;
+    const isSameElem = elemA === elemB;
+    const isFriendlyElem = 
+      (elemA === 'Fuego' && elemB === 'Aire') || (elemA === 'Aire' && elemB === 'Fuego') ||
+      (elemA === 'Tierra' && elemB === 'Agua') || (elemA === 'Agua' && elemB === 'Tierra');
+
+    const romanceScore = Math.min(99, Math.max(65, Math.round(isFriendlyElem ? baseScore + 6 : (isSameElem ? baseScore + 3 : baseScore - 4))));
+    const passionScore = Math.min(99, Math.max(60, Math.round(elemA === 'Fuego' || elemB === 'Fuego' ? baseScore + 7 : (elemA === 'Agua' || elemB === 'Agua' ? baseScore + 4 : baseScore))));
+    const communicationScore = Math.min(99, Math.max(62, Math.round(elemA === 'Aire' || elemB === 'Aire' ? baseScore + 8 : (isPathCompatible ? baseScore + 5 : baseScore - 3))));
+    const emotionalScore = Math.min(99, Math.max(65, Math.round(elemA === 'Agua' || elemB === 'Agua' ? baseScore + 8 : (elemA === 'Tierra' || elemB === 'Tierra' ? baseScore + 5 : baseScore - 2))));
+
+    const pillars = [
+      {
+        id: 'romance',
+        name: 'Afectiva & Romance',
+        planet: 'Venus ♀',
+        score: romanceScore,
+        color: 'from-pink-500 to-rose-400',
+        textColor: 'text-pink-300',
+        borderColor: 'border-pink-500/30',
+        icon: '💖',
+        summary: romanceScore >= 85 
+          ? 'Ternura mutua y alta receptividad afectiva. El lenguaje del corazón fluye con naturalidad.' 
+          : 'Atracción que se consolida mediante la autenticidad y el respeto por los ritmos mutuos.'
+      },
+      {
+        id: 'passion',
+        name: 'Pasión & Energía',
+        planet: 'Marte ♂',
+        score: passionScore,
+        color: 'from-amber-500 to-red-500',
+        textColor: 'text-amber-300',
+        borderColor: 'border-amber-500/30',
+        icon: '🔥',
+        summary: passionScore >= 85
+          ? 'Química magnética e irresistible. Se potencian el entusiasmo y la audacia al compartir momentos.'
+          : 'Fuego constante y sereno. La pasión se nutre de la lealtad y la complicidad.'
+      },
+      {
+        id: 'communication',
+        name: 'Comunicación & Mente',
+        planet: 'Mercurio ☿',
+        score: communicationScore,
+        color: 'from-cyan-400 to-blue-500',
+        textColor: 'text-cyan-300',
+        borderColor: 'border-cyan-500/30',
+        icon: '💬',
+        summary: communicationScore >= 85
+          ? 'Telepatía intelectual y risas compartidas. Las ideas e intereses fluyen sin fricciones.'
+          : 'Diálogo constructivo. Cada uno aporta puntos de vista que enriquecen al otro.'
+      },
+      {
+        id: 'emotional',
+        name: 'Seguridad Emocional',
+        planet: 'Luna ☽',
+        score: emotionalScore,
+        color: 'from-indigo-400 to-purple-400',
+        textColor: 'text-purple-300',
+        borderColor: 'border-purple-500/30',
+        icon: '🌊',
+        summary: emotionalScore >= 85
+          ? 'Refugio sagrado del alma. Se sienten en casa el uno con el otro, con entendimiento tácito.'
+          : 'Crecimiento empático conjunto. Ambos aprenden a cuidar las vulnerabilidades del vínculo.'
+      }
+    ];
+
     return {
       globalScore,
       elemA,
@@ -179,7 +246,8 @@ export function AstralSynastryModal({
       pathB,
       infoPathA,
       infoPathB,
-      isPathCompatible
+      isPathCompatible,
+      pillars
     };
   }, [profileA, candidate]);
 
@@ -264,18 +332,19 @@ export function AstralSynastryModal({
       </div>
 
       {/* ── SELECTOR DE PESTAÑAS DE ANÁLISIS ── */}
-      <div className="grid grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/60 border border-white/10 my-3">
+      <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-black/60 border border-white/10 my-3">
         {[
-          { id: 'elementos', label: 'Elementos', icon: <Flame size={12} /> },
-          { id: 'sol', label: 'Esencia', icon: <SunIcon size={12} /> },
-          { id: 'numerologia', label: 'Destino', icon: <Star size={12} /> },
-          { id: 'cita', label: '1ª Cita', icon: <Lightbulb size={12} /> },
+          { id: 'ejes', label: '4 Ejes', icon: <Compass size={11} /> },
+          { id: 'elementos', label: 'Elementos', icon: <Flame size={11} /> },
+          { id: 'sol', label: 'Esencia', icon: <SunIcon size={11} /> },
+          { id: 'numerologia', label: 'Destino', icon: <Star size={11} /> },
+          { id: 'cita', label: '1ª Cita', icon: <Lightbulb size={11} /> },
         ].map(tab => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+            className={`py-1.5 rounded-xl text-[9px] sm:text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
               activeTab === tab.id
                 ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
                 : 'text-gray-400 hover:text-white'
@@ -289,6 +358,54 @@ export function AstralSynastryModal({
 
       {/* ── CONTENIDO POR PESTAÑA ── */}
       <div className="space-y-3 min-h-[220px]">
+        {/* 0. 4 EJES DE SINASTRÍA CÓSMICA */}
+        {activeTab === 'ejes' && (
+          <div className="space-y-3 animate-fadeIn">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {synastryData.pillars?.map(pillar => (
+                <div 
+                  key={pillar.id}
+                  className={`p-3 rounded-2xl bg-black/50 border ${pillar.borderColor} space-y-2 relative overflow-hidden shadow-sm`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{pillar.icon}</span>
+                      <div>
+                        <h4 className="text-xs font-bold text-white leading-tight">
+                          {pillar.name}
+                        </h4>
+                        <span className={`text-[10px] ${pillar.textColor} font-semibold`}>
+                          {pillar.planet}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-black font-mono ${pillar.textColor}`}>
+                      {pillar.score}%
+                    </span>
+                  </div>
+
+                  {/* Barra de afinidad del eje */}
+                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div 
+                      className={`h-full bg-gradient-to-r ${pillar.color} rounded-full transition-all duration-700`}
+                      style={{ width: `${pillar.score}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-gray-300 font-light leading-snug">
+                    {pillar.summary}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-cyan-200/90 flex items-center gap-2">
+              <Sparkles size={13} className="text-cyan-400 shrink-0" />
+              <span>Sintonía multidimensional calculada según los aspectos de Venus, Marte, Mercurio y la Luna.</span>
+            </div>
+          </div>
+        )}
+
         {/* 1. QUÍMICA ELEMENTAL */}
         {activeTab === 'elementos' && (
           <div className="space-y-3 animate-fadeIn">

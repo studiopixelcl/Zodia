@@ -26,6 +26,7 @@ const SEED_FEED_POSTS = [
     content: 'Hoy la Luna está en fase creciente y la energía de Fuego se siente a tope 🔥 ¿Quién más siente ganas de empezar un proyecto creativo de golpe?',
     media_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
     vibe_tag: '🪐 Tránsitos',
+    music_track: { title: "Solar Power", artist: "Lorde" },
     created_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(), // hace 35 min
     reactions: { resonate: 12, fire: 18, love: 6, cosmos: 9 },
     userReactions: ['fire'],
@@ -56,9 +57,18 @@ const SEED_FEED_POSTS = [
     author_image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
     author_sign: 'Piscis',
     author_element: 'Agua',
-    content: 'Recordatorio estelar de hoy: no todas las conexiones necesitan explicarse con palabras. A veces basta con estar en la misma sintonía de silencio 🌊✨',
+    content: 'Consulta cósmica para el éter: ¿cómo sienten los tránsitos lunares de esta semana? Dejen su voto en la encuesta 👇✨',
     media_url: null,
-    vibe_tag: '✨ Reflexión',
+    vibe_tag: '🔮 Pregunta Cósmica',
+    poll: {
+      question: "¿Qué energía sientes predominante en tu día?",
+      options: [
+        { id: "opt_1", text: "🌊 Mística e Introspectiva", votes: 16 },
+        { id: "opt_2", text: "🔥 Motivación y Fuego", votes: 11 },
+        { id: "opt_3", text: "💨 Curiosidad Mental", votes: 7 }
+      ],
+      voters: {}
+    },
     created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // hace 2 hrs
     reactions: { resonate: 24, fire: 4, love: 15, cosmos: 19 },
     userReactions: ['resonate', 'love'],
@@ -112,6 +122,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const vibeFilter = searchParams.get('vibe')?.toLowerCase() || 'todos';
+  const elementFilter = searchParams.get('element')?.toLowerCase() || 'todos';
 
   const db = await getDB();
   const rawId = resolveUserId(token);
@@ -120,6 +131,9 @@ export async function GET(request) {
     let filtered = devFeed;
     if (vibeFilter !== 'todos') {
       filtered = filtered.filter(p => (p.vibe_tag || '').toLowerCase().includes(vibeFilter));
+    }
+    if (elementFilter !== 'todos') {
+      filtered = filtered.filter(p => (p.author_element || '').toLowerCase() === elementFilter);
     }
     return NextResponse.json({ posts: filtered });
   }
@@ -140,9 +154,17 @@ export async function GET(request) {
     `;
 
     const binds = [myId];
+    const whereClauses = [];
     if (vibeFilter !== 'todos') {
-      query += ` WHERE LOWER(p.vibe_tag) LIKE ?`;
+      whereClauses.push(`LOWER(p.vibe_tag) LIKE ?`);
       binds.push(`%${vibeFilter}%`);
+    }
+    if (elementFilter !== 'todos') {
+      whereClauses.push(`LOWER(p.author_element) = ?`);
+      binds.push(elementFilter);
+    }
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
     }
 
     query += ` ORDER BY p.created_at DESC LIMIT 50`;
@@ -205,10 +227,20 @@ export async function POST(request) {
 
   // 1. ACCIÓN: CREAR PUBLICACIÓN EN EL MURO
   if (action === 'create_post') {
-    const { content, vibeTag, mediaUrl, authorName, authorImage, authorSign, authorElement } = body;
+    const { content, vibeTag, mediaUrl, authorName, authorImage, authorSign, authorElement, poll, musicTrack } = body;
     if (!content || !content.trim()) {
       return NextResponse.json({ error: "El contenido no puede estar vacío." }, { status: 400 });
     }
+
+    const sanitizedPoll = (poll && poll.question && Array.isArray(poll.options) && poll.options.length >= 2) ? {
+      question: poll.question.trim(),
+      options: poll.options.map((opt, i) => ({
+        id: opt.id || `opt_${Date.now()}_${i}`,
+        text: (typeof opt === 'string' ? opt : opt.text).trim(),
+        votes: 0
+      })).filter(o => o.text.length > 0),
+      voters: {}
+    } : null;
 
     const newPostId = 'post_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const newPost = {
@@ -221,6 +253,8 @@ export async function POST(request) {
       content: content.trim(),
       media_url: mediaUrl || null,
       vibe_tag: vibeTag || 'Reflexión ✨',
+      poll: (sanitizedPoll && sanitizedPoll.options.length >= 2) ? sanitizedPoll : null,
+      music_track: musicTrack || null,
       created_at: new Date().toISOString(),
       commentsCount: 0,
       reactions: { resonate: 0, fire: 0, love: 0, cosmos: 0 },
@@ -437,6 +471,33 @@ export async function POST(request) {
     // Fallback memoria
     devFeed = devFeed.filter(p => p.id !== postId);
     return NextResponse.json({ success: true, deleted: true });
+  }
+
+  // 6. ACCIÓN: VOTAR EN ENCUESTA CÓSMICA
+  if (action === 'vote_poll') {
+    const { postId, optionId } = body;
+    if (!postId || !optionId) {
+      return NextResponse.json({ error: "Faltan parámetros de votación" }, { status: 400 });
+    }
+
+    const targetPost = devFeed.find(p => p.id === postId);
+    if (targetPost && targetPost.poll) {
+      targetPost.poll.voters = targetPost.poll.voters || {};
+      const previousOption = targetPost.poll.voters[rawId];
+
+      if (previousOption) {
+        const prev = targetPost.poll.options.find(o => o.id === previousOption);
+        if (prev) prev.votes = Math.max(0, (prev.votes || 1) - 1);
+      }
+
+      targetPost.poll.voters[rawId] = optionId;
+      const target = targetPost.poll.options.find(o => o.id === optionId);
+      if (target) target.votes = (target.votes || 0) + 1;
+
+      return NextResponse.json({ success: true, poll: targetPost.poll });
+    }
+
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
