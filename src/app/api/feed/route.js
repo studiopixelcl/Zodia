@@ -410,5 +410,34 @@ export async function POST(request) {
     return NextResponse.json({ comments: targetPost?.comments || [] });
   }
 
+  // 5. ACCIÓN: ELIMINAR PUBLICACIÓN DEL MURO
+  if (action === 'delete_post') {
+    const { postId } = body;
+    if (!postId) {
+      return NextResponse.json({ error: "Falta ID de publicación" }, { status: 400 });
+    }
+
+    if (db) {
+      try {
+        await ensureDatabaseSchema(db);
+        const myId = (await resolveCanonicalUserId(db, token)) || rawId;
+
+        const post = await db.prepare(`SELECT user_id FROM feed_posts WHERE id = ?`).bind(postId).first();
+        if (post && (post.user_id === myId || post.user_id === rawId || token.role === 'admin')) {
+          await db.prepare(`DELETE FROM feed_posts WHERE id = ?`).bind(postId).run();
+          await db.prepare(`DELETE FROM feed_comments WHERE post_id = ?`).bind(postId).run();
+          await db.prepare(`DELETE FROM feed_reactions WHERE post_id = ?`).bind(postId).run();
+          return NextResponse.json({ success: true, deleted: true });
+        }
+      } catch (err) {
+        console.error("Error al eliminar post en D1:", err);
+      }
+    }
+
+    // Fallback memoria
+    devFeed = devFeed.filter(p => p.id !== postId);
+    return NextResponse.json({ success: true, deleted: true });
+  }
+
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });
 }

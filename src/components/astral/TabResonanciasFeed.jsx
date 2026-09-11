@@ -1,14 +1,16 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, Flame, Heart, Compass, Send, MessageCircle, Image, 
+  Sparkles, Flame, Heart, Compass, Send, MessageCircle, Image as ImageIcon, 
   Smile, Share2, Filter, ChevronDown, ChevronUp, User, Globe, 
-  RotateCcw, Check, Plus, AlertCircle, Loader2
+  RotateCcw, Check, Plus, AlertCircle, Loader2, Camera, X, Trash2, 
+  Maximize2, Eye, Download, Copy, ShieldAlert
 } from 'lucide-react';
 import { ZodiacBadge } from './ZodiacBadge';
 import { apiFetch } from '../../lib/api';
 import { playSwipeLikeSound, playMessageSentSound } from '../../lib/sound-effects';
 import { AstralStoriesRail } from './AstralStoriesRail';
+import { compressImage } from '../../lib/media-processor';
 
 const VIBE_TAGS = [
   '🪐 Tránsitos',
@@ -37,14 +39,23 @@ function formatTimeAgo(dateString) {
 export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState('Todos');
 
   // Estado del creador de posts
   const [newContent, setNewContent] = useState('');
   const [newVibeTag, setNewVibeTag] = useState(VIBE_TAGS[1]);
-  const [mediaUrlInput, setMediaUrlInput] = useState('');
-  const [showMediaInput, setShowMediaInput] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishStatusText, setPublishStatusText] = useState('');
+
+  // Estados de carga de foto (Cámara / Galería del dispositivo, NO por URL)
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
+  const [selectedPhotoPreview, setSelectedPhotoPreview] = useState(null);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+
+  // Referencias a inputs de archivos ocultos del sistema
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   // Estados de comentarios expandidos por postId
   const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
@@ -52,19 +63,46 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   const [commentInputs, setCommentInputs] = useState({});
   const [loadingCommentsPostId, setLoadingCommentsPostId] = useState(null);
 
-  const fetchFeed = async () => {
+  // Estado del Lightbox / Visor de imagen a pantalla completa
+  const [activeLightboxPost, setActiveLightboxPost] = useState(null);
+
+  // Estado para confirmación de eliminación de post
+  const [postToDelete, setPostToDelete] = useState(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+
+  // Notificación tipo toast cósmico
+  const [toastMessage, setToastMessage] = useState(null);
+  const toastTimeoutRef = useRef(null);
+
+  const showToast = (message, type = 'info') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage({ message, type });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  // Cargar feed
+  const fetchFeed = async (isManual = false) => {
     try {
-      setLoading(true);
+      if (isManual) setRefreshing(true);
+      else setLoading(true);
+
       const query = selectedVibe !== 'Todos' ? `?vibe=${encodeURIComponent(selectedVibe.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim())}` : '';
       const res = await apiFetch(`/api/feed${query}`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts || []);
+        if (isManual) {
+          showToast('Muro sincronizado con el éter ✨', 'success');
+        }
       }
     } catch (err) {
       console.error("Error al cargar feed:", err);
+      showToast('Error al conectar con las resonancias cósmicas', 'error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -72,21 +110,89 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     fetchFeed();
   }, [selectedVibe]);
 
+  // Manejo de selección de imagen desde Galería o Cámara
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsProcessingPhoto(true);
+      // Compresión inteligente WebP con alta fidelidad y peso ligero
+      const compressed = await compressImage(file, 1600, 0.88);
+      setSelectedPhotoFile(compressed.file);
+      setSelectedPhotoPreview(compressed.previewUrl);
+      showToast('Foto lista para compartir en el muro 📸', 'success');
+    } catch (err) {
+      console.warn('Fallback compresión de imagen:', err);
+      setSelectedPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedPhotoPreview(event.target.result);
+      };
+      reader.readAsDataURL(file);
+      showToast('Foto cargada desde tu dispositivo 📸', 'info');
+    } finally {
+      setIsProcessingPhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Descartar imagen seleccionada
+  const handleRemovePhoto = () => {
+    setSelectedPhotoFile(null);
+    setSelectedPhotoPreview(null);
+  };
+
   // Publicar nuevo pensamiento cósmico
   const handlePublishPost = async (e) => {
     e.preventDefault();
-    if (!newContent.trim() || publishing) return;
+    if ((!newContent.trim() && !selectedPhotoFile) || publishing) return;
 
     setPublishing(true);
+    setPublishStatusText('Sintonizando con el éter...');
+
+    let finalMediaUrl = null;
+
     try {
+      // Si hay una foto seleccionada, subirla primero a través de /api/upload
+      if (selectedPhotoFile) {
+        setPublishStatusText('Guardando imagen cósmica...');
+        try {
+          const formData = new FormData();
+          formData.append('file', selectedPhotoFile);
+          formData.append('type', 'photo');
+
+          const uploadRes = await apiFetch('/api/upload', {
+            method: 'POST',
+            body: formData
+          });
+
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData?.url) {
+              finalMediaUrl = uploadData.url;
+            }
+          }
+        } catch (uploadErr) {
+          console.warn('Fallo en subida a nube, usando fallback local base64:', uploadErr);
+          finalMediaUrl = selectedPhotoPreview;
+        }
+
+        if (!finalMediaUrl && selectedPhotoPreview) {
+          finalMediaUrl = selectedPhotoPreview;
+        }
+      }
+
+      setPublishStatusText('Transmitiendo resonancia...');
+
       const res = await apiFetch('/api/feed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_post',
-          content: newContent.trim(),
+          content: newContent.trim() || '✨ Compartiendo una visión cósmica...',
           vibeTag: newVibeTag,
-          mediaUrl: mediaUrlInput.trim() || null,
+          mediaUrl: finalMediaUrl,
           authorName: profile?.nombre_actual || currentUser?.name || 'Sintonizador',
           authorImage: profile?.user_image || currentUser?.image,
           authorSign: profile?.sign || 'Cosmos',
@@ -100,20 +206,54 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           playMessageSentSound();
           setPosts(prev => [data.post, ...prev]);
           setNewContent('');
-          setMediaUrlInput('');
-          setShowMediaInput(false);
+          setSelectedPhotoFile(null);
+          setSelectedPhotoPreview(null);
+          showToast('¡Tu resonancia fue transmitida al cosmos! 🪐✨', 'success');
         }
+      } else {
+        showToast('No se pudo publicar la resonancia.', 'error');
       }
     } catch (err) {
       console.error("Error publicando en el feed:", err);
+      showToast('Error al conectar con el servidor.', 'error');
     } finally {
       setPublishing(false);
+      setPublishStatusText('');
+    }
+  };
+
+  // Eliminar publicación propia
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
+    setIsDeletingPost(true);
+
+    try {
+      const res = await apiFetch('/api/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_post',
+          postId: postToDelete.id
+        })
+      });
+
+      if (res.ok) {
+        setPosts(prev => prev.filter(p => p.id !== postToDelete.id));
+        showToast('Publicación retirada del éter 🪐', 'info');
+      } else {
+        showToast('No tienes permiso para eliminar esta publicación.', 'error');
+      }
+    } catch (err) {
+      console.error("Error al eliminar post:", err);
+      showToast('Error al eliminar la publicación.', 'error');
+    } finally {
+      setIsDeletingPost(false);
+      setPostToDelete(null);
     }
   };
 
   // Reaccionar (toggle)
   const handleReaction = async (postId, reactionType) => {
-    // Feedback sonoro inmediato
     playSwipeLikeSound();
 
     // Actualización optimista
@@ -155,6 +295,34 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
+  // Compartir publicación
+  const handleSharePost = async (post) => {
+    const shareText = `"${post.content}" - ${post.author_name} (${post.author_sign || 'Cosmos'}) en Zodia`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Resonancia Cósmica en Zodia',
+          text: shareText,
+          url: window.location.href
+        });
+        showToast('¡Compartido exitosamente! 🌌', 'success');
+        return;
+      } catch (e) {
+        // Ignorar si el usuario canceló el diálogo nativo
+      }
+    }
+
+    // Fallback: copiar texto al portapapeles
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${window.location.href}`);
+        showToast('¡Copiado al portapapeles! 🪐', 'success');
+      } catch {
+        showToast('No se pudo copiar.', 'error');
+      }
+    }
+  };
+
   // Abrir o cerrar comentarios y cargarlos
   const toggleComments = async (postId) => {
     if (openCommentsPostId === postId) {
@@ -189,7 +357,6 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     const commentText = (commentInputs[postId] || '').trim();
     if (!commentText) return;
 
-    // Limpiar input
     setCommentInputs(prev => ({ ...prev, [postId]: '' }));
 
     const tempComment = {
@@ -237,30 +404,79 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     }
   };
 
+  // Determinar si una publicación pertenece al usuario actual
+  const isMyPost = (post) => {
+    const currentId = profile?.user_id || currentUser?.id;
+    const currentName = profile?.nombre_actual || currentUser?.name;
+    return (currentId && post.user_id === currentId) || (currentName && post.author_name === currentName);
+  };
+
+  // Element color accents
+  const getElementBadgeColor = (element) => {
+    switch ((element || '').toLowerCase()) {
+      case 'fuego': return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+      case 'agua': return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
+      case 'aire': return 'text-teal-400 bg-teal-500/10 border-teal-500/30';
+      case 'tierra': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+      default: return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';
+    }
+  };
+
   return (
-    <div className="space-y-4 max-w-xl mx-auto pb-10 select-none animate-fadeIn">
+    <div className="space-y-4 max-w-xl mx-auto pb-12 select-none animate-fadeIn relative">
+      
+      {/* ── TOAST CÓSMICO FLOTANTE ── */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-fadeIn pointer-events-none px-4">
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#090e24]/95 border border-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.35)] backdrop-blur-xl text-white text-xs font-medium">
+            <Sparkles size={15} className="text-cyan-400 shrink-0 animate-spin" />
+            <span>{toastMessage.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── INPUTS DE ARCHIVOS NATIVOS OCULTOS ── */}
+      {/* 1. Galería / Selector de archivos del dispositivo */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoSelect}
+        className="hidden"
+      />
+      {/* 2. Cámara nativa del dispositivo (abre app de cámara directamente en teléfonos) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoSelect}
+        className="hidden"
+      />
+
       {/* ── CABECERA DEL MURO CÓSMICO ── */}
-      <div className="glass-panel p-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-purple-950/30 via-[#070a16] to-cyan-950/30">
+      <div className="glass-panel p-4 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-purple-950/40 via-[#070a16] to-cyan-950/40 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-              <Sparkles size={20} />
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-[0_0_18px_rgba(6,182,212,0.4)]">
+              <Sparkles size={22} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-extrabold text-white mystic-font leading-tight">
+              <h2 className="text-base sm:text-lg font-extrabold text-white mystic-font tracking-wider leading-tight">
                 Muro Cósmico & Resonancias
               </h2>
               <p className="text-[11px] text-gray-300 font-light">
-                Vibraciones en tiempo real de la comunidad astral
+                Vibraciones y momentos en tiempo real de la comunidad astral
               </p>
             </div>
           </div>
           <button
-            onClick={fetchFeed}
-            className="p-2 text-gray-400 hover:text-cyan-300 rounded-xl hover:bg-white/5 transition"
-            title="Actualizar Muro"
+            onClick={() => fetchFeed(true)}
+            disabled={refreshing}
+            className="p-2.5 text-gray-400 hover:text-cyan-300 rounded-2xl hover:bg-white/5 border border-white/5 hover:border-cyan-500/30 transition shadow-sm"
+            title="Sincronizar Muro"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={16} className={refreshing ? 'animate-spin text-cyan-400' : ''} />
           </button>
         </div>
       </div>
@@ -268,35 +484,56 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
       {/* ── CARRUSEL DE HISTORIAS EFÍMERAS CÓSMICAS (24H) ── */}
       <AstralStoriesRail currentUser={currentUser} profile={profile} />
 
-      {/* ── COMPOSER: COMPARTIR EN EL ÉTER ── */}
-
-      {/* ── COMPOSER: COMPARTIR EN EL ÉTER ── */}
-      <form onSubmit={handlePublishPost} className="glass-panel p-3.5 sm:p-4 rounded-3xl border border-white/10 space-y-3 shadow-xl bg-[#090d1c]/90">
-        <div className="flex items-start gap-2.5">
+      {/* ── COMPOSER MEJORADO: SUBIDA DIRECTA DESDE DISPOSITIVO O CÁMARA ── */}
+      <form onSubmit={handlePublishPost} className="glass-panel p-4 rounded-3xl border border-white/10 space-y-3.5 shadow-2xl bg-[#090d1f]/95">
+        <div className="flex items-start gap-3">
           <img
             src={profile?.user_image || currentUser?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Z')}&background=06b6d4&color=fff`}
             alt="Tu avatar"
-            className="w-9 h-9 rounded-full object-cover border border-cyan-400/40 shrink-0 mt-0.5"
+            className="w-10 h-10 rounded-full object-cover border-2 border-cyan-400/50 shrink-0 mt-0.5 shadow-md"
           />
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2.5">
             <textarea
-              rows={2}
+              rows={3}
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              placeholder="¿Qué energía cósmica o tránsito sientes hoy en el éter?..."
-              className="w-full bg-black/50 border border-white/10 rounded-2xl p-3 text-xs text-white placeholder:text-gray-500 focus:border-cyan-400 outline-none transition resize-none leading-relaxed"
+              placeholder="¿Qué energía cósmica o tránsito sientes hoy en el éter? Comparte tu reflexión o momento..."
+              className="w-full bg-black/40 border border-white/10 rounded-2xl p-3.5 text-xs text-white placeholder:text-gray-400 focus:border-cyan-400 focus:bg-black/60 outline-none transition resize-none leading-relaxed shadow-inner"
             />
 
-            {/* Input opcional de URL de Imagen */}
-            {showMediaInput && (
-              <div className="flex items-center gap-2 animate-fadeIn">
-                <input
-                  type="text"
-                  value={mediaUrlInput}
-                  onChange={(e) => setMediaUrlInput(e.target.value)}
-                  placeholder="Pega la URL de una imagen o foto (ej: https://...)"
-                  className="flex-1 bg-black/60 border border-cyan-500/30 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400"
+            {/* PREVIEW DE FOTO CARGADA (SI SE ELIGIÓ DEL DISPOSITIVO O CÁMARA) */}
+            {selectedPhotoPreview && (
+              <div className="relative rounded-2xl overflow-hidden border border-cyan-500/40 bg-black/80 shadow-lg animate-fadeIn group">
+                <img
+                  src={selectedPhotoPreview}
+                  alt="Vista previa seleccionada"
+                  className="w-full max-h-64 object-cover rounded-2xl"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+                
+                {/* Badge informativa */}
+                <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-[10px] text-cyan-300 font-medium flex items-center gap-1.5 shadow">
+                  <Sparkles size={11} className="text-cyan-400" />
+                  <span>Foto lista para el éter</span>
+                </div>
+
+                {/* Botón para eliminar foto */}
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/70 hover:bg-red-600 text-white flex items-center justify-center backdrop-blur-md border border-white/20 hover:border-red-500 transition shadow-lg"
+                  title="Quitar foto"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* Spinner si la foto se está procesando / comprimiendo */}
+            {isProcessingPhoto && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-cyan-300 animate-pulse">
+                <Loader2 size={14} className="animate-spin text-cyan-400" />
+                <span>Optimizando foto en alta resolución...</span>
               </div>
             )}
 
@@ -307,10 +544,10 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                   key={tag}
                   type="button"
                   onClick={() => setNewVibeTag(tag)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition border ${
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition border ${
                     newVibeTag === tag
-                      ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 border-cyan-400 text-cyan-200 shadow-sm'
-                      : 'bg-black/40 border-white/10 text-gray-400 hover:text-white'
+                      ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                      : 'bg-black/40 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
                   }`}
                 >
                   {tag}
@@ -320,28 +557,42 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           </div>
         </div>
 
-        {/* Acciones del Composer */}
-        <div className="flex items-center justify-between pt-1 border-t border-white/5">
-          <button
-            type="button"
-            onClick={() => setShowMediaInput(!showMediaInput)}
-            className={`p-2 rounded-xl text-xs flex items-center gap-1.5 transition ${
-              showMediaInput ? 'text-cyan-300 bg-cyan-500/10' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Image size={15} />
-            <span className="text-[11px]">Añadir Foto</span>
-          </button>
+        {/* Barra de Acciones del Composer: Cámara, Galería y Publicar */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* 1. Botón Tomar Foto (Cámara del dispositivo) */}
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-white/5 hover:bg-cyan-500/15 text-gray-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30 transition shadow-sm"
+              title="Tomar una foto con tu cámara"
+            >
+              <Camera size={14} className="text-cyan-400" />
+              <span className="text-[11px]">Cámara</span>
+            </button>
 
+            {/* 2. Botón Galería (Elegir foto del teléfono / computadora) */}
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-white/5 hover:bg-purple-500/15 text-gray-300 hover:text-purple-300 border border-white/10 hover:border-purple-500/30 transition shadow-sm"
+              title="Elegir foto de tu galería o dispositivo"
+            >
+              <ImageIcon size={14} className="text-purple-400" />
+              <span className="text-[11px]">Galería</span>
+            </button>
+          </div>
+
+          {/* Botón Resonar / Publicar */}
           <button
             type="submit"
-            disabled={!newContent.trim() || publishing}
-            className="btn-mystic px-4 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-40 shadow-lg"
+            disabled={(!newContent.trim() && !selectedPhotoFile) || publishing || isProcessingPhoto}
+            className="btn-mystic px-5 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 disabled:opacity-40 shadow-[0_0_15px_rgba(6,182,212,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             {publishing ? (
               <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>Transmitiendo...</span>
+                <Loader2 size={14} className="animate-spin" />
+                <span className="text-[11px]">{publishStatusText || 'Transmitiendo...'}</span>
               </>
             ) : (
               <>
@@ -354,8 +605,8 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
       </form>
 
       {/* ── FILTRO POR VIBE CÓSMICO ── */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar px-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pr-1 flex items-center gap-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
+        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold pr-1 flex items-center gap-1 shrink-0">
           <Filter size={11} /> Filtrar:
         </span>
         {['Todos', ...VIBE_TAGS].map(tag => (
@@ -364,7 +615,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
             onClick={() => setSelectedVibe(tag)}
             className={`px-3 py-1 rounded-full text-xs font-bold transition whitespace-nowrap ${
               selectedVibe === tag
-                ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+                ? 'bg-cyan-500 text-black shadow-[0_0_14px_rgba(6,182,212,0.45)]'
                 : 'bg-black/50 text-gray-400 hover:text-white border border-white/10'
             }`}
           >
@@ -375,83 +626,117 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
       {/* ── LISTADO DE PUBLICACIONES ── */}
       {loading ? (
-        <div className="glass-panel p-12 text-center rounded-3xl">
-          <div className="w-10 h-10 border-2 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-cyan-400 text-xs tracking-widest uppercase">Captando resonancias colectivas...</p>
+        <div className="glass-panel p-12 text-center rounded-3xl border border-white/10 space-y-3">
+          <div className="w-10 h-10 border-2 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin mx-auto" />
+          <p className="text-cyan-300 text-xs tracking-widest uppercase font-medium">Sintonizando resonancias del éter...</p>
         </div>
       ) : posts.length === 0 ? (
-        <div className="glass-panel p-8 text-center rounded-3xl text-gray-400 text-xs">
-          No hay publicaciones con esta etiqueta en el éter aún. ¡Sé el primero en compartir!
+        <div className="glass-panel p-10 text-center rounded-3xl border border-white/10 space-y-3 bg-[#080b18]/70">
+          <Sparkles size={32} className="mx-auto text-cyan-400/60" />
+          <p className="text-gray-300 text-xs font-medium">
+            No hay publicaciones con la sintonía "{selectedVibe}" en el éter aún.
+          </p>
+          <p className="text-[11px] text-gray-400 font-light">
+            ¡Sé el primero en compartir un pensamiento o foto con la comunidad!
+          </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-4">
           {posts.map((post) => {
             const isCommentsOpen = openCommentsPostId === post.id;
             const commentsList = postCommentsMap[post.id] || post.comments || [];
             const userReactions = post.userReactions || [];
+            const userIsAuthor = isMyPost(post);
 
             return (
               <article
                 key={post.id}
-                className="glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 hover:border-cyan-500/30 transition-all space-y-3 bg-[#080b18]/85 shadow-lg"
+                className="glass-panel p-4 sm:p-5 rounded-3xl border border-white/10 hover:border-cyan-500/30 transition-all space-y-3.5 bg-[#080b1a]/90 shadow-xl"
               >
-                {/* Cabecera del Post (Autor, Signo, Vibe y Tiempo) */}
+                {/* Cabecera del Post (Autor, Signo, Elemento, Vibe y Opciones) */}
                 <div className="flex items-center justify-between">
                   <div
                     onClick={() => onNavigateToUser && onNavigateToUser(post.user_id)}
-                    className="flex items-center gap-2.5 cursor-pointer group"
+                    className="flex items-center gap-3 cursor-pointer group"
                   >
-                    <img
-                      src={post.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author_name || 'Z')}&background=06b6d4&color=fff`}
-                      alt={post.author_name}
-                      className="w-10 h-10 rounded-full object-cover border border-cyan-400/40 group-hover:scale-105 transition"
-                    />
+                    <div className="relative">
+                      <img
+                        src={post.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author_name || 'Z')}&background=06b6d4&color=fff`}
+                        alt={post.author_name}
+                        className="w-10 h-10 rounded-full object-cover border border-cyan-400/50 group-hover:scale-105 transition shadow"
+                      />
+                    </div>
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition">
+                        <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition leading-tight">
                           {post.author_name}
                         </h4>
                         {post.author_sign && (
                           <ZodiacBadge sign={post.author_sign} size="xs" />
                         )}
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-gray-400 font-light">
+                      <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-light mt-0.5">
                         <span>{formatTimeAgo(post.created_at)}</span>
                         {post.author_element && (
                           <>
                             <span>•</span>
-                            <span className="text-amber-400">{post.author_element}</span>
+                            <span className={`px-1.5 py-0.2 rounded-md font-medium border text-[9px] ${getElementBadgeColor(post.author_element)}`}>
+                              {post.author_element}
+                            </span>
                           </>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Badge de Vibe */}
-                  {post.vibe_tag && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-300 shadow-sm">
-                      {post.vibe_tag}
-                    </span>
-                  )}
+                  {/* Vibe Tag & Opciones (Eliminar si es propio) */}
+                  <div className="flex items-center gap-2">
+                    {post.vibe_tag && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[10px] font-bold text-cyan-300 shadow-sm">
+                        {post.vibe_tag}
+                      </span>
+                    )}
+
+                    {/* Botón de eliminar para el autor */}
+                    {userIsAuthor && (
+                      <button
+                        type="button"
+                        onClick={() => setPostToDelete(post)}
+                        className="p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-white/5 transition"
+                        title="Eliminar mi publicación"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Contenido del Post */}
-                <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-light whitespace-pre-wrap">
+                <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-normal whitespace-pre-wrap">
                   {post.content}
                 </p>
 
-                {/* Foto / Multimedia adjunta */}
+                {/* Foto / Multimedia adjunta (Con visor Lightbox al hacer clic) */}
                 {post.media_url && (
-                  <div className="rounded-2xl overflow-hidden border border-white/10 max-h-[360px] bg-black">
+                  <div 
+                    onClick={() => setActiveLightboxPost(post)}
+                    className="relative rounded-2xl overflow-hidden border border-white/10 max-h-[380px] bg-black/60 group cursor-pointer shadow-lg"
+                  >
                     <img
                       src={post.media_url}
                       alt="Multimedia cósmica"
-                      className="w-full h-full object-cover hover:scale-105 transition duration-500"
+                      className="w-full h-full object-cover max-h-[380px] group-hover:scale-[1.02] transition duration-500"
                     />
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center backdrop-blur-[2px]">
+                      <div className="px-3 py-1.5 rounded-full bg-black/70 border border-white/20 text-white text-xs font-medium flex items-center gap-1.5 shadow-xl">
+                        <Maximize2 size={13} />
+                        <span>Ver en tamaño completo</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* ── BARRA DE REACCIONES CÓSMICAS (✨, 🔥, 💖, 🌌) ── */}
+                {/* ── BARRA DE REACCIONES CÓSMICAS & ACCIONES ── */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/5 flex-wrap gap-2">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* 1. Resonar ✨ */}
@@ -460,13 +745,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       onClick={() => handleReaction(post.id, 'resonate')}
                       className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 transition-all ${
                         userReactions.includes('resonate')
-                          ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.4)] scale-105'
+                          ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/60 shadow-[0_0_12px_rgba(6,182,212,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
                       title="Resonar con este mensaje"
                     >
                       <span>✨</span>
-                      <span className="font-bold text-[11px]">{post.reactions?.resonate || 0}</span>
+                      <span className="text-[11px]">{post.reactions?.resonate || 0}</span>
                     </button>
 
                     {/* 2. Fuego 🔥 */}
@@ -475,13 +760,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       onClick={() => handleReaction(post.id, 'fire')}
                       className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 transition-all ${
                         userReactions.includes('fire')
-                          ? 'bg-amber-500/30 text-amber-300 border border-amber-400/60 shadow-[0_0_10px_rgba(245,158,11,0.4)] scale-105'
+                          ? 'bg-amber-500/30 text-amber-300 border border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
                       title="Energía de Fuego"
                     >
                       <span>🔥</span>
-                      <span className="font-bold text-[11px]">{post.reactions?.fire || 0}</span>
+                      <span className="text-[11px]">{post.reactions?.fire || 0}</span>
                     </button>
 
                     {/* 3. Amor 💖 */}
@@ -490,13 +775,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       onClick={() => handleReaction(post.id, 'love')}
                       className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 transition-all ${
                         userReactions.includes('love')
-                          ? 'bg-pink-500/30 text-pink-300 border border-pink-400/60 shadow-[0_0_10px_rgba(244,114,182,0.4)] scale-105'
+                          ? 'bg-pink-500/30 text-pink-300 border border-pink-400/60 shadow-[0_0_12px_rgba(244,114,182,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
                       title="Amor astral"
                     >
                       <span>💖</span>
-                      <span className="font-bold text-[11px]">{post.reactions?.love || 0}</span>
+                      <span className="text-[11px]">{post.reactions?.love || 0}</span>
                     </button>
 
                     {/* 4. Trascendencia 🌌 */}
@@ -505,49 +790,61 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       onClick={() => handleReaction(post.id, 'cosmos')}
                       className={`px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 transition-all ${
                         userReactions.includes('cosmos')
-                          ? 'bg-purple-500/30 text-purple-300 border border-purple-400/60 shadow-[0_0_10px_rgba(168,85,247,0.4)] scale-105'
+                          ? 'bg-purple-500/30 text-purple-300 border border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.4)] scale-105 font-bold'
                           : 'bg-black/40 text-gray-400 hover:text-white border border-white/5'
                       }`}
                       title="Cosmos y Trascendencia"
                     >
                       <span>🌌</span>
-                      <span className="font-bold text-[11px]">{post.reactions?.cosmos || 0}</span>
+                      <span className="text-[11px]">{post.reactions?.cosmos || 0}</span>
                     </button>
                   </div>
 
-                  {/* Botón de Comentarios */}
-                  <button
-                    type="button"
-                    onClick={() => toggleComments(post.id)}
-                    className="text-xs text-gray-400 hover:text-cyan-300 flex items-center gap-1.5 transition py-1 px-2 rounded-lg hover:bg-white/5"
-                  >
-                    <MessageCircle size={14} />
-                    <span>{post.commentsCount || 0} comentarios</span>
-                    {isCommentsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Botón Compartir */}
+                    <button
+                      type="button"
+                      onClick={() => handleSharePost(post)}
+                      className="p-1.5 text-gray-400 hover:text-cyan-300 rounded-lg hover:bg-white/5 transition"
+                      title="Compartir resonancia"
+                    >
+                      <Share2 size={14} />
+                    </button>
+
+                    {/* Botón de Comentarios */}
+                    <button
+                      type="button"
+                      onClick={() => toggleComments(post.id)}
+                      className="text-xs text-gray-400 hover:text-cyan-300 flex items-center gap-1.5 transition py-1 px-2.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10"
+                    >
+                      <MessageCircle size={14} />
+                      <span>{post.commentsCount || 0}</span>
+                      {isCommentsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* ── SECCIÓN DESPLEGABLE DE COMENTARIOS ── */}
                 {isCommentsOpen && (
                   <div className="pt-3 border-t border-white/10 space-y-3 animate-fadeIn">
                     {/* Lista de comentarios */}
-                    <div className="space-y-2 max-h-60 overflow-y-auto no-scrollbar">
+                    <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
                       {loadingCommentsPostId === post.id ? (
                         <div className="p-3 text-center text-xs text-cyan-400">
                           <Loader2 size={14} className="animate-spin mx-auto mb-1" />
-                          Cargando ecos...
+                          Sintonizando comentarios...
                         </div>
                       ) : commentsList.length === 0 ? (
-                        <p className="text-[11px] text-gray-500 italic text-center py-2">
-                          Sé el primero en dejar un eco en este pensamiento.
+                        <p className="text-[11px] text-gray-400 italic text-center py-2">
+                          Sé el primero en dejar un eco cósmico en esta publicación.
                         </p>
                       ) : (
                         commentsList.map(comment => (
-                          <div key={comment.id} className="p-2.5 rounded-2xl bg-black/40 border border-white/5 flex items-start gap-2">
+                          <div key={comment.id} className="p-3 rounded-2xl bg-black/40 border border-white/5 flex items-start gap-2.5">
                             <img
                               src={comment.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.author_name || 'Z')}&background=06b6d4&color=fff`}
                               alt={comment.author_name}
-                              className="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5"
+                              className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5 border border-white/10"
                             />
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
@@ -561,7 +858,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                                   {formatTimeAgo(comment.created_at)}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-300 font-light mt-0.5 leading-snug">
+                              <p className="text-xs text-gray-300 font-normal mt-1 leading-snug">
                                 {comment.content}
                               </p>
                             </div>
@@ -570,13 +867,18 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                       )}
                     </div>
 
-                    {/* Input de respuesta */}
+                    {/* Input de respuesta con avatar del usuario actual */}
                     <form onSubmit={(e) => handleSendComment(post.id, e)} className="flex items-center gap-2 pt-1">
+                      <img
+                        src={profile?.user_image || currentUser?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Z')}&background=06b6d4&color=fff`}
+                        alt="Tú"
+                        className="w-7 h-7 rounded-full object-cover border border-cyan-400/40 shrink-0"
+                      />
                       <input
                         type="text"
                         value={commentInputs[post.id] || ''}
                         onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                        placeholder="Escribe un comentario o reflexión..."
+                        placeholder="Escribe una reflexión o eco..."
                         className="flex-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 outline-none focus:border-cyan-400 transition"
                       />
                       <button
@@ -595,6 +897,116 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           })}
         </div>
       )}
+
+      {/* ── MODAL LIGHTBOX / VISOR DE FOTO CÓSMICA A PANTALLA COMPLETA ── */}
+      {activeLightboxPost && (
+        <div 
+          onClick={() => setActiveLightboxPost(null)}
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 animate-fadeIn"
+        >
+          {/* Header del Lightbox */}
+          <div className="flex items-center justify-between z-10" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <img
+                src={activeLightboxPost.author_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeLightboxPost.author_name || 'Z')}&background=06b6d4&color=fff`}
+                alt={activeLightboxPost.author_name}
+                className="w-9 h-9 rounded-full object-cover border border-cyan-400/50"
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">{activeLightboxPost.author_name}</h3>
+                  {activeLightboxPost.author_sign && (
+                    <ZodiacBadge sign={activeLightboxPost.author_sign} size="xs" />
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-400">{formatTimeAgo(activeLightboxPost.created_at)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSharePost(activeLightboxPost)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+                title="Compartir foto"
+              >
+                <Share2 size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveLightboxPost(null)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+                title="Cerrar visor"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Imagen Central Centrada */}
+          <div className="flex-1 flex items-center justify-center p-2 min-h-0" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={activeLightboxPost.media_url}
+              alt="Foto completa"
+              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] border border-white/10"
+            />
+          </div>
+
+          {/* Pie del Lightbox */}
+          <div className="max-w-xl mx-auto w-full text-center z-10" onClick={(e) => e.stopPropagation()}>
+            {activeLightboxPost.content && (
+              <p className="text-xs sm:text-sm text-gray-200 bg-black/60 px-4 py-2.5 rounded-2xl border border-white/10 backdrop-blur-md">
+                {activeLightboxPost.content}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE CONFIRMACIÓN PARA ELIMINAR POST ── */}
+      {postToDelete && (
+        <div 
+          onClick={() => setPostToDelete(null)}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="glass-panel p-5 sm:p-6 rounded-3xl border border-red-500/30 max-w-sm w-full space-y-4 bg-[#0c0d1e] shadow-2xl text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/40 flex items-center justify-center mx-auto text-red-400">
+              <Trash2 size={22} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">¿Eliminar esta publicación?</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Esta acción retirará permanentemente tu mensaje y foto del éter cósmico.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPostToDelete(null)}
+                className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeletePost}
+                disabled={isDeletingPost}
+                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center justify-center gap-1.5"
+              >
+                {isDeletingPost ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <span>Eliminar</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
