@@ -172,26 +172,47 @@ export async function GET(request) {
     const { results } = await db.prepare(query).bind(...binds).all();
 
     // Si la tabla D1 aún no tiene posts de usuarios, integrar la semilla cósmica
-    let posts = (results || []).map(row => ({
-      id: row.id,
-      user_id: row.user_id,
-      author_name: row.author_name,
-      author_image: row.author_image,
-      author_sign: row.author_sign,
-      author_element: row.author_element,
-      content: row.content,
-      media_url: row.media_url,
-      vibe_tag: row.vibe_tag,
-      created_at: row.created_at,
-      commentsCount: row.commentsCount || 0,
-      reactions: {
-        resonate: row.resonateCount || 0,
-        fire: row.fireCount || 0,
-        love: row.loveCount || 0,
-        cosmos: row.cosmosCount || 0
-      },
-      userReactions: row.myReactions ? row.myReactions.split(',') : []
-    }));
+    let posts = (results || []).map(row => {
+      let poll = null;
+      if (row.poll_data) {
+        try {
+          poll = typeof row.poll_data === 'string' ? JSON.parse(row.poll_data) : row.poll_data;
+        } catch {
+          poll = null;
+        }
+      }
+      let music_track = null;
+      if (row.music_data) {
+        try {
+          music_track = typeof row.music_data === 'string' ? JSON.parse(row.music_data) : row.music_data;
+        } catch {
+          music_track = null;
+        }
+      }
+
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        author_name: row.author_name,
+        author_image: row.author_image,
+        author_sign: row.author_sign,
+        author_element: row.author_element,
+        content: row.content,
+        media_url: row.media_url,
+        vibe_tag: row.vibe_tag,
+        poll,
+        music_track,
+        created_at: row.created_at,
+        commentsCount: row.commentsCount || 0,
+        reactions: {
+          resonate: row.resonateCount || 0,
+          fire: row.fireCount || 0,
+          love: row.loveCount || 0,
+          cosmos: row.cosmosCount || 0
+        },
+        userReactions: row.myReactions ? row.myReactions.split(',') : []
+      };
+    });
 
     if (posts.length === 0) {
       let filteredSeed = SEED_FEED_POSTS;
@@ -265,20 +286,43 @@ export async function POST(request) {
       try {
         await ensureDatabaseSchema(db);
         const myId = (await resolveCanonicalUserId(db, token)) || rawId;
-        await db.prepare(`
-          INSERT INTO feed_posts (id, user_id, author_name, author_image, author_sign, author_element, content, media_url, vibe_tag)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          newPost.id,
-          myId,
-          newPost.author_name,
-          newPost.author_image,
-          newPost.author_sign,
-          newPost.author_element,
-          newPost.content,
-          newPost.media_url,
-          newPost.vibe_tag
-        ).run();
+        const pollJson = newPost.poll ? JSON.stringify(newPost.poll) : null;
+        const musicJson = newPost.music_track ? JSON.stringify(newPost.music_track) : null;
+
+        try {
+          await db.prepare(`
+            INSERT INTO feed_posts (id, user_id, author_name, author_image, author_sign, author_element, content, media_url, vibe_tag, poll_data, music_data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            newPost.id,
+            myId,
+            newPost.author_name,
+            newPost.author_image,
+            newPost.author_sign,
+            newPost.author_element,
+            newPost.content,
+            newPost.media_url,
+            newPost.vibe_tag,
+            pollJson,
+            musicJson
+          ).run();
+        } catch (insertErr) {
+          // Fallback en caso de tabla anterior sin columnas nuevas
+          await db.prepare(`
+            INSERT INTO feed_posts (id, user_id, author_name, author_image, author_sign, author_element, content, media_url, vibe_tag)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            newPost.id,
+            myId,
+            newPost.author_name,
+            newPost.author_image,
+            newPost.author_sign,
+            newPost.author_element,
+            newPost.content,
+            newPost.media_url,
+            newPost.vibe_tag
+          ).run();
+        }
       } catch (err) {
         console.error("Error insertando post en D1:", err);
       }
@@ -480,6 +524,48 @@ export async function POST(request) {
       return NextResponse.json({ error: "Faltan parámetros de votación" }, { status: 400 });
     }
 
+    let updatedPoll = null;
+
+    if (db) {
+      try {
+        await ensureDatabaseSchema(db);
+        const myId = (await resolveCanonicalUserId(db, token)) || rawId;
+
+        const row = await db.prepare(`SELECT poll_data FROM feed_posts WHERE id = ?`).bind(postId).first();
+        if (row && row.poll_data) {
+          let poll = typeof row.poll_data === 'string' ? JSON.parse(row.poll_data) : row.poll_data;
+          if (poll && Array.isArray(poll.options)) {
+            poll.voters = poll.voters || {};
+            const previousOption = poll.voters[myId] || (rawId ? poll.voters[rawId] : null);
+
+            if (previousOption) {
+              const prev = poll.options.find(o => o.id === previousOption);
+              if (prev) prev.votes = Math.max(0, (prev.votes || 1) - 1);
+            }
+
+            poll.voters[myId] = optionId;
+            if (rawId && rawId !== myId) {
+              poll.voters[rawId] = optionId;
+            }
+
+            const target = poll.options.find(o => o.id === optionId);
+            if (target) {
+              target.votes = (target.votes || 0) + 1;
+            }
+
+            await db.prepare(`UPDATE feed_posts SET poll_data = ? WHERE id = ?`)
+              .bind(JSON.stringify(poll), postId)
+              .run();
+
+            updatedPoll = poll;
+          }
+        }
+      } catch (err) {
+        console.error("Error al persistir voto de encuesta en D1:", err);
+      }
+    }
+
+    // Actualizar también en devFeed de memoria si existe
     const targetPost = devFeed.find(p => p.id === postId);
     if (targetPost && targetPost.poll) {
       targetPost.poll.voters = targetPost.poll.voters || {};
@@ -494,10 +580,10 @@ export async function POST(request) {
       const target = targetPost.poll.options.find(o => o.id === optionId);
       if (target) target.votes = (target.votes || 0) + 1;
 
-      return NextResponse.json({ success: true, poll: targetPost.poll });
+      if (!updatedPoll) updatedPoll = targetPost.poll;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, poll: updatedPoll });
   }
 
   return NextResponse.json({ error: "Acción no reconocida" }, { status: 400 });

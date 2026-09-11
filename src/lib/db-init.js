@@ -110,8 +110,12 @@ export async function ensureDatabaseSchema(db) {
       content TEXT NOT NULL,
       media_url TEXT,
       vibe_tag TEXT DEFAULT 'Reflexión ✨',
+      poll_data TEXT,
+      music_data TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    "ALTER TABLE feed_posts ADD COLUMN poll_data TEXT",
+    "ALTER TABLE feed_posts ADD COLUMN music_data TEXT",
     `CREATE TABLE IF NOT EXISTS feed_reactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id TEXT NOT NULL,

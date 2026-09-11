@@ -69,6 +69,14 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
+  const [localPollVotes, setLocalPollVotes] = useState(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      return JSON.parse(localStorage.getItem('zodia_feed_poll_votes') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
   // Estados para MÚSICA / BANDA SONORA
   const [showMusicInput, setShowMusicInput] = useState(false);
@@ -213,7 +221,16 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     const currentUserId = profile?.user_id || currentUser?.id || 'anon';
     triggerHaptic('medium');
 
-    // Actualización optimista
+    // Persistir voto inmediatamente en caché local
+    setLocalPollVotes(prev => {
+      const next = { ...prev, [postId]: optionId };
+      try {
+        localStorage.setItem('zodia_feed_poll_votes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    // Actualización optimista en memoria
     setPosts(prev => prev.map(p => {
       if (p.id !== postId || !p.poll) return p;
       const voters = { ...(p.poll.voters || {}) };
@@ -239,7 +256,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
     showToast('¡Tu voto cósmico fue sellado! 📊✨', 'success');
 
     try {
-      await apiFetch('/api/feed', {
+      const res = await apiFetch('/api/feed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,6 +265,13 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
           optionId
         })
       });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.poll) {
+          setPosts(prev => prev.map(p => p.id === postId ? { ...p, poll: data.poll } : p));
+        }
+      }
     } catch (err) {
       console.error("Error registrando voto:", err);
     }
@@ -946,8 +970,23 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
 
             // Cálculos de la encuesta si existe
             const poll = post.poll;
-            const totalPollVotes = poll ? (poll.options || []).reduce((acc, opt) => acc + (opt.votes || 0), 0) : 0;
-            const myVotedOptionId = poll?.voters ? poll.voters[myUserId] : null;
+            const localVote = localPollVotes[post.id];
+            const hasServerVote = poll?.voters && (
+              poll.voters[myUserId] || 
+              (profile?.user_id && poll.voters[profile.user_id]) || 
+              (currentUser?.id && poll.voters[currentUser.id])
+            );
+            const myVotedOptionId = hasServerVote || localVote || null;
+
+            // Asegurar que si hay un voto local guardado y el servidor aún no lo refleja en los votos agregados, sume visualmente
+            const effectiveOptions = (poll?.options || []).map(opt => {
+              let votes = opt.votes || 0;
+              if (localVote === opt.id && !hasServerVote) {
+                votes += 1;
+              }
+              return { ...opt, votes };
+            });
+            const totalPollVotes = effectiveOptions.reduce((acc, opt) => acc + (opt.votes || 0), 0);
 
             return (
               <article
@@ -1041,7 +1080,7 @@ export function TabResonanciasFeed({ profile, currentUser, onNavigateToUser }) {
                     </div>
 
                     <div className="space-y-1.5">
-                      {poll.options.map((opt) => {
+                      {effectiveOptions.map((opt) => {
                         const votes = opt.votes || 0;
                         const percentage = totalPollVotes > 0 ? Math.round((votes / totalPollVotes) * 100) : 0;
                         const isSelectedByMe = myVotedOptionId === opt.id;
