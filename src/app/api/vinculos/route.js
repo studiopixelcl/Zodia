@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
-import { DATING_CANDIDATES } from '../../../lib/dating';
 
 export const runtime = 'edge';
 
@@ -13,61 +12,6 @@ async function getDB() {
     return null;
   }
 }
-
-const DEFAULT_VINCULOS_GUIDES = [
-  {
-    id: "candidate_valeria",
-    name: "Valeria Ríos",
-    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85",
-    sign: "Leo",
-    element: "Fuego",
-    path: "1",
-    affinity: "96%",
-    lastMessage: "¡Hola! Vi que también te gusta la música indie y los atardeceres ✨",
-    lastMessageDate: new Date(Date.now() - 3600000).toISOString(),
-    isSelfSender: false,
-    isNewMatch: false
-  },
-  {
-    id: "candidate_camila",
-    name: "Camila Beltrán",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=1200&auto=format&fit=crop&q=85",
-    sign: "Géminis",
-    element: "Aire",
-    path: "5",
-    affinity: "92%",
-    lastMessage: null,
-    lastMessageDate: null,
-    isSelfSender: false,
-    isNewMatch: true
-  },
-  {
-    id: "candidate_sofia",
-    name: "Sofía Navarro",
-    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&auto=format&fit=crop&q=85",
-    sign: "Escorpio",
-    element: "Agua",
-    path: "11",
-    affinity: "89%",
-    lastMessage: null,
-    lastMessageDate: null,
-    isSelfSender: false,
-    isNewMatch: true
-  },
-  {
-    id: "zodia_bot",
-    name: "ZODIA | Guía de Citas Astrales",
-    image: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1200&auto=format&fit=crop&q=85",
-    sign: "Firmamento",
-    element: "Éter",
-    path: "∞",
-    affinity: "100%",
-    lastMessage: "¿Deseas saber cómo conquistar a tu nuevo match según su signo?",
-    lastMessageDate: new Date(Date.now() - 7200000).toISOString(),
-    isSelfSender: false,
-    isNewMatch: false
-  }
-];
 
 export async function GET(request) {
   const token = await getAuthUser(request);
@@ -104,7 +48,13 @@ export async function GET(request) {
 
       const userIds = Array.from(
         new Set((connectedUsers.results || []).map(r => r.other_id).filter(Boolean))
-      ).filter(id => id !== myCanonicalId && id !== myRawId);
+      ).filter(id => 
+        id !== myCanonicalId && 
+        id !== myRawId && 
+        !id.startsWith('candidate_') && 
+        !id.startsWith('guide_') && 
+        id !== 'zodia_bot'
+      );
 
       if (userIds.length > 0) {
         const placeholders = userIds.map(() => '?').join(',');
@@ -124,22 +74,6 @@ export async function GET(request) {
         resultVinculos = await Promise.all(
           userIds.map(async (otherId) => {
             let other = dbUsersMap.get(otherId);
-
-            // Si es un candidato del catálogo
-            if (!other) {
-              const cand = DATING_CANDIDATES.find(c => c.id === otherId);
-              if (cand) {
-                other = {
-                  id: cand.id,
-                  name: cand.name,
-                  image: cand.image,
-                  sign: cand.sign,
-                  element: cand.element,
-                  life_path_number: cand.life_path_number,
-                  archetype: cand.archetype
-                };
-              }
-            }
 
             // Si aún no está en map, buscarlo en users individualmente
             if (!other) {
@@ -221,7 +155,7 @@ export async function GET(request) {
 
       const otherUserIds = Array.from(new Set(relatedMsgs.map(m => 
         (m.sender_id === myCanonicalId || m.sender_id === myRawId) ? m.receiver_id : m.sender_id
-      )));
+      ))).filter(id => !id.startsWith('candidate_') && !id.startsWith('guide_') && id !== 'zodia_bot');
 
       for (const otherId of otherUserIds) {
         const msgs = relatedMsgs.filter(m => 
@@ -229,15 +163,14 @@ export async function GET(request) {
           ((m.sender_id === myCanonicalId || m.sender_id === myRawId) && m.receiver_id === otherId)
         );
         const lastMsg = msgs[msgs.length - 1];
-        const cand = DATING_CANDIDATES.find(c => c.id === otherId);
 
         resultVinculos.push({
           id: otherId,
-          name: cand?.name || otherId.replace('tuner_', '').replace(/_/g, ' '),
-          image: cand?.image || cand?.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85',
-          sign: cand?.sign || 'Cosmos',
-          element: cand?.element || 'Éter',
-          path: cand?.life_path_number || '∞',
+          name: otherId.replace('tuner_', '').replace(/_/g, ' '),
+          image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=85',
+          sign: 'Cosmos',
+          element: 'Éter',
+          path: '∞',
           affinity: '92%',
           lastMessage: lastMsg ? lastMsg.content : null,
           lastMessageDate: lastMsg ? lastMsg.created_at : null,
@@ -247,19 +180,6 @@ export async function GET(request) {
       }
     } catch (devErr) {
       console.error('[DEV VINCULOS ERROR]:', devErr);
-    }
-  }
-
-  if (resultVinculos.length === 0) {
-    // Solo mantener a ZODIA Bot como guía asistente cósmica, sin inyectar perfiles ficticios
-    const botGuide = DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot");
-    resultVinculos = botGuide ? [botGuide] : [];
-  } else {
-    // Si no tiene bot, añadirlo para asistencia cósmica
-    const hasBot = resultVinculos.some(v => v.id === "zodia_bot");
-    if (!hasBot) {
-      const botGuide = DEFAULT_VINCULOS_GUIDES.find(g => g.id === "zodia_bot");
-      if (botGuide) resultVinculos.push(botGuide);
     }
   }
 

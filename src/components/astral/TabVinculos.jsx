@@ -351,11 +351,6 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
-    const isSimulated = activeUser.id.startsWith('candidate_') || activeUser.id.startsWith('guide_') || activeUser.id === 'zodia_bot';
-    if (isSimulated) {
-      setIsBotTyping(true);
-    }
-
     try {
       const res = await apiFetch('/api/messages', {
         method: 'POST',
@@ -375,9 +370,8 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
 
         setTimeout(async () => {
           await fetchMessages(activeUser.id, true);
-          setIsBotTyping(false);
           fetchVinculos();
-        }, isSimulated ? 1300 : 200);
+        }, 200);
       } else {
         const errData = await res.json().catch(() => ({}));
         console.error('Error entregando mensaje en API:', errData);
@@ -392,7 +386,6 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
       alert('Error de conexión cósmica al transmitir el mensaje.');
     } finally {
       setSending(false);
-      setIsBotTyping(false);
     }
   };
 
@@ -445,7 +438,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
                     className="w-full h-full object-cover object-[center_18%]"
                   />
                 ) : (
-                  <Bot className="text-cyan-400" size={20} />
+                  <UserCheck className="text-cyan-400" size={20} />
                 )}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] text-white font-bold shadow-md">
@@ -747,7 +740,7 @@ export const TabVinculos = ({ selectedUserId, onClearSelection, profile, current
                           className="w-full h-full object-cover object-[center_18%]"
                         />
                       ) : (
-                        <Bot className="text-cyan-400" size={24} />
+                        <UserCheck className="text-cyan-400" size={24} />
                       )}
                     </div>
                     <div className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full w-4 h-4 flex items-center justify-center text-[9px] text-white font-bold shadow-md">

@@ -13,120 +13,31 @@ async function getDB() {
   }
 }
 
-// Semilla viva de historias de 24h de la comunidad Zodia
-const SEED_STORIES = [
-  {
-    userId: 'candidate_valeria',
-    authorName: 'Valeria Ríos',
-    authorImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-    authorSign: 'Leo',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_valeria_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=900&auto=format&fit=crop&q=80',
-        caption: 'Atardecer dorado en la ciudad... la energía de Leo hoy pide bailar y desconectar ✨🌅',
-        vibeTag: '🔥 Energía Solar',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString()
-      },
-      {
-        id: 'story_valeria_2',
-        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=900&auto=format&fit=crop&q=80',
-        caption: 'Probando nuevos cortes y colores para la colección de verano 🪡💫',
-        vibeTag: '🎨 Creatividad',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_mateo',
-    authorName: 'Mateo Silva',
-    authorImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-    authorSign: 'Piscis',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_mateo_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=900&auto=format&fit=crop&q=80',
-        caption: 'Café de especialidad y vinilos viejos. La tarde perfecta de desconexión ☕🎶',
-        vibeTag: '🌊 Calma y Melodía',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_camila',
-    authorName: 'Camila Beltrán',
-    authorImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
-    authorSign: 'Géminis',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_camila_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=900&auto=format&fit=crop&q=80',
-        caption: 'Encontré esta librería escondida en el centro. La vibra es de otra época 📚🪐',
-        vibeTag: '✨ Curiosidad',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_lucas',
-    authorName: 'Lucas Morales',
-    authorImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
-    authorSign: 'Aries',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_lucas_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=900&auto=format&fit=crop&q=80',
-        caption: 'Cima alcanzada antes del amanecer. La vista no tiene precio 🏔️⚡',
-        vibeTag: '🔥 Aventura & Montaña',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_sofia',
-    authorName: 'Sofía Carranza',
-    authorImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
-    authorSign: 'Escorpio',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_sofia_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900&auto=format&fit=crop&q=80',
-        caption: 'Cielo estrellado y noche de oráculo. Las cartas marcan transformación 🔮✨',
-        vibeTag: '🌙 Mística',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
-      }
-    ]
-  }
-];
-
-let devStories = [...SEED_STORIES];
+// Historias en memoria en desarrollo
+let devStories = [];
 
 export async function GET(request) {
   const token = await getAuthUser(request);
   const db = await getDB();
   const rawId = token ? resolveUserId(token) : null;
 
-  // Si no hay BD o no hay token aún, entregar las historias semilla de la comunidad
   if (!db) {
+    const filtered = devStories.filter(s => !s.userId?.startsWith('candidate_') && s.userId !== 'zodia_bot');
     return NextResponse.json({ 
-      stories: devStories,
-      userStories: devStories 
+      stories: filtered,
+      userStories: filtered 
     });
   }
 
   try {
     await ensureDatabaseSchema(db);
-    const myId = token ? ((await resolveCanonicalUserId(db, token)) || rawId) : null;
 
-    // Buscar historias no expiradas en D1
+    // Buscar historias reales no expiradas en D1
     const { results } = await db.prepare(`
       SELECT * FROM astral_stories 
       WHERE expires_at > CURRENT_TIMESTAMP
+        AND user_id NOT LIKE 'candidate_%'
+        AND user_id != 'zodia_bot'
       ORDER BY created_at ASC
     `).all();
 
@@ -135,7 +46,6 @@ export async function GET(request) {
     // Agrupar por usuario
     const userMap = {};
 
-    // Primero integrar historias creadas en la base de datos
     for (const s of dbStories) {
       if (!userMap[s.user_id]) {
         userMap[s.user_id] = {
@@ -156,13 +66,6 @@ export async function GET(request) {
       });
     }
 
-    // Complementar con la semilla para asegurar historias activas de la comunidad
-    for (const seed of SEED_STORIES) {
-      if (!userMap[seed.userId]) {
-        userMap[seed.userId] = seed;
-      }
-    }
-
     const userStories = Object.values(userMap);
     return NextResponse.json({ 
       stories: userStories,
@@ -171,8 +74,8 @@ export async function GET(request) {
   } catch (err) {
     console.error("Error obteniendo historias efímeras:", err);
     return NextResponse.json({ 
-      stories: devStories,
-      userStories: devStories 
+      stories: [],
+      userStories: [] 
     });
   }
 }

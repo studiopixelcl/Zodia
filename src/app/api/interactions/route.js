@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
-import { DATING_CANDIDATES } from '../../../lib/dating';
 import { sendNotification } from '../../../lib/push-notifications';
 
 export const runtime = 'edge';
@@ -86,18 +85,9 @@ export async function POST(request) {
     if (targetUserRow?.id) actualTargetId = targetUserRow.id;
   }
 
-  // 1. Verificar si el candidato da match
-  const candidate = DATING_CANDIDATES.find(c => c.id === targetUserId);
   let isMatch = false;
 
-  if (type === 'like' || type === 'superlike') {
-    // Si es candidato catálogo con likesYou=true o superlike
-    if (candidate?.likesYou || type === 'superlike') {
-      isMatch = true;
-    }
-  }
-
-  // 2. Persistir en D1 si está disponible
+  // Persistir en D1 si está disponible
   if (db) {
     try {
       // Guardar la interacción (Like / Pass / Superlike)
@@ -113,7 +103,7 @@ export async function POST(request) {
           WHERE user_id IN (?, ?) AND target_id IN (?, ?) AND type IN ('like', 'superlike')
         `).bind(actualTargetId, targetUserId, myId, myRawId).first();
 
-        if (reverseLike || candidate?.likesYou) {
+        if (reverseLike) {
           isMatch = true;
 
           // Registrar en resonances si no existe ya
@@ -136,7 +126,7 @@ export async function POST(request) {
           // Emitir notificaciones de Match Cósmico
           const meUser = await db.prepare("SELECT name, nombre_actual FROM users WHERE id = ?").bind(myId).first().catch(() => null);
           const myName = meUser?.nombre_actual || meUser?.name || token.name || 'Alguien';
-          const targetName = targetUserRow?.nombre_actual || targetUserRow?.name || candidate?.name || 'Tu match';
+          const targetName = targetUserRow?.nombre_actual || targetUserRow?.name || 'Tu match';
 
           await sendNotification({
             db,
@@ -179,9 +169,10 @@ export async function POST(request) {
 
   return NextResponse.json({
     success: true,
-    targetUserId,
+    targetUserId: actualTargetId,
     type,
     isMatch,
-    candidate: isMatch ? candidate : null
+    matchedUser: isMatch ? targetUserRow : null,
+    candidate: isMatch ? targetUserRow : null
   });
 }

@@ -42,14 +42,14 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
           setIsRevealed(Boolean(data.session.isFullyRevealed || data.session.userRevealed));
           setTimeLeft(data.session.durationSeconds || 300);
 
-          // Mensaje de bienvenida inicial del partner
+          // Mensaje informativo inicial de la conexión cósmica real
           const partnerFirst = data.session.partner;
           setMessages([
             {
               id: 'msg_welcome',
-              sender: 'partner',
-              senderName: partnerFirst.name,
-              text: `¡Hola! ✨ Sentí una fuerte sinastría energética (${partnerFirst.affinity} de afinidad cósmica). Soy ${partnerFirst.sign} (${partnerFirst.element}). ¿Qué es lo que más te apasiona o te hace soñar despierto/a?`,
+              sender: 'system',
+              senderName: 'Sintonía Cósmica',
+              text: `✨ Conexión iniciada con un sintonizador real de ${partnerFirst.sign} (${partnerFirst.element}). Tienen un ${partnerFirst.affinity} de afinidad astral. Rompe el hielo enviándole un mensaje.`,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
@@ -106,7 +106,7 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
   };
 
   // Enviar mensaje en el chat de la cita a ciegas
-  const handleSendMessage = (e, textOverride = null) => {
+  const handleSendMessage = async (e, textOverride = null) => {
     e?.preventDefault();
     const content = (textOverride || inputMessage).trim();
     if (!content || !session) return;
@@ -123,38 +123,19 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
     setInputMessage('');
     playMessageSentSound();
 
-    // Simular respuesta astrológica del partner después de 1.5 - 2.5s
-    simulatePartnerReply(content);
-  };
-
-  const simulatePartnerReply = (userText) => {
-    setIsPartnerTyping(true);
-    const partner = session.partner;
-
-    const repliesPool = [
-      `¡Me encanta eso! Como ${partner.sign}, valoro muchísimo las conexiones auténticas donde no hay poses ni máscaras. 🌌`,
-      `Resueno 100% con lo que dices. Justo hoy estaba pensando en cómo el destino y los tránsitos cósmicos cruzan a las personas correctas ✨`,
-      `Totalmente de acuerdo. La energía no miente... siento una vibra super cálida y fluida contigo 💫`,
-      `¡Qué buena perspectiva! En mis momentos libres me gusta mucho desconectar de la rutina y perderme bajo las estrellas ☕🎶`,
-      `Siento que nos entenderíamos increíble en una conversación tranquila frente al mar o un café de noche 🪐`
-    ];
-
-    const randomReply = repliesPool[Math.floor(Math.random() * repliesPool.length)];
-
-    setTimeout(() => {
-      setIsPartnerTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'msg_' + Date.now(),
-          sender: 'partner',
-          senderName: partner.name,
-          text: randomReply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-      playIncomingChimeSound();
-    }, 1800);
+    // Transmitir mensaje real al destinatario en /api/messages
+    try {
+      await apiFetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: session.partner.id,
+          content: `[Cita a Ciegas Astral] ${content}`
+        })
+      });
+    } catch (err) {
+      console.warn('Transmisión de mensaje en cita a ciegas:', err);
+    }
   };
 
   // Acción: Revelar sintonía (Quitar el astral blur)
@@ -705,17 +686,35 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
 
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-            <p className="text-xs text-gray-400 mb-3">
-              No fue posible iniciar la cita a ciegas en este momento.
-            </p>
-            <button
-              type="button"
-              onClick={initSession}
-              className="py-2 px-4 rounded-xl bg-cyan-500 text-black text-xs font-bold"
-            >
-              Reintentar
-            </button>
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-400/30 flex items-center justify-center text-purple-300 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+              <Sparkles size={28} className="animate-pulse" />
+            </div>
+            <div className="max-w-xs space-y-1.5">
+              <h4 className="text-white font-bold text-sm mystic-font">
+                No hay sintonizadores disponibles
+              </h4>
+              <p className="text-xs text-gray-400 font-light leading-relaxed">
+                En este momento no hay otros usuarios reales disponibles para una nueva cita a ciegas. Puedes explorar perfiles en Citas o volver a intentarlo pronto.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={initSession}
+                className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                <span>Reintentar</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:opacity-90 text-white text-xs font-bold shadow-lg transition cursor-pointer"
+              >
+                Explorar Citas
+              </button>
+            </div>
           </div>
         )}
 

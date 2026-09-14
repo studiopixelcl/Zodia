@@ -14,105 +14,8 @@ async function getDB() {
   }
 }
 
-// Semilla viva de publicaciones cósmicas para el Éter social
-const SEED_FEED_POSTS = [
-  {
-    id: 'post_valeria_1',
-    user_id: 'candidate_valeria',
-    author_name: 'Valeria Ríos',
-    author_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-    author_sign: 'Leo',
-    author_element: 'Fuego',
-    content: 'Hoy la Luna está en fase creciente y la energía de Fuego se siente a tope 🔥 ¿Quién más siente ganas de empezar un proyecto creativo de golpe?',
-    media_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
-    vibe_tag: '🪐 Tránsitos',
-    music_track: { title: "Solar Power", artist: "Lorde" },
-    created_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(), // hace 35 min
-    reactions: { resonate: 12, fire: 18, love: 6, cosmos: 9 },
-    userReactions: ['fire'],
-    commentsCount: 3,
-    comments: [
-      {
-        id: 'c1',
-        author_name: 'Mateo Silva',
-        author_sign: 'Piscis',
-        author_image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-        content: '¡Totalmente! Llevo toda la tarde componiendo un riff en la guitarra 🎸',
-        created_at: new Date(Date.now() - 1000 * 60 * 20).toISOString()
-      },
-      {
-        id: 'c2',
-        author_name: 'Camila Beltrán',
-        author_sign: 'Géminis',
-        author_image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
-        content: 'Jajaja yo ya abrí 15 pestañas de investigación nueva ✨',
-        created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString()
-      }
-    ]
-  },
-  {
-    id: 'post_mateo_1',
-    user_id: 'candidate_mateo',
-    author_name: 'Mateo Silva',
-    author_image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-    author_sign: 'Piscis',
-    author_element: 'Agua',
-    content: 'Consulta cósmica para el éter: ¿cómo sienten los tránsitos lunares de esta semana? Dejen su voto en la encuesta 👇✨',
-    media_url: null,
-    vibe_tag: '🔮 Pregunta Cósmica',
-    poll: {
-      question: "¿Qué energía sientes predominante en tu día?",
-      options: [
-        { id: "opt_1", text: "🌊 Mística e Introspectiva", votes: 16 },
-        { id: "opt_2", text: "🔥 Motivación y Fuego", votes: 11 },
-        { id: "opt_3", text: "💨 Curiosidad Mental", votes: 7 }
-      ],
-      voters: {}
-    },
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // hace 2 hrs
-    reactions: { resonate: 24, fire: 4, love: 15, cosmos: 19 },
-    userReactions: ['resonate', 'love'],
-    commentsCount: 2,
-    comments: [
-      {
-        id: 'c3',
-        author_name: 'Sofía Navarro',
-        author_sign: 'Escorpio',
-        author_image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
-        content: 'La paz compartida vale más que mil charlas vacías 🌙',
-        created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString()
-      }
-    ]
-  },
-  {
-    id: 'post_camila_1',
-    user_id: 'candidate_camila',
-    author_name: 'Camila Beltrán',
-    author_image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
-    author_sign: 'Géminis',
-    author_element: 'Aire',
-    content: '¿Qué canción sienten que define el signo lunar de cada uno? Dejen recomendaciones para armar una playlist astral colectiva de Zodia 🎧🌌',
-    media_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-    vibe_tag: '🎵 Música',
-    created_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(), // hace 4 hrs
-    reactions: { resonate: 17, fire: 8, love: 11, cosmos: 14 },
-    userReactions: [],
-    commentsCount: 1,
-    comments: [
-      {
-        id: 'c4',
-        author_name: 'Nicolás Paz',
-        author_sign: 'Sagitario',
-        author_image: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=300',
-        content: '"Midnight City" de M83, vibra cósmica pura 🚀',
-        created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString()
-      }
-    ]
-  }
-];
-
 // Fallback en memoria en desarrollo
-let devFeed = [...SEED_FEED_POSTS];
+let devFeed = [];
 
 export async function GET(request) {
   const token = await getAuthUser(request);
@@ -128,7 +31,7 @@ export async function GET(request) {
   const rawId = resolveUserId(token);
 
   if (!db) {
-    let filtered = devFeed;
+    let filtered = devFeed.filter(p => !p.user_id?.startsWith('candidate_') && p.user_id !== 'zodia_bot');
     if (vibeFilter !== 'todos') {
       filtered = filtered.filter(p => (p.vibe_tag || '').toLowerCase().includes(vibeFilter));
     }
@@ -154,7 +57,10 @@ export async function GET(request) {
     `;
 
     const binds = [myId];
-    const whereClauses = [];
+    const whereClauses = [
+      "p.user_id NOT LIKE 'candidate_%'",
+      "p.user_id != 'zodia_bot'"
+    ];
     if (vibeFilter !== 'todos') {
       whereClauses.push(`LOWER(p.vibe_tag) LIKE ?`);
       binds.push(`%${vibeFilter}%`);
@@ -171,7 +77,6 @@ export async function GET(request) {
 
     const { results } = await db.prepare(query).bind(...binds).all();
 
-    // Si la tabla D1 aún no tiene posts de usuarios, integrar la semilla cósmica
     let posts = (results || []).map(row => {
       let poll = null;
       if (row.poll_data) {
@@ -214,18 +119,10 @@ export async function GET(request) {
       };
     });
 
-    if (posts.length === 0) {
-      let filteredSeed = SEED_FEED_POSTS;
-      if (vibeFilter !== 'todos') {
-        filteredSeed = filteredSeed.filter(p => (p.vibe_tag || '').toLowerCase().includes(vibeFilter));
-      }
-      posts = filteredSeed;
-    }
-
     return NextResponse.json({ posts });
   } catch (err) {
     console.error("Error obteniendo publicaciones del feed:", err);
-    return NextResponse.json({ posts: devFeed });
+    return NextResponse.json({ posts: [] });
   }
 }
 

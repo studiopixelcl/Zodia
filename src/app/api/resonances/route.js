@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, resolveUserId, resolveCanonicalUserId } from '../../../lib/auth-edge';
 import { calculateResonance } from '../../../lib/astrology';
-import { DATING_CANDIDATES } from '../../../lib/dating';
 import { ensureDatabaseSchema } from '../../../lib/db-init';
 
 export const runtime = 'edge';
@@ -179,40 +178,6 @@ export async function GET(request) {
       });
     } catch (err) {
       console.error("Error consultando D1 en /api/resonances:", err);
-    }
-  }
-
-  // Integrar catálogo simulado únicamente si no hay colisión con sintonizadores reales ni matches existentes
-  const existingIds = new Set(othersList.map(o => o.id));
-  const realNames = othersList.map(o => (o.name || '').toLowerCase());
-
-  for (const candidate of DATING_CANDIDATES) {
-    if (!existingIds.has(candidate.id) && candidate.id !== rawMyId && !matchedIds.has(candidate.id)) {
-      // Si existe un sintonizador real con el mismo nombre (ej: Camila), suprimir candidato simulado para no eclipsar al usuario auténtico
-      const candidateFirst = (candidate.name || '').toLowerCase().split(' ')[0];
-      const hasRealConflict = realNames.some(rn => rn.includes(candidateFirst));
-      if (hasRealConflict) continue;
-
-      othersList.push({
-        id: candidate.id,
-        name: candidate.name,
-        age: candidate.age || 26,
-        image: candidate.image,
-        sign: candidate.sign,
-        element: candidate.element,
-        path: candidate.life_path_number,
-        archetype: candidate.archetype,
-        bio: candidate.bio,
-        intent: candidate.intent || 'Citas y Pareja',
-        location: candidate.location || 'Santiago, Chile',
-        distanceKm: candidate.distanceKm || 4,
-        photos: candidate.photos || [candidate.image],
-        video_url: candidate.video_url || null,
-        interests: candidate.interests || ['Astrología', 'Música indie'],
-        likesYou: candidate.likesYou ?? false,
-        is_verified: candidate.is_verified ?? true,
-        isRealUser: false
-      });
     }
   }
 

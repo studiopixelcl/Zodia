@@ -13,67 +13,7 @@ async function getDB() {
   }
 }
 
-// Respuestas contextuales de citas y sintonizadores
-const BOT_RESPONSES = {
-  zodia_bot: [
-    "Las constelaciones observan tu mensaje. Tu frecuencia está alineada con el propósito de tu camino de vida.",
-    "El éter procesa tu consulta. Confía en la intuición que nace de tu centro espiritual hoy.",
-    "Para conquistar a signos de Fuego, sé directo y audaz; para signos de Agua, abre tu vulnerabilidad."
-  ],
-  candidate_valeria: [
-    "¡Hola! Me alegra que hayamos hecho match 😊 ¿Qué tipo de música te gusta escuchar cuando necesitas desconectar?",
-    "¡Totalmente de acuerdo! Como Leo suelo ser súper intensa con mis proyectos, pero adoro una buena charla relajada ✨",
-    "¡Jajaja me hiciste reír! ¿Tienes algún lugar favorito para tomar un trago o café en la ciudad?",
-    "Me encanta tu energía astral. Siento que las conversaciones fluidas son difíciles de encontrar hoy en día 🔥"
-  ],
-  candidate_mateo: [
-    "¡Hola! Qué buena onda que hayamos conectado. Como buen Piscis a veces me pierdo en mis pensamientos, pero aquí estoy jaja 🌊",
-    "Me encanta eso. Si tuvieses que elegir una canción que resuma tu momento actual, ¿cuál sería?",
-    "¡Qué buena respuesta! Oye, ¿eres más de planes tranquilos de domingo o de salir a explorar?",
-    "Siento que nuestra sinergia astral tiene mucho sentido. Me encanta conocer gente con profundidad ✨"
-  ],
-  candidate_camila: [
-    "¡Hola! Me llamó mucho la atención tu perfil 📸 ¿Qué es lo que más te apasiona hacer en tus días libres?",
-    "¡Qué interesante! Mi mente Géminis siempre necesita nuevos estímulos jaja. Cuéntame más de eso ✨",
-    "¡Exacto! Oye, conozco un café con una vista hermosa de la cordillera, ¿lo conoces?",
-    "Me encanta cuando alguien tiene buen sentido del humor y sabe conversar de todo un poco."
-  ],
-  candidate_sofia: [
-    "Hola... Qué linda sorpresa nuestra resonancia cósmica 🌙 ¿Crees que las conexiones se eligen o simplemente suceden?",
-    "Qué linda forma de expresarlo. Me gusta la gente que no se queda en lo superficial.",
-    "Dicen que los Escorpio somos un enigma, pero en realidad solo valoramos la autenticidad pura.",
-    "Me encantaría saber qué es lo que más te motiva en la vida ahora mismo ✨"
-  ],
-  candidate_nicolas: [
-    "¡Ey qué tal! Qué bueno coincidir por aquí. ¿Haces deporte o te gusta salir a la montaña?",
-    "¡Buena esa! Yo estoy planeando una escapada para el próximo fin de semana, amo no quedarme quieto 🚀",
-    "¡Jajaja genial! Oye, ¿café o cerveza para una primera charla?",
-    "Buena vibra total. ¡Se nota la afinidad cósmica!"
-  ],
-  candidate_elena: [
-    "¡Hola! Qué hermosa sintonía tenemos 🌸 ¿Cómo estuvo tu día hoy?",
-    "Me encanta lo que dices. Disfruto mucho los pequeños detalles y la buena conversación.",
-    "¡Totalmente! Hay que buscar momentos de paz y buena compañía.",
-    "Si te gusta el arte o la música suave, creo que nos vamos a llevar increíble ✨"
-  ]
-};
 
-function generateGuideReply(receiverId, userContent) {
-  const isAudio = userContent.includes('"type":"audio"') || userContent.includes('audio_') || userContent.includes('.webm') || userContent.includes('.m4a');
-  if (isAudio) {
-    const audioResponses = [
-      "¡Qué linda tu nota de voz! Me encanta poder escuchar tu tono y tu ritmo, se siente una vibra súper cálida y cercana ✨",
-      "¡Me encantó tu audio! Escuchar la voz de alguien transmite mil veces más que un simple texto plano. ¡Totalmente en sintonía!",
-      "¡Qué linda tu energía al hablar! Me alegra mucho que nos hayamos animado a conectar por aquí 🌙",
-      "¡Me sacaste una sonrisa con tu audio! Tienes una voz muy linda y auténtica 😊"
-    ];
-    return audioResponses[Math.floor(Math.random() * audioResponses.length)];
-  }
-
-  const list = BOT_RESPONSES[receiverId] || BOT_RESPONSES.zodia_bot;
-  const index = Math.abs(userContent.length + Date.now()) % list.length;
-  return list[index];
-}
 
 export async function GET(request) {
   const token = await getAuthUser(request);
@@ -177,6 +117,10 @@ export async function POST(request) {
     }
   }
 
+  if (actualReceiverId.startsWith('candidate_') || actualReceiverId.startsWith('guide_') || actualReceiverId === 'zodia_bot') {
+    return NextResponse.json({ error: "No es posible enviar mensajes a perfiles simulados." }, { status: 400 });
+  }
+
   const cleanContent = content.trim();
   const userMsgObj = {
     id: Date.now(),
@@ -186,36 +130,24 @@ export async function POST(request) {
     created_at: new Date().toISOString()
   };
 
-  const isGuideOrBot = actualReceiverId.startsWith('guide_') || actualReceiverId.startsWith('candidate_') || actualReceiverId === 'zodia_bot';
-
   if (!db) {
     try {
       const { devStore } = await import('../../../lib/dev-store');
       devStore.messages.push(userMsgObj);
-      if (!isGuideOrBot) {
-        devStore.resonances.push({ user_a_id: myId, user_b_id: actualReceiverId, score: 92 });
-        // Emitir notificación in-app en memoria
-        const isAudio = cleanContent.includes('"type":"audio"');
-        const preview = isAudio ? '🎤 Te envió una nota de voz cósmica' : (cleanContent.length > 50 ? cleanContent.slice(0, 50) + '...' : cleanContent);
-        devStore.notifications.unshift({
-          id: Date.now(),
-          user_id: actualReceiverId,
-          title: `${token.name || 'Alguien'} te envió un mensaje 💬`,
-          body: preview,
-          url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
-          type: 'message',
-          is_read: 0,
-          created_at: new Date().toISOString()
-        });
-      } else {
-        devStore.messages.push({
-          id: Date.now() + 1,
-          sender_id: actualReceiverId,
-          receiver_id: myId,
-          content: generateGuideReply(actualReceiverId, cleanContent),
-          created_at: new Date(Date.now() + 1000).toISOString()
-        });
-      }
+      devStore.resonances.push({ user_a_id: myId, user_b_id: actualReceiverId, score: 92 });
+      // Emitir notificación in-app en memoria
+      const isAudio = cleanContent.includes('"type":"audio"');
+      const preview = isAudio ? '🎤 Te envió una nota de voz cósmica' : (cleanContent.length > 50 ? cleanContent.slice(0, 50) + '...' : cleanContent);
+      devStore.notifications.unshift({
+        id: Date.now(),
+        user_id: actualReceiverId,
+        title: `${token.name || 'Alguien'} te envió un mensaje 💬`,
+        body: preview,
+        url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
+        type: 'message',
+        is_read: 0,
+        created_at: new Date().toISOString()
+      });
     } catch {}
     return NextResponse.json(userMsgObj);
   }
@@ -227,30 +159,22 @@ export async function POST(request) {
       VALUES (?, ?, ?, ?, 0)
     `).bind(myId, actualReceiverId, cleanContent, cleanContent).run();
 
-    // 2. Si es guía/bot, guardar respuesta mística
-    if (isGuideOrBot) {
-      const replyText = generateGuideReply(actualReceiverId, cleanContent);
-      await db.prepare(`
-        INSERT INTO messages (sender_id, receiver_id, content, contenido, is_read)
-        VALUES (?, ?, ?, ?, 1)
-      `).bind(actualReceiverId, myId, replyText, replyText).run();
-    } else {
-      // 3. Garantizar que ambos usuarios estén vinculados en la tabla de resonancias
-      try {
-        const existingRes = await db.prepare(`
-          SELECT id FROM resonances
-          WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
-        `).bind(myId, actualReceiverId, actualReceiverId, myId).first();
+    // 2. Garantizar que ambos usuarios estén vinculados en la tabla de resonancias
+    try {
+      const existingRes = await db.prepare(`
+        SELECT id FROM resonances
+        WHERE (user_a_id = ? AND user_b_id = ?) OR (user_a_id = ? AND user_b_id = ?)
+      `).bind(myId, actualReceiverId, actualReceiverId, myId).first();
 
-        if (!existingRes) {
-          await db.prepare(`
-            INSERT INTO resonances (user_a_id, user_b_id, score)
-            VALUES (?, ?, 92)
-          `).bind(myId, actualReceiverId).run();
-        }
-      } catch (rErr) {
-        console.warn('Error asegurando resonancia:', rErr.message);
+      if (!existingRes) {
+        await db.prepare(`
+          INSERT INTO resonances (user_a_id, user_b_id, score)
+          VALUES (?, ?, 92)
+        `).bind(myId, actualReceiverId).run();
       }
+    } catch (rErr) {
+      console.warn('Error asegurando resonancia:', rErr.message);
+    }
 
       // 4. Emitir notificación al destinatario
       const isAudio = cleanContent.includes('"type":"audio"');
@@ -268,17 +192,16 @@ export async function POST(request) {
         url: `/zodia/dashboard?tab=vinculos&userId=${myId}`,
         type: 'message'
       });
-    }
 
-    return NextResponse.json({
-      id: result.meta?.last_row_id ?? Date.now(),
-      sender_id: myId,
-      receiver_id: actualReceiverId,
-      content: cleanContent,
-      is_read: 0,
-      created_at: new Date().toISOString()
-    });
-  } catch (err) {
+      return NextResponse.json({
+        id: result.meta?.last_row_id ?? Date.now(),
+        sender_id: myId,
+        receiver_id: actualReceiverId,
+        content: cleanContent,
+        is_read: 0,
+        created_at: new Date().toISOString()
+      });
+    } catch (err) {
     console.error("Error al enviar mensaje:", err);
     return NextResponse.json({ error: "Fallo al transmitir el mensaje místico.", details: err.message }, { status: 500 });
   }

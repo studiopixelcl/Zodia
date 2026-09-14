@@ -10,99 +10,8 @@ import { AstralStoriesViewerModal } from './AstralStoriesViewerModal';
 import { AstralPortalModal } from './AstralPortalModal';
 import { compressImage } from '../../lib/media-processor';
 
-// Historias garantizadas de la comunidad para que el carrusel nunca aparezca vacío
-const DEFAULT_COMMUNITY_STORIES = [
-  {
-    userId: 'candidate_valeria',
-    authorName: 'Valeria Ríos',
-    authorImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-    authorSign: 'Leo',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_valeria_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=900&auto=format&fit=crop&q=80',
-        caption: 'Atardecer dorado en la ciudad... la energía de Leo hoy pide bailar y desconectar ✨🌅',
-        vibeTag: '🔥 Energía Solar',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'story_valeria_2',
-        mediaUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=900&auto=format&fit=crop&q=80',
-        caption: 'Probando nuevos cortes y colores para la colección de verano 🪡💫',
-        vibeTag: '🎨 Creatividad',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_mateo',
-    authorName: 'Mateo Silva',
-    authorImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300',
-    authorSign: 'Piscis',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_mateo_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=900&auto=format&fit=crop&q=80',
-        caption: 'Café de especialidad y vinilos viejos. La tarde perfecta de desconexión ☕🎶',
-        vibeTag: '🌊 Calma y Melodía',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_camila',
-    authorName: 'Camila Beltrán',
-    authorImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300',
-    authorSign: 'Géminis',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_camila_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=900&auto=format&fit=crop&q=80',
-        caption: 'Encontré esta librería escondida en el centro. La vibra es de otra época 📚🪐',
-        vibeTag: '✨ Curiosidad',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_lucas',
-    authorName: 'Lucas Morales',
-    authorImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300',
-    authorSign: 'Aries',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_lucas_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=900&auto=format&fit=crop&q=80',
-        caption: 'Cima alcanzada antes del amanecer. La vista no tiene precio 🏔️⚡',
-        vibeTag: '🔥 Aventura & Montaña',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  },
-  {
-    userId: 'candidate_sofia',
-    authorName: 'Sofía Carranza',
-    authorImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
-    authorSign: 'Escorpio',
-    hasUnseen: true,
-    stories: [
-      {
-        id: 'story_sofia_1',
-        mediaUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900&auto=format&fit=crop&q=80',
-        caption: 'Cielo estrellado y noche de oráculo. Las cartas marcan transformación 🔮✨',
-        vibeTag: '🌙 Mística',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  }
-];
-
 export function AstralStoriesRail({ currentUser, profile, compact = false }) {
-  const [storyGroups, setStoryGroups] = useState(DEFAULT_COMMUNITY_STORIES);
+  const [storyGroups, setStoryGroups] = useState([]);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [activeStoryGroupIdx, setActiveStoryGroupIdx] = useState(0);
 
@@ -143,9 +52,7 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
       if (res.ok) {
         const data = await res.json();
         const loaded = data.stories || data.userStories || [];
-        if (Array.isArray(loaded) && loaded.length > 0) {
-          setStoryGroups(loaded);
-        }
+        setStoryGroups(Array.isArray(loaded) ? loaded : []);
       }
     } catch (err) {
       console.error("Error al sincronizar historias efímeras:", err);
@@ -469,6 +376,14 @@ export function AstralStoriesRail({ currentUser, profile, compact = false }) {
             </div>
           );
         })}
+
+        {/* Si no hay otras historias aún */}
+        {otherStoryGroups.length === 0 && (
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/5 text-gray-400 text-[11px] font-light shrink-0">
+            <Sparkles size={12} className="text-cyan-400" />
+            <span>Sé el primero en compartir tu historia hoy</span>
+          </div>
+        )}
       </div>
 
       {/* Visor de Pantalla Completa de Historias */}
