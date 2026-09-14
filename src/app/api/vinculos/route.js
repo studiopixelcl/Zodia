@@ -265,3 +265,67 @@ export async function GET(request) {
 
   return NextResponse.json(resultVinculos);
 }
+
+export async function POST(request) {
+  const token = await getAuthUser(request);
+  if (!token) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+  }
+
+  const { recipientId, content } = body;
+  if (!recipientId) {
+    return NextResponse.json({ error: "recipientId requerido" }, { status: 400 });
+  }
+
+  const db = await getDB();
+  const rawId = resolveUserId(token);
+
+  if (db) {
+    try {
+      const myCanonicalId = await resolveCanonicalUserId(db, token);
+      const myId = myCanonicalId || rawId;
+
+      // 1. Verificar o insertar resonancia (Match)
+      const existingRes = await db.prepare(`
+        SELECT id FROM resonances
+        WHERE (user_a_id IN (?, ?) AND user_b_id IN (?, ?)) 
+           OR (user_a_id IN (?, ?) AND user_b_id IN (?, ?))
+      `).bind(myId, rawId, recipientId, recipientId, recipientId, recipientId, myId, rawId).first();
+
+      if (!existingRes) {
+        await db.prepare(`
+          INSERT INTO resonances (user_a_id, user_b_id, score)
+          VALUES (?, ?, ?)
+        `).bind(myId, recipientId, 95).run();
+      }
+
+      // 2. Registrar interacción 'like'
+      await db.prepare(`
+        INSERT OR REPLACE INTO interactions (user_id, target_id, type)
+        VALUES (?, ?, 'like')
+      `).bind(myId, recipientId).run().catch(() => {});
+
+      // 3. Enviar mensaje inicial si se incluyó contenido
+      if (content) {
+        await db.prepare(`
+          INSERT INTO messages (sender_id, receiver_id, content)
+          VALUES (?, ?, ?)
+        `).bind(myId, recipientId, content).run().catch(() => {});
+      }
+
+      return NextResponse.json({ success: true, isMatch: true });
+    } catch (err) {
+      console.error("Error al persistir vínculo en POST /api/vinculos:", err);
+      return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({ success: true, mock: true });
+}

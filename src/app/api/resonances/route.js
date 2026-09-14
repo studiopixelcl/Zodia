@@ -44,6 +44,7 @@ export async function GET(request) {
 
   let myProfile = defaultMyProfile;
   let othersList = [];
+  let matchedIds = new Set();
 
   if (db) {
     try {
@@ -62,6 +63,15 @@ export async function GET(request) {
       if (fetched) {
         myProfile = fetched;
       }
+
+      // 1.5 Obtener IDs de usuarios con los que ya existe Match mutuo (resonances)
+      const matchesRows = await db.prepare(`
+        SELECT CASE WHEN user_a_id IN (?, ?) THEN user_b_id ELSE user_a_id END AS other_id
+        FROM resonances
+        WHERE user_a_id IN (?, ?) OR user_b_id IN (?, ?)
+      `).bind(activeMyId, rawMyId, activeMyId, rawMyId).all().catch(() => ({ results: [] }));
+
+      matchedIds = new Set((matchesRows?.results || []).map(r => r.other_id).filter(Boolean));
 
       // 2. Obtener todos los demás sintonizadores reales desde la tabla users
       const dbOthers = await db.prepare(`
@@ -100,7 +110,9 @@ export async function GET(request) {
         LIMIT 60
       `).bind(activeMyId, rawMyId, myEmail).all();
 
-      othersList = (dbOthers.results || []).map(o => {
+      othersList = (dbOthers.results || [])
+        .filter(o => !matchedIds.has(o.user_id))
+        .map(o => {
         let photoList = [];
         try {
           photoList = typeof o.photos === 'string' ? JSON.parse(o.photos) : (o.photos || []);
@@ -170,12 +182,12 @@ export async function GET(request) {
     }
   }
 
-  // Integrar catálogo simulado únicamente si no hay colisión con sintonizadores reales
+  // Integrar catálogo simulado únicamente si no hay colisión con sintonizadores reales ni matches existentes
   const existingIds = new Set(othersList.map(o => o.id));
   const realNames = othersList.map(o => (o.name || '').toLowerCase());
 
   for (const candidate of DATING_CANDIDATES) {
-    if (!existingIds.has(candidate.id) && candidate.id !== rawMyId) {
+    if (!existingIds.has(candidate.id) && candidate.id !== rawMyId && !matchedIds.has(candidate.id)) {
       // Si existe un sintonizador real con el mismo nombre (ej: Camila), suprimir candidato simulado para no eclipsar al usuario auténtico
       const candidateFirst = (candidate.name || '').toLowerCase().split(' ')[0];
       const hasRealConflict = realNames.some(rn => rn.includes(candidateFirst));

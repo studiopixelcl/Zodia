@@ -2,9 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Sparkles, Heart, Send, Clock, Shield, Eye, Flame, 
-  MessageCircle, Loader2, Compass, CheckCircle2, Star, RefreshCw
+  MessageCircle, Loader2, Compass, CheckCircle2, Star, RefreshCw,
+  Info, Quote, Sun
 } from 'lucide-react';
 import { ZodiacBadge } from './ZodiacBadge';
+import { ZODIAC_DETAILS, getZodiacSymbol } from '../../lib/astrology';
 import { apiFetch } from '../../lib/api';
 import { 
   playMatchCelebrationSound, 
@@ -22,6 +24,8 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
   const [inputMessage, setInputMessage] = useState('');
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const [isSavedToVinculos, setIsSavedToVinculos] = useState(false);
+  const [showPartnerInfo, setShowPartnerInfo] = useState(false);
+  const [infoTab, setInfoTab] = useState('signo'); // 'signo' | 'perfil'
 
   const messagesEndRef = useRef(null);
   const timerRef = useRef(null);
@@ -275,14 +279,237 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
             </p>
           </div>
         ) : session ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden relative">
+            
+            {/* ── PANEL DESPLEGABLE: INFORMACIÓN SOBRE EL SIGNO & PERFIL EN LA CITA ── */}
+            {showPartnerInfo && (
+              <div className="absolute inset-0 z-50 bg-gradient-to-b from-[#0e0a1f] via-black to-[#070914] flex flex-col overflow-hidden animate-fadeIn">
+                {/* Cabecera del Panel */}
+                <div className="p-3.5 border-b border-white/10 bg-black/60 backdrop-blur-md flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <ZodiacBadge sign={session.partner.sign} size="sm" />
+                    <div>
+                      <h4 className="mystic-font text-white text-sm font-bold flex items-center gap-1.5">
+                        {session.partner.sign}
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-normal">
+                          {session.partner.element}
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-gray-400">
+                        {isRevealed ? session.partner.fullName : session.partner.name} • {session.partner.age} años
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPartnerInfo(false)}
+                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition"
+                    title="Cerrar panel y volver al chat"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Selector de Pestañas: 1. Signo Astral | 2. Descripción de Perfil */}
+                <div className="p-3 border-b border-white/5 bg-black/40 flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setInfoTab('signo')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      infoTab === 'signo'
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]'
+                        : 'text-gray-400 hover:text-white bg-white/5'
+                    }`}
+                  >
+                    <Sparkles size={13} className="text-amber-300" />
+                    <span>Panel del Signo Astral</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInfoTab('perfil')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      infoTab === 'perfil'
+                        ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                        : 'text-gray-400 hover:text-white bg-white/5'
+                    }`}
+                  >
+                    <Info size={13} className="text-cyan-300" />
+                    <span>Descripción del Perfil</span>
+                  </button>
+                </div>
+
+                {/* Contenido scrolleable */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
+                  {infoTab === 'signo' ? (
+                    <div className="space-y-3">
+                      {/* Cómo ama en las citas (Destacado Principal) */}
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-pink-950/40 via-purple-950/30 to-black/70 border border-pink-500/30 space-y-1.5 shadow-lg">
+                        <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs uppercase tracking-wider">
+                          <Heart size={14} className="fill-pink-400 text-pink-400" />
+                          <span>Cómo ama {session.partner.sign} en las citas</span>
+                        </div>
+                        <p className="text-gray-100 text-xs leading-relaxed italic font-light">
+                          "{ZODIAC_DETAILS[session.partner.sign]?.loveDescription || 'Conexión guiada por la autenticidad y la búsqueda de complicidad profunda.'}"
+                        </p>
+                      </div>
+
+                      {/* Regente Planetario & Modalidad */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-0.5">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Regente Planetario</span>
+                          <span className="text-white font-semibold text-xs flex items-center gap-1.5">
+                            <Sun size={13} className="text-amber-400" />
+                            {ZODIAC_DETAILS[session.partner.sign]?.ruler || 'Cosmos'}
+                          </span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-0.5">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Modalidad</span>
+                          <span className="text-cyan-300 font-semibold text-xs flex items-center gap-1.5">
+                            <Compass size={13} className="text-cyan-400" />
+                            {ZODIAC_DETAILS[session.partner.sign]?.modality || 'Armónica'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Mantra Sagrado */}
+                      {ZODIAC_DETAILS[session.partner.sign]?.mantra && (
+                        <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-400/20 text-center">
+                          <span className="text-[9px] text-purple-300 font-mono uppercase tracking-widest block mb-0.5">Mantra del Signo</span>
+                          <p className="text-xs text-purple-100 font-medium italic">
+                            "{ZODIAC_DETAILS[session.partner.sign]?.mantra}"
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Personalidad y Esencia */}
+                      {ZODIAC_DETAILS[session.partner.sign]?.personality && (
+                        <div className="p-3 rounded-xl bg-black/50 border border-white/10 space-y-1">
+                          <span className="text-[10px] text-cyan-300 uppercase tracking-wider block font-bold">
+                            Esencia & Personalidad
+                          </span>
+                          <p className="text-gray-300 text-xs leading-relaxed font-light">
+                            {ZODIAC_DETAILS[session.partner.sign]?.personality}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Luz y Sombra */}
+                      <div className="grid grid-cols-2 gap-2.5 text-xs">
+                        <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-400/30 space-y-1">
+                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <Sparkles size={11} /> Luz
+                          </span>
+                          <p className="text-emerald-100 leading-snug text-[11px]">
+                            {ZODIAC_DETAILS[session.partner.sign]?.luz || 'Generosidad, lealtad y empatía'}
+                          </p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-rose-950/20 border border-rose-400/30 space-y-1">
+                          <span className="text-[10px] text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <Shield size={11} /> Desafío
+                          </span>
+                          <p className="text-rose-100 leading-snug text-[11px]">
+                            {ZODIAC_DETAILS[session.partner.sign]?.sombra || 'Impulsividad o cautela excesiva'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Signos más afines */}
+                      {ZODIAC_DETAILS[session.partner.sign]?.idealMatches && (
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-wider block">
+                            Signos con Mayor Sintonía Natural
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ZODIAC_DETAILS[session.partner.sign]?.idealMatches.map((mSign) => (
+                              <span
+                                key={mSign}
+                                className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs font-semibold"
+                              >
+                                {getZodiacSymbol(mSign)} {mSign}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Pestaña: Descripción del Perfil */
+                    <div className="space-y-3">
+                      {/* Biografía completa / Sobre mí */}
+                      <div className="p-4 rounded-2xl bg-black/60 border border-cyan-500/30 space-y-2 shadow-lg">
+                        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Quote size={13} /> Sobre Mí (Descripción del Perfil)
+                        </span>
+                        <p className="text-gray-100 leading-relaxed italic text-xs font-light">
+                          "{session.partner.bio || 'Explorando conexiones genuinas y compartiendo momentos que inspiran.'}"
+                        </p>
+                      </div>
+
+                      {/* Intención en la app */}
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                        <span className="text-xs text-gray-300">Intención en la cita:</span>
+                        <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-bold text-xs">
+                          {session.partner.intent || 'Citas y Pareja'}
+                        </span>
+                      </div>
+
+                      {/* Pasiones & Gustos */}
+                      {session.partner.interests && session.partner.interests.length > 0 && (
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                            Pasiones & Temas de Conversación
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {session.partner.interests.map((tag, i) => (
+                              <span
+                                key={i}
+                                className="px-2.5 py-1 rounded-full bg-purple-500/15 border border-purple-400/30 text-purple-200 text-[11px] font-medium"
+                              >
+                                ✨ {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Datos Cósmicos del Perfil */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-0.5">
+                          <span className="text-[10px] text-gray-400 uppercase block">Arquetipo</span>
+                          <span className="text-white font-bold text-xs">{session.partner.archetype || 'El Mago'}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-0.5">
+                          <span className="text-[10px] text-gray-400 uppercase block">Camino de Vida</span>
+                          <span className="text-amber-400 font-bold text-xs">{session.partner.path || 7}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pie del Panel: Volver al chat */}
+                <div className="p-3 border-t border-white/10 bg-black/80 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartnerInfo(false)}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:opacity-95 text-white font-bold text-xs shadow-lg active:scale-98 transition cursor-pointer"
+                  >
+                    Volver a la Charla de la Cita
+                  </button>
+                </div>
+              </div>
+            )}
             
             {/* ── TARJETA DEL CANDIDATO A CIEGAS (FOTO DIFUMINADA O REVELADA) ── */}
             <div className="p-3.5 bg-gradient-to-r from-purple-950/40 via-black to-cyan-950/40 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-3.5">
                 
                 {/* Marco de foto con Astral Blur */}
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-purple-500/40 shadow-lg">
+                <div 
+                  onClick={() => setShowPartnerInfo(true)}
+                  className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-purple-500/40 shadow-lg cursor-pointer hover:border-cyan-400 transition"
+                  title="Ver panel del signo y perfil"
+                >
                   <img
                     src={typeof session.partner.image === 'string' ? session.partner.image.replace(/w=\d+/, 'w=1200') : session.partner.image}
                     alt="Cita a ciegas"
@@ -313,7 +540,11 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
                 {/* Detalles de Afinidad & Carta Natal */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <h4 className="text-base sm:text-lg font-bold mystic-font text-white truncate">
+                    <h4 
+                      onClick={() => setShowPartnerInfo(true)}
+                      className="text-base sm:text-lg font-bold mystic-font text-white truncate cursor-pointer hover:text-cyan-300 transition"
+                      title="Ver información del signo y perfil"
+                    >
                       {isRevealed ? session.partner.fullName : session.partner.name}
                     </h4>
                     <span className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/40 text-pink-300 text-[10px] font-extrabold shrink-0">
@@ -322,25 +553,51 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-cyan-300 font-medium mb-1">
-                    <span>{session.partner.sign}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInfoTab('signo');
+                        setShowPartnerInfo(true);
+                      }}
+                      className="hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <span>{session.partner.sign}</span>
+                    </button>
                     <span>•</span>
                     <span className="text-gray-400">{session.partner.element}</span>
                     <span>•</span>
                     <span className="text-gray-400">{session.partner.age} años</span>
                   </div>
 
-                  <p className="text-[11px] text-gray-300 line-clamp-1 italic font-light">
+                  <p 
+                    onClick={() => {
+                      setInfoTab('perfil');
+                      setShowPartnerInfo(true);
+                    }}
+                    className="text-[11px] text-gray-300 line-clamp-1 italic font-light cursor-pointer hover:text-white transition"
+                    title="Clic para ver descripción completa"
+                  >
                     "{session.partner.bio}"
                   </p>
                 </div>
 
-                {/* Botón de Revelar Sintonía */}
-                <div className="shrink-0 flex flex-col items-end gap-1">
+                {/* Botones de Acción: Signo & Perfil y Revelar/Match */}
+                <div className="shrink-0 flex flex-col items-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartnerInfo(true)}
+                    className="py-1 px-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/30 text-purple-200 hover:text-white font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer"
+                    title="Ver panel del signo y descripción de perfil"
+                  >
+                    <Info size={11} className="text-cyan-300" />
+                    <span>Signo & Perfil</span>
+                  </button>
+
                   {!isRevealed ? (
                     <button
                       type="button"
                       onClick={() => handleTriggerReveal(false)}
-                      className="py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-fuchsia-500 hover:opacity-90 text-black font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95 transition cursor-pointer"
+                      className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-fuchsia-500 hover:opacity-90 text-black font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95 transition cursor-pointer"
                     >
                       <Eye size={13} />
                       <span>Revelar</span>
@@ -350,7 +607,7 @@ export function BlindDateModal({ isOpen, onClose, onConnectPartner, userProfile 
                       type="button"
                       onClick={handleSaveToVinculos}
                       disabled={isSavedToVinculos}
-                      className={`py-2 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition ${
+                      className={`py-1.5 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition ${
                         isSavedToVinculos
                           ? 'bg-emerald-500/20 border border-emerald-400 text-emerald-300'
                           : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg cursor-pointer'

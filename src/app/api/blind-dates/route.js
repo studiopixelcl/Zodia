@@ -23,12 +23,32 @@ export async function GET(request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  const db = await getDB();
   const rawId = resolveUserId(token);
   let session = activeBlindSessions.get(rawId);
 
   if (!session) {
-    // Escoger un candidato afín para la cita a ciegas
-    const partnerCandidate = DATING_CANDIDATES[Math.floor(Math.random() * Math.min(3, DATING_CANDIDATES.length))] || DATING_CANDIDATES[0];
+    let matchedIds = new Set();
+    if (db) {
+      try {
+        await ensureDatabaseSchema(db);
+        const myCanonicalId = await resolveCanonicalUserId(db, token);
+        const activeId = myCanonicalId || rawId;
+        const matchesRows = await db.prepare(`
+          SELECT CASE WHEN user_a_id IN (?, ?) THEN user_b_id ELSE user_a_id END AS other_id
+          FROM resonances
+          WHERE user_a_id IN (?, ?) OR user_b_id IN (?, ?)
+        `).bind(activeId, rawId, activeId, rawId).all().catch(() => ({ results: [] }));
+        matchedIds = new Set((matchesRows?.results || []).map(r => r.other_id).filter(Boolean));
+      } catch (err) {
+        console.error("Error al obtener matches en blind-dates:", err);
+      }
+    }
+
+    // Filtrar candidatos con los que no se tenga match previo
+    const availableCandidates = DATING_CANDIDATES.filter(c => !matchedIds.has(c.id) && c.id !== rawId);
+    const pool = availableCandidates.length > 0 ? availableCandidates : DATING_CANDIDATES;
+    const partnerCandidate = pool[Math.floor(Math.random() * Math.min(4, pool.length))] || pool[0];
     
     session = {
       id: 'blind_' + Date.now(),
@@ -63,6 +83,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  const db = await getDB();
   let body;
   try {
     body = await request.json();
@@ -75,7 +96,25 @@ export async function POST(request) {
   let session = activeBlindSessions.get(rawId);
 
   if (action === 'start_new') {
-    const partnerCandidate = DATING_CANDIDATES[Math.floor(Math.random() * DATING_CANDIDATES.length)];
+    let matchedIds = new Set();
+    if (db) {
+      try {
+        await ensureDatabaseSchema(db);
+        const myCanonicalId = await resolveCanonicalUserId(db, token);
+        const activeId = myCanonicalId || rawId;
+        const matchesRows = await db.prepare(`
+          SELECT CASE WHEN user_a_id IN (?, ?) THEN user_b_id ELSE user_a_id END AS other_id
+          FROM resonances
+          WHERE user_a_id IN (?, ?) OR user_b_id IN (?, ?)
+        `).bind(activeId, rawId, activeId, rawId).all().catch(() => ({ results: [] }));
+        matchedIds = new Set((matchesRows?.results || []).map(r => r.other_id).filter(Boolean));
+      } catch {}
+    }
+
+    const availableCandidates = DATING_CANDIDATES.filter(c => !matchedIds.has(c.id) && c.id !== rawId);
+    const pool = availableCandidates.length > 0 ? availableCandidates : DATING_CANDIDATES;
+    const partnerCandidate = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+
     session = {
       id: 'blind_' + Date.now(),
       userId: rawId,

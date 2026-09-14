@@ -4,9 +4,9 @@ import {
   Sparkles, Flame, Mountain, Wind, Droplets, Filter, ArrowRight, 
   MapPin, Heart, MessageCircle, X, Star, Shield, RotateCcw, 
   Zap, Search, ChevronRight, Check, Compass, SlidersHorizontal, Info, Eye,
-  Play, Video, CheckCircle2
+  Play, Video, CheckCircle2, Sun, Quote
 } from 'lucide-react';
-import { getZodiacSymbol } from '../../lib/astrology';
+import { getZodiacSymbol, ZODIAC_DETAILS } from '../../lib/astrology';
 import { generateAstrologicalIcebreakers, DATING_INTERESTS } from '../../lib/dating';
 import { apiFetch } from '../../lib/api';
 import { ZodiacBadge } from './ZodiacBadge';
@@ -52,6 +52,7 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
 
   // Modales
   const [selectedCandidate, setSelectedCandidate] = useState(null); // Perfil completo
+  const [candidateModalTab, setCandidateModalTab] = useState('perfil'); // 'perfil' | 'signo'
   const [matchData, setMatchData] = useState(null); // Modal de celebración de match
   const [icebreakerModalCandidate, setIcebreakerModalCandidate] = useState(null); // Modal de rompehielos rápido
   const [isBlindDateOpen, setIsBlindDateOpen] = useState(false); // Modal de Cita a Ciegas Cósmica
@@ -144,13 +145,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
       });
       const data = await res.json();
 
-      // Si es un match mutuo, abrir celebración
+      // Si es un match mutuo, abrir celebración y excluir de citas futuras
       if (data.isMatch) {
         setMatchData({
           candidate: targetCandidate,
           userProfile: profile,
           userAvatar: userAvatar || profile?.user_image
         });
+        // Remover al candidato de la baraja activa para que no vuelva a aparecer en las citas
+        setCandidates(prev => prev.filter(c => c.id !== targetCandidate.id));
       }
     } catch (err) {
       console.error("Error al registrar interacción:", err);
@@ -745,7 +748,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                             </div>
                           </div>
                           {/* Insignia zodiacal anclada al avatar */}
-                          <div className="absolute -bottom-1 -right-1">
+                          <div 
+                            className="absolute -bottom-1 -right-1 cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCandidateModalTab('signo');
+                              setSelectedCandidate(currentCandidate);
+                            }}
+                            title="Ver panel del signo astral"
+                          >
                             <ZodiacBadge sign={currentCandidate.sign} size="xs" className="border border-black shadow-md" />
                           </div>
                         </div>
@@ -753,7 +764,15 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                         {/* ── DATOS DEL CANDIDATO ── */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <h2 className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight truncate">
+                            <h2 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCandidateModalTab('perfil');
+                                setSelectedCandidate(currentCandidate);
+                              }}
+                              className="text-xl sm:text-2xl font-extrabold text-white mystic-font drop-shadow-md leading-tight truncate cursor-pointer hover:text-cyan-300 transition pointer-events-auto"
+                              title="Ver descripción de perfil"
+                            >
                               {currentCandidate.name}
                             </h2>
                             {currentCandidate.is_verified && (
@@ -769,7 +788,18 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                           </div>
 
                           <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-300 mt-0.5 font-light flex-wrap">
-                            <span className="text-cyan-400 font-semibold">{currentCandidate.sign}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCandidateModalTab('signo');
+                                setSelectedCandidate(currentCandidate);
+                              }}
+                              className="text-cyan-400 font-semibold hover:underline flex items-center gap-0.5 pointer-events-auto"
+                              title="Ver panel del signo astral"
+                            >
+                              <span>{currentCandidate.sign}</span>
+                            </button>
                             <span>•</span>
                             <span className="text-amber-400 font-semibold">{currentCandidate.element}</span>
                             {currentCandidate.location && (
@@ -805,10 +835,11 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setCandidateModalTab('perfil');
                             setSelectedCandidate(currentCandidate);
                           }}
                           className="p-2 sm:p-2.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/20 transition shadow-lg shrink-0 active:scale-95"
-                          title="Ver perfil completo"
+                          title="Ver perfil completo y signo"
                         >
                           <Info size={16} className="sm:w-[18px] sm:h-[18px]" />
                         </button>
@@ -1282,104 +1313,237 @@ export const TabEter = ({ profile, onSyncUser, userAvatar }) => {
               </div>
             </div>
 
-            {/* Multimedia de Presentación (Video y Fotos) */}
-            {(selectedCandidate.video_url || (selectedCandidate.photos && selectedCandidate.photos.length > 0)) && (
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">
-                  Multimedia de Presentación
-                </span>
-                {selectedCandidate.video_url && (
-                  <div className="relative rounded-2xl overflow-hidden border border-sky-400/40 bg-black mb-2">
-                    <video
-                      src={selectedCandidate.video_url}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-44 object-cover"
-                    />
-                    <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
-                      <Play size={10} className="fill-sky-300" /> Mini Video 5s
+            {/* Selector de Pestañas: 1. Descripción de Perfil | 2. Panel del Signo Astral */}
+            <div className="flex gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
+              <button
+                type="button"
+                onClick={() => setCandidateModalTab('perfil')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  candidateModalTab === 'perfil'
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Info size={13} className="text-cyan-300" />
+                <span>Perfil & Pasiones</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCandidateModalTab('signo')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  candidateModalTab === 'signo'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Sparkles size={13} className="text-amber-300" />
+                <span>Signo Astral: {selectedCandidate.sign}</span>
+              </button>
+            </div>
+
+            {/* Contenido según pestaña activa */}
+            {candidateModalTab === 'signo' ? (
+              <div className="space-y-3 animate-fadeIn">
+                {/* Cómo ama en las citas */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-pink-950/40 via-purple-950/30 to-black/70 border border-pink-500/30 space-y-1.5 shadow-lg">
+                  <div className="flex items-center gap-1.5 text-pink-300 font-bold text-xs uppercase tracking-wider">
+                    <Heart size={14} className="fill-pink-400 text-pink-400" />
+                    <span>Cómo ama {selectedCandidate.sign} en las citas</span>
+                  </div>
+                  <p className="text-gray-100 text-xs leading-relaxed italic font-light">
+                    "{ZODIAC_DETAILS[selectedCandidate.sign]?.loveDescription || 'Conexión guiada por la autenticidad y la búsqueda de complicidad cósmica.'}"
+                  </p>
+                </div>
+
+                {/* Regente Planetario & Modalidad */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-0.5">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Regente Planetario</span>
+                    <span className="text-white font-semibold text-xs flex items-center gap-1.5">
+                      <Sun size={13} className="text-amber-400" />
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.ruler || 'Cosmos'}
                     </span>
                   </div>
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-0.5">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block">Modalidad</span>
+                    <span className="text-cyan-300 font-semibold text-xs flex items-center gap-1.5">
+                      <Compass size={13} className="text-cyan-400" />
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.modality || 'Armónica'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mantra Sagrado */}
+                {ZODIAC_DETAILS[selectedCandidate.sign]?.mantra && (
+                  <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-400/20 text-center">
+                    <span className="text-[9px] text-purple-300 font-mono uppercase tracking-widest block mb-0.5">Mantra Sagrado</span>
+                    <p className="text-xs text-purple-100 font-medium italic">
+                      "{ZODIAC_DETAILS[selectedCandidate.sign]?.mantra}"
+                    </p>
+                  </div>
                 )}
-                {selectedCandidate.photos && selectedCandidate.photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedCandidate.photos.map((photo, i) => {
-                      const photoUrl = typeof photo === 'string' ? photo.replace(/w=\d+/, 'w=1200') : photo;
-                      return (
-                        <img
-                          key={i}
-                          src={photoUrl}
-                          alt={`Foto ${i + 1}`}
-                          onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(selectedCandidate); }}
-                          className="w-full aspect-square object-cover object-[center_18%] rounded-xl border border-white/10 bg-black/40 hover:opacity-90 transition cursor-pointer"
-                        />
-                      );
-                    })}
+
+                {/* Esencia y Personalidad */}
+                {ZODIAC_DETAILS[selectedCandidate.sign]?.personality && (
+                  <div className="p-3 rounded-xl bg-black/50 border border-white/10 space-y-1">
+                    <span className="text-[10px] text-cyan-300 uppercase tracking-wider block font-bold">
+                      Esencia & Personalidad
+                    </span>
+                    <p className="text-gray-300 text-xs leading-relaxed font-light">
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.personality}
+                    </p>
+                  </div>
+                )}
+
+                {/* Luz y Sombra */}
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-400/30 space-y-1">
+                    <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles size={11} /> Luz
+                    </span>
+                    <p className="text-emerald-100 leading-snug text-[11px]">
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.luz || 'Generosidad, lealtad y autenticidad'}
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-rose-950/20 border border-rose-400/30 space-y-1">
+                    <span className="text-[10px] text-rose-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <Shield size={11} /> Desafío
+                    </span>
+                    <p className="text-rose-100 leading-snug text-[11px]">
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.sombra || 'Impulsividad o reserva excesiva'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Signos más afines */}
+                {ZODIAC_DETAILS[selectedCandidate.sign]?.idealMatches && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block">
+                      Signos con Mayor Sintonía Natural
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ZODIAC_DETAILS[selectedCandidate.sign]?.idealMatches.map((mSign) => (
+                        <span
+                          key={mSign}
+                          className="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-400/30 text-purple-200 text-xs font-semibold"
+                        >
+                          {getZodiacSymbol(mSign)} {mSign}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            ) : (
+              <div className="space-y-4 animate-fadeIn">
+                {/* Multimedia de Presentación (Video y Fotos) */}
+                {(selectedCandidate.video_url || (selectedCandidate.photos && selectedCandidate.photos.length > 0)) && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">
+                      Multimedia de Presentación
+                    </span>
+                    {selectedCandidate.video_url && (
+                      <div className="relative rounded-2xl overflow-hidden border border-sky-400/40 bg-black mb-2">
+                        <video
+                          src={selectedCandidate.video_url}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-44 object-cover"
+                        />
+                        <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md border border-sky-400/40 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                          <Play size={10} className="fill-sky-300" /> Mini Video 5s
+                        </span>
+                      </div>
+                    )}
+                    {selectedCandidate.photos && selectedCandidate.photos.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedCandidate.photos.map((photo, i) => {
+                          const photoUrl = typeof photo === 'string' ? photo.replace(/w=\d+/, 'w=1200') : photo;
+                          return (
+                            <img
+                              key={i}
+                              src={photoUrl}
+                              alt={`Foto ${i + 1}`}
+                              onError={(e) => { e.currentTarget.src = getCandidateFallbackPhoto(selectedCandidate); }}
+                              className="w-full aspect-square object-cover object-[center_18%] rounded-xl border border-white/10 bg-black/40 hover:opacity-90 transition cursor-pointer"
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {/* Biografía / Sobre mí */}
-            {selectedCandidate.bio && (
-              <div className="bg-black/50 p-3.5 rounded-2xl border border-white/10 space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
-                  Sobre Mí
-                </span>
-                <p className="text-xs text-gray-200 leading-relaxed italic font-light">
-                  "{selectedCandidate.bio}"
-                </p>
-              </div>
-            )}
+                {/* Biografía / Sobre mí */}
+                {selectedCandidate.bio && (
+                  <div className="bg-black/50 p-3.5 rounded-2xl border border-white/10 space-y-1">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block flex items-center gap-1">
+                      <Quote size={12} /> Sobre Mí (Descripción del Perfil)
+                    </span>
+                    <p className="text-xs text-gray-200 leading-relaxed italic font-light">
+                      "{selectedCandidate.bio}"
+                    </p>
+                  </div>
+                )}
 
-            {/* Pasiones & Intereses */}
-            {selectedCandidate.interests && selectedCandidate.interests.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">
-                  Pasiones & Sintonías
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedCandidate.interests.map((tag, i) => {
-                    const isShared = selectedCandidate.sharedInterests?.includes(tag);
-                    return (
-                      <span
-                        key={i}
-                        className={`px-3 py-1 rounded-full text-xs flex items-center gap-1 border ${
-                          isShared
-                            ? 'bg-cyan-500/25 border-cyan-400 text-white shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                            : 'bg-purple-500/10 border-purple-400/30 text-purple-300'
-                        }`}
-                      >
-                        {isShared && <Sparkles size={11} className="text-amber-300" />}
-                        {tag}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Datos Astrales Clave */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-black/40 p-3 rounded-xl border border-white/10 flex items-center gap-2">
-                <Star size={16} className="text-amber-400 flex-shrink-0" />
-                <div>
-                  <span className="text-[9px] text-gray-400 uppercase block">Camino de Vida</span>
-                  <span className="text-white font-bold">{selectedCandidate.path || 7}</span>
-                </div>
-              </div>
-              <div className="bg-black/40 p-3 rounded-xl border border-white/10 flex items-center gap-2">
-                <Shield size={16} className="text-purple-400 flex-shrink-0" />
-                <div>
-                  <span className="text-[9px] text-gray-400 uppercase block">Arquetipo</span>
-                  <span className="text-white font-bold text-[11px] truncate block max-w-[100px]">
-                    {selectedCandidate.archetype || 'El Ermitaño'}
+                {/* Intención en la app */}
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+                  <span className="text-gray-300 font-medium">Buscando:</span>
+                  <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-bold text-xs">
+                    {selectedCandidate.intent || 'Citas y Pareja'}
                   </span>
                 </div>
+
+                {/* Pasiones & Intereses */}
+                {selectedCandidate.interests && selectedCandidate.interests.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">
+                      Pasiones & Sintonías
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedCandidate.interests.map((tag, i) => {
+                        const isShared = selectedCandidate.sharedInterests?.includes(tag);
+                        return (
+                          <span
+                            key={i}
+                            className={`px-3 py-1 rounded-full text-xs flex items-center gap-1 border ${
+                              isShared
+                                ? 'bg-cyan-500/25 border-cyan-400 text-white shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                                : 'bg-purple-500/10 border-purple-400/30 text-purple-300'
+                            }`}
+                          >
+                            {isShared && <Sparkles size={11} className="text-amber-300" />}
+                            {tag}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Datos Astrales Clave */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-black/40 p-3 rounded-xl border border-white/10 flex items-center gap-2">
+                    <Star size={16} className="text-amber-400 flex-shrink-0" />
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase block">Camino de Vida</span>
+                      <span className="text-white font-bold">{selectedCandidate.path || 7}</span>
+                    </div>
+                  </div>
+                  <div className="bg-black/40 p-3 rounded-xl border border-white/10 flex items-center gap-2">
+                    <Shield size={16} className="text-purple-400 flex-shrink-0" />
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase block">Arquetipo</span>
+                      <span className="text-white font-bold text-[11px] truncate block max-w-[100px]">
+                        {selectedCandidate.archetype || 'El Ermitaño'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Botón de Sinastría Astral Profunda */}
             <button
